@@ -1,9 +1,11 @@
 """Printable documents and academic credentials (owned by backend domain B3).
 
 Rendering
-	render_html(doctype, name, **opts) -> str        # Student Invoice | Student Payment | Fee Statement | Transcript | Certificate
+	render_html(doctype, name, **opts) -> str        # Student Invoice | Student Payment | Fee Statement | Transcript |
+	                                                 # Certificate | Giving Record
 	render_pdf(doctype, name, **opts) -> (filename, bytes)
-	check_access(doctype, name, user=None)           # staff roles per document, or the owning student/applicant/sponsor
+	check_access(doctype, name, user=None)           # staff roles per document, or the owning student/applicant/sponsor,
+	                                                 # the sponsor of the student (invoices, receipts), the giver (gifts)
 
 Credentials
 	transcript_snapshot(student, as_of_term=None) -> dict   # B2 results.transcript_data (fallback: published Course Results)
@@ -13,9 +15,12 @@ Credentials
 	issue_certificates(students, graduation_date, override_fee_check=False) -> dict   # enqueued when > 20
 	verify_code(code, ...) -> dict                   # public verification (minimal, non-sensitive data)
 
-Invoices, receipts and statements carry a signed code `<name>.<8-char HMAC>` in their QR so a printed document can be
+Invoices, receipts, giving receipts and statements carry a signed code `<name>.<8-char HMAC>` in their QR so a printed document can be
 verified at /verify/<code> without exposing a guessable lookup (statements: `<student>.S<yyyymmdd>.<HMAC>`; the
 verification confirms authenticity only and never discloses a balance).
+
+Templates are rendered self-contained (inline CSS, images as data URIs, system fonts) so wkhtmltopdf never makes a
+network request: a remote asset would stall every PDF until wkhtmltopdf's own network timeout.
 """
 
 from __future__ import annotations
@@ -28,13 +33,15 @@ import mimetypes
 import os
 import re
 import subprocess
+from urllib.parse import urlparse
 
 import frappe
+import requests
 from frappe import _
-from frappe.utils import cint, flt, formatdate, getdate, money_in_words, now_datetime, today
+from frappe.utils import cint, flt, formatdate, get_url, getdate, money_in_words, now_datetime, today
 
 from mahanaim.services import fees
-from mahanaim.utils import currency, user_roles
+from mahanaim.utils import ROLE_SPONSOR, currency, user_roles
 
 TEMPLATE_DIR = "mahanaim/templates/print"
 TEMPLATES = {
@@ -43,6 +50,7 @@ TEMPLATES = {
 	"Fee Statement": "fee_statement.html",
 	"Transcript": "transcript.html",
 	"Certificate": "certificate.html",
+	"Giving Record": "giving_receipt.html",
 }
 ADMIN_ROLES = {"System Manager", "College Administrator"}
 STAFF_ACCESS = {
@@ -51,7 +59,11 @@ STAFF_ACCESS = {
 	"Fee Statement": {"Finance Officer", "Auditor", "Registrar"},
 	"Transcript": {"Registrar", "Academic Dean", "Auditor"},
 	"Certificate": {"Registrar", "Academic Dean", "Auditor"},
+	"Giving Record": {"Finance Officer", "Chaplain", "Auditor"},
 }
+# Sponsors may open these for students they sponsor (same rule as the sponsor portal: church.is_sponsored_by).
+SPONSOR_VISIBLE = ("Student Invoice", "Student Payment")
+SIGNED_DOCTYPES = ("Student Payment", "Student Invoice", "Giving Record", "Fee Statement")
 OVERRIDE_ROLES = {"Registrar", *ADMIN_ROLES}
 CREDENTIAL_DOCTYPES = ("Transcript", "Certificate")
 BULK_SYNC_LIMIT = 20
@@ -87,8 +99,54 @@ def _resolve_file(url: str) -> str | None:
 	return None
 
 
+REMOTE_IMAGE_TIMEOUT = 4
+REMOTE_IMAGE_MAX_BYTES = 2 * 1024 * 1024
+
+
+def _own_site_path(url: str) -> str | None:
+	"""Local file behind an absolute URL that points at this site (e.g. https://<site>/files/logo.png)."""
+	parsed = urlparse(url)
+	hosts = {urlparse(get_url()).hostname, getattr(frappe.local, "site", None), "localhost", "127.0.0.1"}
+	return _resolve_file(parsed.path) if parsed.hostname and parsed.hostname in hosts else None
+
+
+def _remote_cache_key(url: str) -> str:
+	return "mahanaim:print_image:" + hashlib.sha1(url.encode()).hexdigest()
+
+
+def _remote_image(url: str) -> str | None:
+	"""Fetch a foreign image once (short timeout, size cap) and cache it as a data URI; failures are cached briefly
+	so a slow network costs at most one short wait instead of stalling every PDF inside wkhtmltopdf."""
+	key = _remote_cache_key(url)
+	cached = frappe.cache.get_value(key)
+	if cached is not None:
+		return cached or None
+	value = ""
+	try:
+		with requests.get(url, timeout=REMOTE_IMAGE_TIMEOUT, stream=True) as resp:
+			mime = (resp.headers.get("Content-Type") or "").split(";")[0].strip().lower()
+			if resp.ok and mime.startswith("image/"):
+				data = b""
+				for chunk in resp.iter_content(65536):
+					data += chunk
+					if len(data) > REMOTE_IMAGE_MAX_BYTES:
+						data = b""
+						break
+				if data:
+					value = f"data:{mime};base64," + base64.b64encode(data).decode()
+	except (requests.RequestException, ValueError):
+		value = ""
+	if not value:
+		frappe.logger("mahanaim").warning(
+			f"Print image {url} could not be fetched; it is left out of documents."
+		)
+	frappe.cache.set_value(key, value, expires_in_sec=86400 if value else 600)
+	return value or None
+
+
 def image_data_uri(url: str | None) -> str | None:
-	"""Embed a site/app image as a data URI (wkhtmltopdf runs with local file access disabled)."""
+	"""Embed an image as a data URI. wkhtmltopdf runs with local file access disabled and must never fetch over the
+	network, so site/app files are read from disk and foreign URLs are fetched (once, cached) by the server."""
 	if not url:
 		return None
 	if url.startswith("data:"):
@@ -96,19 +154,24 @@ def image_data_uri(url: str | None) -> str | None:
 	cache = _cache()
 	if url in cache:
 		return cache[url]
-	value = None
-	if url.startswith("http"):
-		value = url
+	absolute = "https:" + url if url.startswith("//") else url
+	if absolute.startswith(("http://", "https://")):
+		path = _own_site_path(absolute)
+		value = _file_data_uri(path) if path else _remote_image(absolute)
 	else:
-		path = _resolve_file(url)
-		if path:
-			mime = mimetypes.guess_type(path)[0] or "image/png"
-			if path.endswith(".svg"):
-				mime = "image/svg+xml"
-			with open(path, "rb") as f:
-				value = f"data:{mime};base64," + base64.b64encode(f.read()).decode()
+		value = _file_data_uri(_resolve_file(url))
 	cache[url] = value
 	return value
+
+
+def _file_data_uri(path: str | None) -> str | None:
+	if not path:
+		return None
+	mime = mimetypes.guess_type(path)[0] or "image/png"
+	if path.endswith(".svg"):
+		mime = "image/svg+xml"
+	with open(path, "rb") as f:
+		return f"data:{mime};base64," + base64.b64encode(f.read()).decode()
 
 
 def _fmt_date(value, fmt="d MMMM yyyy") -> str:
@@ -177,7 +240,7 @@ def _resolve_signed(code: str) -> tuple[str, str] | None:
 	name, _sep, sig = code.rpartition(".")
 	if not name or len(sig) != 8:
 		return None
-	for doctype in ("Student Payment", "Student Invoice", "Fee Statement"):
+	for doctype in SIGNED_DOCTYPES:
 		if not hmac.compare_digest(_signature(doctype, name), sig.upper()):
 			continue
 		target = name.rpartition(".S")[0] if doctype == "Fee Statement" else name
@@ -197,10 +260,63 @@ def mask_student_number(number: str | None) -> str | None:
 
 
 # ---------------------------------------------------------------------------------- access control
+def _giver_users(name: str) -> set[str]:
+	"""Users who gave a (submitted) gift: the sponsor's or partner church's sponsor login, the student, or whoever
+	started the M-Pesa payment while signed in."""
+	row = frappe.db.get_value(
+		"Giving Record",
+		name,
+		["docstatus", "sponsor", "partner_church", "student", "mpesa_request"],
+		as_dict=True,
+	)
+	if not row:
+		frappe.throw(_("{0} {1} not found").format(_("Giving Record"), name), frappe.DoesNotExistError)
+	if row.docstatus != 1:
+		return set()
+	sponsors = {row.sponsor}
+	if row.partner_church:
+		sponsors.add(frappe.db.get_value("Partner Church", row.partner_church, "sponsor"))
+	sponsors.discard(None)
+	users = (
+		set(frappe.get_all("Sponsor", filters={"name": ["in", list(sponsors)]}, pluck="user"))
+		if sponsors
+		else set()
+	)
+	if row.student:
+		users.add(frappe.db.get_value("Student", row.student, "user"))
+	if row.mpesa_request:
+		users.add(frappe.db.get_value("M-Pesa Request", row.mpesa_request, "initiated_by"))
+	return {u for u in users if u and u != "Guest"}
+
+
+def _gave_by_email(name: str, user: str) -> bool:
+	"""A gift recorded with the signed-in user's own email address (e.g. given as a guest, then signed up)."""
+	row = frappe.db.get_value("Giving Record", name, ["docstatus", "giver_email"], as_dict=True)
+	if not row or row.docstatus != 1 or not row.giver_email:
+		return False
+	email = frappe.db.get_value("User", user, "email")
+	return bool(email) and email.strip().lower() == row.giver_email.strip().lower()
+
+
+def _sponsors_student_of(doctype: str, name: str, user: str) -> bool:
+	"""The signed-in sponsor sponsors the student on this submitted invoice/receipt (sponsor-portal rule)."""
+	if ROLE_SPONSOR not in user_roles(user):
+		return False
+	sponsor = frappe.db.get_value("Sponsor", {"user": user}, "name")
+	row = frappe.db.get_value(doctype, name, ["student", "docstatus"], as_dict=True) if sponsor else None
+	if not row or row.docstatus != 1 or not row.student:
+		return False
+	from mahanaim.services.church import is_sponsored_by
+
+	return is_sponsored_by(sponsor, row.student)
+
+
 def _owner_users(doctype: str, name: str) -> set[str]:
 	if doctype == "Fee Statement":
 		user = frappe.db.get_value("Student", name, "user")
 		return {user} if user else set()
+	if doctype == "Giving Record":
+		return _giver_users(name)
 	fields = (
 		["student", "docstatus"]
 		if doctype in ("Student Invoice", "Student Payment")
@@ -235,7 +351,11 @@ def can_access(doctype: str, name: str, user: str | None = None) -> bool:
 	if roles & (ADMIN_ROLES | STAFF_ACCESS[doctype]):
 		if doctype == "Fee Statement" or frappe.db.exists(doctype, name):
 			return True
-	return user in _owner_users(doctype, name)
+	if user in _owner_users(doctype, name):
+		return True
+	if doctype == "Giving Record":
+		return _gave_by_email(name, user)
+	return doctype in SPONSOR_VISIBLE and _sponsors_student_of(doctype, name, user)
 
 
 def check_access(doctype: str, name: str, user: str | None = None):
@@ -358,6 +478,64 @@ def statement_context(student: str, from_date=None, to_date=None, **_opts) -> di
 	}
 
 
+def _mask_msisdn(value: str | None) -> str | None:
+	digits = re.sub(r"\D", "", value or "")
+	return f"{digits[:5]}****{digits[-3:]}" if len(digits) >= 9 else (value or None)
+
+
+def giver_display(doc) -> dict:
+	"""Name (and a short descriptor) to print on a giving receipt; anonymous gifts stay anonymous."""
+	if doc.giver_type == "Anonymous":
+		return {"name": _("Anonymous giver"), "detail": None}
+	if doc.sponsor:
+		name = frappe.db.get_value("Sponsor", doc.sponsor, "sponsor_name")
+		return {"name": name or doc.giver_name or doc.sponsor, "detail": _("Sponsor {0}").format(doc.sponsor)}
+	if doc.partner_church:
+		name = frappe.db.get_value("Partner Church", doc.partner_church, "church_name")
+		return {"name": name or doc.partner_church, "detail": _("Partner church")}
+	if doc.student:
+		info = (
+			frappe.db.get_value("Student", doc.student, ["full_name", "student_number"], as_dict=True) or {}
+		)
+		return {
+			"name": info.get("full_name") or doc.giver_name or doc.student,
+			"detail": _("Student {0}").format(info.get("student_number") or doc.student),
+		}
+	return {
+		"name": doc.giver_name or _("Friend of the college"),
+		"detail": _(doc.giver_type) if doc.giver_type else None,
+	}
+
+
+def giving_context(name: str, **_opts) -> dict:
+	doc = frappe.get_doc("Giving Record", name)
+	service = None
+	if doc.chapel_service:
+		row = frappe.db.get_value(
+			"Chapel Service", doc.chapel_service, ["service_date", "service_type"], as_dict=True
+		)
+		if row:
+			service = " — ".join(
+				x
+				for x in (row.service_type or _("Chapel service"), _fmt_date(row.service_date, "d MMM yyyy"))
+				if x
+			)
+	code = signed_code("Giving Record", name) if doc.docstatus == 1 else None
+	url, qr = _qr(code)
+	return {
+		"doc": doc,
+		"giver": giver_display(doc),
+		"msisdn": _mask_msisdn(doc.msisdn),
+		"chapel_service": service,
+		"amount_in_words": money_in_words(doc.amount, currency()),
+		"verification_code": code,
+		"verification_url": url,
+		"qr": qr,
+		"title": _("Giving receipt {0}").format(name),
+		"watermark": {0: _("DRAFT"), 2: _("CANCELLED")}.get(doc.docstatus),
+	}
+
+
 def _snapshot(doc) -> dict:
 	value = doc.snapshot
 	if isinstance(value, str):
@@ -432,6 +610,7 @@ CONTEXTS = {
 	"Fee Statement": statement_context,
 	"Transcript": transcript_context,
 	"Certificate": certificate_context,
+	"Giving Record": giving_context,
 }
 PDF_OPTIONS = {
 	"Certificate": {
@@ -485,9 +664,12 @@ def render_html(doctype: str, name: str, for_pdf: bool = False, **opts) -> str:
 
 
 def pdf_filename(doctype: str, name: str) -> str:
-	label = {"Student Invoice": "Invoice", "Student Payment": "Receipt", "Fee Statement": "Statement"}.get(
-		doctype, doctype
-	)
+	label = {
+		"Student Invoice": "Invoice",
+		"Student Payment": "Receipt",
+		"Fee Statement": "Statement",
+		"Giving Record": "Giving-Receipt",
+	}.get(doctype, doctype)
 	if doctype == "Certificate":
 		name = frappe.db.get_value("Certificate", name, "certificate_serial") or name
 	return re.sub(r"[^A-Za-z0-9_.-]+", "-", f"{label}-{name}").strip("-") + ".pdf"
@@ -1102,9 +1284,34 @@ def _verify_statement(name: str, institution: str):
 	return response, {"document_type": "Student", "document_name": student, "result": "Valid"}
 
 
+def _verify_giving(name: str, institution: str):
+	doc = frappe.get_doc("Giving Record", name)
+	valid = doc.docstatus == 1
+	response = {
+		"valid": valid,
+		"status": "valid" if valid else "cancelled",
+		"document_type": "Giving Receipt",
+		"document_number": name,
+		"student_name": giver_display(doc)["name"],
+		"student_number": None,
+		"giving_type": doc.giving_type,
+		"date": str(doc.posting_date) if doc.posting_date else None,
+		"amount": flt(doc.amount, 2),
+		"currency": currency(),
+		"institution": institution,
+	}
+	return response, {
+		"document_type": "Receipt",
+		"document_name": name,
+		"result": "Valid" if valid else "Revoked",
+	}
+
+
 def _verify_finance(doctype: str, name: str, institution: str):
 	if doctype == "Fee Statement":
 		return _verify_statement(name, institution)
+	if doctype == "Giving Record":
+		return _verify_giving(name, institution)
 	fields = ["name", "docstatus", "student", "posting_date"]
 	fields += (
 		["amount", "payment_for", "programme_application", "payer_name"]

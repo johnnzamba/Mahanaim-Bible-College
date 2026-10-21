@@ -53,7 +53,7 @@ verification then reports `revoked`.
 - **Args:** `code`, `requester_name?`, `requester_organisation?`
 
 The endpoint accepts a transcript or certificate verification code, or the signed code printed on a
-receipt, invoice or statement QR. It returns minimal, non-sensitive data. The student number is masked
+receipt, invoice, giving receipt or statement QR. It returns minimal, non-sensitive data. The student number is masked
 (`MBC/DBS/2024/****`); there are no grades, balances or contact details. Each call increments
 `verification_count` and logs IP, user agent and result in **Verification Log**.
 
@@ -72,6 +72,10 @@ Revoked document: `"valid": false, "status": "revoked"`, plus a `message`.
 
 Receipt or invoice: `{valid, status: "valid" | "cancelled", document_type: "Receipt" | "Invoice", document_number,
 student_name, student_number (masked), date, amount, currency, institution}`.
+
+Giving receipt: `{valid, status: "valid" | "cancelled", document_type: "Giving Receipt", document_number,
+student_name (the giver, or "Anonymous giver"), student_number: null, giving_type, date, amount, currency,
+institution}`. It is logged as document type "Receipt".
 
 Statement: `{valid, status, document_type: "Statement", student_name, student_number (masked), date, institution,
 message}`. The balance is deliberately left out.
@@ -162,20 +166,27 @@ Students download their issued documents through `print_view` and `download_pdf`
 | `mahanaim.api.credentials.print_view` | GET | print | `doctype`, `name` | Inline `text/html` print view |
 | `mahanaim.api.credentials.download_pdf` | GET | print | `doctype`, `name` | `application/pdf` attachment (A4; the certificate is A4 landscape) |
 
-Supported `doctype` values are Transcript, Certificate, Student Invoice, Student Payment (receipt) and Fee
-Statement. For Fee Statement, `name` is the Student.
+Supported `doctype` values are Transcript, Certificate, Student Invoice, Student Payment (receipt), Giving
+Record (giving receipt) and Fee Statement. For Fee Statement, `name` is the Student.
 
 **Who may print**
 - **Staff:** Registrar, Academic Dean and Auditor for credentials; Finance Officer and Auditor for invoices and
-  receipts; Finance Officer, Auditor and Registrar for statements. Administrators may print anything.
+  receipts; Finance Officer, Auditor and Registrar for statements; Finance Officer, Chaplain and Auditor for giving
+  receipts. Administrators may print anything.
 - **Owners:** the student for their own Issued credentials and submitted invoices/receipts. Applicants and
   sponsors may print receipts for their own payments.
+- **Sponsors:** submitted invoices and receipts of the students they sponsor (see `finance.download`).
+- **Givers:** their own submitted giving receipts (see `finance.download`).
 - Anyone else gets 403 ("You are not allowed to view this document.").
 
 **Template contents**
 - Every template (`mahanaim/templates/print/*.html`) carries the logo from Mahanaim Settings.
 - Each also has a QR code that links to `/verify/<code>`, the signatures and the seal.
 - Finance documents use a signed code: the document name + HMAC.
+- Documents are self-contained so wkhtmltopdf never makes a network request: inline CSS, system fonts (Libre
+  Baskerville is used only if installed, else Georgia / DejaVu Serif), and images embedded as data URIs.
+  Settings images on this site's own URL are read from disk. A foreign image URL is fetched once by the server
+  (4 s timeout, 2 MB cap) and cached for a day. A failed fetch is cached for 10 minutes and the image is left out.
 
 **PDF settings**
 - PDFs are rendered with wkhtmltopdf.

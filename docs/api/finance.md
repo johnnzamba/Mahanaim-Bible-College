@@ -53,9 +53,21 @@ Invoice status: `Draft → Unpaid | Partly Paid | Paid | Overdue → Cancelled`.
 | `mahanaim.api.finance.my_statement` | GET | `from_date?`, `to_date?` | Statement |
 | `mahanaim.api.finance.pay_fees` | POST | `amount`, `phone?` (defaults to the student's phone), `invoice?` (must be theirs) | `{request, checkout_request_id, customer_message}` |
 | `mahanaim.api.finance.payment_request_status` | GET | `request` | Request status (below). Guard: owner/staff |
-| `mahanaim.api.finance.download` | GET | `doctype` = `invoice` \| `receipt` \| `statement`, `name` (not needed for the own statement), `format` = `pdf` \| `html`, `from_date?`, `to_date?` | PDF / HTML file. Guard: owner/staff |
+| `mahanaim.api.finance.download` | GET | `doctype` = `invoice` \| `receipt` \| `statement` \| `giving`, `name` (not needed for the own statement), `format` = `pdf` \| `html`, `from_date?`, `to_date?` | PDF / HTML file. Guard: owner, sponsor, giver or staff (below) |
 | `mahanaim.api.finance.request_refund` | POST | `amount`, `reason`, `refund_mode` = M-Pesa \| Bank Transfer \| Cheque \| Cash, `account_details?` | Refund Request dict (status Pending). See the rules below |
 | `mahanaim.api.finance.my_refunds` | GET | none | The student's own refund requests, newest first (rows below) |
+
+**Who may `download`.** Anyone else gets `PermissionError` (403).
+- **Staff:** Finance Officer and Auditor (invoices, receipts, statements; Registrar also for statements); Finance
+  Officer, Chaplain and Auditor for giving receipts. Administrators may download anything.
+- **Students** (and applicants for application-fee receipts): their own submitted invoices and receipts, and their
+  own statement.
+- **Sponsors** (Sponsor role and linked Sponsor record): submitted invoices and receipts of students they sponsor.
+  This is the sponsor-portal rule (`church.is_sponsored_by`: a Sponsorship that is Active, Suspended or Completed).
+  It also covers receipts for payments made by the sponsor itself. Statements are not included.
+- **Givers** (`giving`, a submitted Giving Record): the linked sponsor's (or partner church's sponsor's) user, the
+  linked student, the signed-in user who started the M-Pesa gift, or a user whose email equals `giver_email`.
+  Anonymous gifts print as "Anonymous giver".
 
 **`request_refund` rules.** Each rule failure raises `ValidationError` with a student-friendly message.
 

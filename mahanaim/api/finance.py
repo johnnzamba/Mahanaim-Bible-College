@@ -29,9 +29,11 @@ FINANCE_DOCS = {
 	"invoice": "Student Invoice",
 	"receipt": "Student Payment",
 	"statement": "Fee Statement",
+	"giving": "Giving Record",
 	"Student Invoice": "Student Invoice",
 	"Student Payment": "Student Payment",
 	"Fee Statement": "Fee Statement",
+	"Giving Record": "Giving Record",
 }
 INVOICE_LIST_FIELDS = [
 	"name",
@@ -344,7 +346,10 @@ def payment_request_status(request):
 
 @frappe.whitelist()
 def download(doctype, name=None, format="pdf", from_date=None, to_date=None):
-	"""Invoice / receipt / statement as PDF (default) or HTML; owner or finance staff only."""
+	"""Invoice / receipt / statement / giving receipt as PDF (default) or HTML.
+
+	Allowed: finance staff (plus chaplaincy for gifts), the owning student/applicant, the sponsor of the student
+	(submitted invoices and receipts) and the giver of a gift."""
 	require_login()
 	doctype = FINANCE_DOCS.get(doctype)
 	if not doctype:

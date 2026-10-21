@@ -480,6 +480,126 @@ class TestFees(IntegrationTestCase):
 			frappe.local.response.pop("filecontent", None)
 			frappe.local.response.pop("type", None)
 
+	def test_sponsor_downloads_sponsored_students_documents(self):
+		from mahanaim.api import finance
+		from mahanaim.tests import factories_b4 as f4
+
+		sponsored, other = self.student(), self.student()
+		inv = fb.make_invoice(sponsored.name, 1000, term=self.term)
+		draft = fb.make_invoice(sponsored.name, 500, term=self.term, submit=False)
+		receipt = fb.make_payment(sponsored.name, 400)
+		other_inv = fb.make_invoice(other.name, 1000, term=self.term)
+		sponsor, user = f4.make_sponsor_with_user()
+		f4.make_sponsorship(sponsor.name, sponsored.name)
+		f4.make_sponsorship(sponsor.name, other.name, status="Cancelled")
+		frappe.set_user(user)
+		try:
+			for kind, name in (("invoice", inv.name), ("receipt", receipt.name)):
+				finance.download(kind, name, "html")
+				self.assertIn(name, frappe.local.response["filecontent"])
+			for kind, name in (
+				("invoice", draft.name),
+				("invoice", other_inv.name),
+				("statement", other.name),
+			):
+				with self.assertRaises(frappe.PermissionError, msg=f"{kind} {name}"):
+					finance.download(kind, name, "html")
+		finally:
+			frappe.set_user("Administrator")
+			frappe.local.response.pop("filecontent", None)
+			frappe.local.response.pop("type", None)
+
+	def test_giving_receipt_access_and_verification(self):
+		from mahanaim.api import finance
+		from mahanaim.services import documents
+		from mahanaim.tests import factories_b4 as f4
+
+		giving_type = f4.make_giving_type().name
+		giver, intruder = f.make_user(roles=("Sponsor",)), f.make_user(roles=("Student",))
+		chaplain = f.make_user(roles=("Chaplain",))
+		sponsor, sponsor_user = f4.make_sponsor_with_user()
+
+		def gift(**kw):
+			doc = frappe.get_doc(
+				{
+					"doctype": "Giving Record",
+					"giving_type": giving_type,
+					"posting_date": today(),
+					"amount": 1500,
+					"mode_of_payment": "Cash",
+					**kw,
+				}
+			)
+			doc.insert(ignore_permissions=True)
+			doc.submit()
+			return doc.name
+
+		by_email = gift(giver_type="Other", giver_name="<b>Jane</b> Giver", giver_email=giver.name.upper())
+		by_sponsor = gift(giver_type="Sponsor", sponsor=sponsor.name)
+		checks = (
+			(giver.name, by_email, True),
+			(intruder.name, by_email, False),
+			(chaplain.name, by_email, True),
+			(sponsor_user, by_sponsor, True),
+			(giver.name, by_sponsor, False),
+		)
+		try:
+			for user, name, allowed in checks:
+				frappe.set_user(user)
+				if allowed:
+					finance.download("giving", name, "html")
+					html = frappe.local.response["filecontent"]
+					self.assertIn(name, html)
+					self.assertNotIn("<b>Jane</b>", html)
+				else:
+					with self.assertRaises(frappe.PermissionError, msg=f"{user} {name}"):
+						finance.download("giving", name, "html")
+		finally:
+			frappe.set_user("Administrator")
+			frappe.local.response.pop("filecontent", None)
+			frappe.local.response.pop("type", None)
+		result = documents.verify_code(documents.signed_code("Giving Record", by_sponsor))
+		self.assertEqual(
+			(result["valid"], result["document_type"], result["amount"]), (True, "Giving Receipt", 1500)
+		)
+
+	def test_print_documents_are_self_contained(self):
+		"""wkhtmltopdf must never go online (it stalls the PDF on slow networks): no remote fonts, CSS or images."""
+		import requests
+
+		from mahanaim.services import documents
+
+		student = self.student()
+		inv = fb.make_invoice(student.name, 1000, term=self.term)
+		receipt = fb.make_payment(student.name, 400)
+		remote = (
+			f"https://cdn.example.invalid/{random_string(8)}.png",
+			f"https://cdn.example.invalid/{random_string(8)}.png",
+		)
+		self.addCleanup(lambda: [frappe.cache.delete_value(documents._remote_cache_key(u)) for u in remote])
+		frappe.local.mbc_doc_images = {}
+		with patch.object(documents.requests, "get", side_effect=requests.ConnectionError) as get:
+			self.assertIsNone(documents.image_data_uri(remote[0]))
+			frappe.local.mbc_doc_images = {}
+			self.assertIsNone(documents.image_data_uri(remote[0]))
+			self.assertEqual(get.call_count, 1, "a failed fetch is cached, not retried per document")
+		ok = patch.object(documents.requests, "get").start()
+		resp = ok.return_value.__enter__.return_value
+		resp.ok, resp.headers = True, {"Content-Type": "image/png"}
+		resp.iter_content.return_value = [b"\x89PNG"]
+		self.assertEqual(documents.image_data_uri(remote[1]), "data:image/png;base64,iVBORw==")
+		own = documents.image_data_uri(frappe.utils.get_url("/assets/mahanaim/images/logo.svg"))
+		self.assertTrue(own.startswith("data:image/svg+xml;base64,"))
+		external = (
+			r"(?i)\b(?:src|href)\s*=\s*[\"']?(?:https?:)?//|@import|url\(\s*[\"']?(?:https?:)?//|<link\b"
+		)
+		for doctype, name in (
+			("Student Invoice", inv.name),
+			("Student Payment", receipt.name),
+			("Fee Statement", student.name),
+		):
+			self.assertNotRegex(documents.render_html(doctype, name, for_pdf=True), external)
+
 	def test_staff_endpoints(self):
 		from mahanaim.api import finance
 

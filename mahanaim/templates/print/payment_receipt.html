@@ -25,9 +25,9 @@
 						<tr><td class="muted">{{ _("Programme") }}</td><td>{{ application.programme_name or "" }}</td></tr>
 					</table>
 				{% else %}
-					<div class="value serif" style="font-size: 14px;">{{ doc.payer_name or doc.sponsor or "—" }}</div>
+					<div class="value serif" style="font-size: 14px;">{{ (doc.payer_name or doc.sponsor or "—") | e }}</div>
 				{% endif %}
-				{% if doc.payer_name and (student.name or application) %}<div class="small muted" style="margin-top: 3px;">{{ _("Paid by") }}: {{ doc.payer_name }}</div>{% endif %}
+				{% if doc.payer_name and (student.name or application) %}<div class="small muted" style="margin-top: 3px;">{{ _("Paid by") }}: {{ doc.payer_name | e }}</div>{% endif %}
 			</div>
 		</td>
 		<td>
@@ -80,6 +80,6 @@
 	<tr class="grand"><td>{{ _("Balance due") if balance > 0 else _("Account credit") }}</td><td class="num">{{ money(balance if balance > 0 else -balance) }}</td></tr>
 	{% endif %}
 </table>
-{% if doc.remarks %}<p class="small muted" style="margin-top: 10px;">{{ doc.remarks }}</p>{% endif %}
+{% if doc.remarks %}<p class="small muted" style="margin-top: 10px;">{{ doc.remarks | e }}</p>{% endif %}
 {% endblock %}
 {% block signatory_role %}{{ _("For the Finance Office") }}{% endblock %}
