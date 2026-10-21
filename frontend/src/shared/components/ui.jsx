@@ -826,7 +826,7 @@ export function InfoRow({ label, value, className }) {
 
 export function KeyValueGrid({ items, cols = 2, className }) {
 	return (
-		<dl className={clsx("grid gap-x-6 gap-y-4", cols === 3 ? "sm:grid-cols-3" : cols === 4 ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-2", className)}>
+		<dl className={clsx("grid gap-x-6 gap-y-4", cols === 1 ? "grid-cols-1" : cols === 3 ? "sm:grid-cols-3" : cols === 4 ? "sm:grid-cols-2 lg:grid-cols-4" : "sm:grid-cols-2", className)}>
 			{items.filter(Boolean).map((it) => (
 				<div key={it.label} className={clsx("min-w-0", it.wide && "sm:col-span-full")}>
 					<dt className="text-[11px] font-semibold uppercase tracking-wide text-ink-soft">{it.label}</dt>

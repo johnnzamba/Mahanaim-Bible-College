@@ -1,19 +1,21 @@
-import { Route, Routes } from "react-router-dom"
-import { Empty, PageHeader } from "@/shared/components/ui"
+import { Navigate, Route, Routes } from "react-router-dom"
+import Announcements from "./pages/Announcements"
+import AnnouncementEditor from "./pages/AnnouncementEditor"
+import Templates from "./pages/Templates"
+import TemplateEditor from "./pages/TemplateEditor"
+import Messages from "./pages/Messages"
 
-/** /admin/communication/* (placeholder until this area is built). */
+/** /admin/communication/*: announcements, message templates and the delivery log. */
 export default function CommunicationArea() {
 	return (
 		<Routes>
-			<Route
-				path="*"
-				element={
-					<>
-						<PageHeader title="Communication" subtitle="This workspace is being prepared." />
-						<Empty title="Coming together" subtitle="Screens for this area are under construction." />
-					</>
-				}
-			/>
+			<Route index element={<Announcements />} />
+			<Route path="announcements" element={<Navigate to="/admin/communication" replace />} />
+			<Route path="announcements/:name" element={<AnnouncementEditor />} />
+			<Route path="templates" element={<Templates />} />
+			<Route path="templates/:name" element={<TemplateEditor />} />
+			<Route path="messages" element={<Messages />} />
+			<Route path="*" element={<Navigate to="/admin/communication" replace />} />
 		</Routes>
 	)
 }

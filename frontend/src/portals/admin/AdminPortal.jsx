@@ -2,6 +2,9 @@ import { lazy } from "react"
 import { Navigate, Route, Routes, useLocation } from "react-router-dom"
 import { PortalShell } from "@/shared/layout/PortalShell"
 import { Empty, PageHeader } from "@/shared/components/ui"
+import { canAccess } from "@/shared/access"
+import { useSession } from "@/shared/session"
+import { ShieldOff } from "lucide-react"
 
 import dashboardNav from "./dashboard/nav"
 import admissionsNav from "./admissions/nav"
@@ -83,13 +86,35 @@ function MovedTo({ base }) {
 	return <Navigate to={`/admin/academics/${base}${rest}${search}`} replace />
 }
 
+/** Route-level gate from access.ADMIN_ACCESS, so a typed or stale URL explains itself instead of failing to load. */
+function AreaGuard({ children }) {
+	const { pathname } = useLocation()
+	const { roles } = useSession()
+	const rel = pathname.replace(/^\/admin/, "").replace(/\/$/, "") || "/"
+	if (canAccess(roles, rel)) return children
+	return (
+		<>
+			<PageHeader title="Not available for your role" subtitle="Your account does not have access to this part of the administration portal." />
+			<Empty icon={ShieldOff} title="Nothing to show here" subtitle="Use the menu to open the areas you work in, or ask the College Administrator for access." />
+		</>
+	)
+}
+
 export default function AdminPortal() {
 	return (
 		<PortalShell portal="admin" nav={NAV} tabs={TABS} serverSearch searchPlaceholder="Search students, invoices, screens…">
 			<Routes>
 				<Route index element={<Dashboard />} />
 				{Object.entries(AREAS).map(([path, Area]) => (
-					<Route key={path} path={`${path}/*`} element={<Area />} />
+					<Route
+						key={path}
+						path={`${path}/*`}
+						element={
+							<AreaGuard>
+								<Area />
+							</AreaGuard>
+						}
+					/>
 				))}
 				<Route path="exams/*" element={<MovedTo base="exams" />} />
 				<Route path="results/*" element={<MovedTo base="results" />} />

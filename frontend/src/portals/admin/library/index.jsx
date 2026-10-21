@@ -1,19 +1,18 @@
-import { Route, Routes } from "react-router-dom"
-import { Empty, PageHeader } from "@/shared/components/ui"
+import { Navigate, Route, Routes } from "react-router-dom"
+import Overview from "./pages/Overview"
+import Catalogue from "./pages/Catalogue"
+import ItemEditor from "./pages/ItemEditor"
+import Loans from "./pages/Loans"
 
-/** /admin/library/* (placeholder until this area is built). */
+/** /admin/library/*: catalogue, circulation desk and e-library. */
 export default function LibraryArea() {
 	return (
 		<Routes>
-			<Route
-				path="*"
-				element={
-					<>
-						<PageHeader title="Library" subtitle="This workspace is being prepared." />
-						<Empty title="Coming together" subtitle="Screens for this area are under construction." />
-					</>
-				}
-			/>
+			<Route index element={<Overview />} />
+			<Route path="catalogue" element={<Catalogue />} />
+			<Route path="catalogue/:name" element={<ItemEditor />} />
+			<Route path="loans" element={<Loans />} />
+			<Route path="*" element={<Navigate to="/admin/library" replace />} />
 		</Routes>
 	)
 }
