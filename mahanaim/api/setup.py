@@ -137,6 +137,7 @@ def lookups():
 			fields=["name", "full_name", "salutation", "user", "department", "campus"],
 			order_by="full_name asc",
 		),
+		"currencies": frappe.get_all("Currency", filters={"enabled": 1}, pluck="name", order_by="name asc"),
 		"current_term": term,
 		"current_year": year,
 		"options": {

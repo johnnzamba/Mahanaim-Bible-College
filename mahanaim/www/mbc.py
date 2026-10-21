@@ -46,6 +46,11 @@ def _safe(fn, default=None):
 		return default
 
 
+def _json_safe(value):
+	"""Round-trip through Frappe's encoder so dates, datetimes and Decimals reach `| tojson` as plain JSON."""
+	return frappe.parse_json(frappe.as_json(value)) if value is not None else None
+
+
 def get_context(context):
 	from mahanaim.api.session import session_info
 
@@ -64,13 +69,15 @@ def get_context(context):
 	settings = (session or {}).get("settings") or {}
 	institution = settings.get("institution_name") or "Mahanaim Bible College"
 
-	context.boot = {
-		"sitename": frappe.local.site,
-		"user": frappe.session.user,
-		"session": session,
-		"site": site,
-		"socketio_port": frappe.conf.get("socketio_port") if frappe.conf.get("developer_mode") else None,
-	}
+	context.boot = _json_safe(
+		{
+			"sitename": frappe.local.site,
+			"user": frappe.session.user,
+			"session": session,
+			"site": site,
+			"socketio_port": frappe.conf.get("socketio_port") if frappe.conf.get("developer_mode") else None,
+		}
+	)
 
 	meta = {}
 	if first not in PRIVATE_PREFIXES:
@@ -94,7 +101,7 @@ def get_context(context):
 	context.canonical_url = get_url(quote(path, safe="/-._~")) if first not in PRIVATE_PREFIXES else None
 	context.noindex = first in PRIVATE_PREFIXES
 	context.og_type = meta.get("og_type") or "website"
-	context.structured_data = meta.get("structured_data")
+	context.structured_data = _json_safe(meta.get("structured_data"))
 	context.manifest = first if first in PORTAL_PREFIXES else "site"
 	context.app_title = {"student": "MBC Student", "lecturer": "MBC Lecturer", "admin": "MBC Admin"}.get(
 		first, "Mahanaim"

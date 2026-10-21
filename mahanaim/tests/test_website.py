@@ -244,3 +244,34 @@ class TestWebsite(IntegrationTestCase):
 		frappe.set_user(f.make_user("website.student.b4@example.com", roles=("Student",)).name)
 		with self.assertRaises(frappe.PermissionError):
 			website.delete_event(booked.name)
+
+	def test_spa_shell_serialises_dates_in_boot_payload(self):
+		import datetime
+		import decimal
+
+		from mahanaim.www import mbc
+
+		settings = {
+			"admissions": {
+				"intakes": [
+					{
+						"start_date": datetime.date(2027, 1, 11),
+						"application_close_date": datetime.date(2026, 12, 15),
+					}
+				]
+			},
+			"updated": datetime.datetime(2026, 10, 1, 9, 30),
+			"fee": decimal.Decimal("1500.50"),
+		}
+		frappe.set_user("Guest")
+		with (
+			patch("mahanaim.api.website.site_settings", return_value=settings),
+			patch("frappe.sessions.get_csrf_token", return_value="token"),
+			patch.object(mbc, "_path", return_value="/admissions"),
+		):
+			context = mbc.get_context(frappe._dict())
+		html = frappe.render_template("mahanaim/www/mbc.html", context)
+		intake = context.boot["site"]["admissions"]["intakes"][0]
+		self.assertEqual(intake["application_close_date"], "2026-12-15")
+		self.assertEqual(intake["start_date"], "2027-01-11")
+		self.assertIn('"application_close_date": "2026-12-15"', html)

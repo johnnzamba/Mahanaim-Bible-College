@@ -334,16 +334,15 @@ export function validateSettings(values, fields) {
 /** Option lists for Link fields that only administrators see. */
 export function useLinkSources() {
 	const lookups = useApi(`${S}lookups`, {}, { staleTime: 5 * 60_000 })
-	const currencies = useApi("frappe.client.get_list", { doctype: "Currency", fields: ["name"], filters: { enabled: 1 }, limit_page_length: 0 }, { staleTime: 30 * 60_000, retry: false })
 	const scales = useApi("frappe.client.get_list", { doctype: "Grading Scale", fields: ["name"], limit_page_length: 0 }, { staleTime: 10 * 60_000, retry: false })
 	return useMemo(() => {
 		const d = lookups.data || {}
 		return {
 			terms: (d.terms || []).map((t) => ({ value: t.name, label: t.is_current ? `${t.term_label || t.name} (current)` : t.term_label || t.name })),
 			years: (d.academic_years || []).map((y) => ({ value: y.name, label: y.year_name || y.name })),
-			currencies: (currencies.data || []).map((c) => ({ value: c.name, label: c.name })),
+			currencies: (d.currencies || []).map((c) => ({ value: c, label: c })),
 			scales: (scales.data || []).map((s) => ({ value: s.name, label: s.name })),
 			lookups: d,
 		}
-	}, [lookups.data, currencies.data, scales.data])
+	}, [lookups.data, scales.data])
 }
