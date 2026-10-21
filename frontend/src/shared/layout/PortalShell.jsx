@@ -58,8 +58,9 @@ export function PortalShell({ portal, nav, tabs, searchPlaceholder, serverSearch
 		let len = -1
 		for (const g of visibleNav) {
 			for (const it of g.items) {
-				const exact = exactPaths.has(it.to)
-				const hit = exact ? path === it.to : path === it.to || path.startsWith(`${it.to}/`)
+				// Prefix match even for exact (link-highlight) items, so sub-screens without their own nav entry
+				// (e.g. /admin/academics/courses) keep their section open; the longest prefix wins.
+				const hit = path === it.to || path.startsWith(`${it.to}/`)
 				if (hit && it.to.length > len) {
 					best = g.section
 					len = it.to.length
@@ -67,7 +68,7 @@ export function PortalShell({ portal, nav, tabs, searchPlaceholder, serverSearch
 			}
 		}
 		return best
-	}, [location.pathname, visibleNav, exactPaths])
+	}, [location.pathname, visibleNav])
 
 	const [pinned, setPinned] = useState(null)
 	useEffect(() => {

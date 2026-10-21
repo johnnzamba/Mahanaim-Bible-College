@@ -645,7 +645,7 @@ export function FileDrop({ label, hint, accept, onFile, busy, value, className }
 
 export function Tabs({ tabs, active, onChange, className, size = "md" }) {
 	return (
-		<div className={clsx("scroll-thin -mx-1 flex gap-1 overflow-x-auto overflow-y-hidden px-1 shadow-[inset_0_-1px_0_rgb(var(--line))]", className)} role="tablist">
+		<div className={clsx("scroll-thin flex gap-1 overflow-x-auto overflow-y-hidden shadow-[inset_0_-1px_0_rgb(var(--line))]", className)} role="tablist">
 			{tabs.map((t) => {
 				const id = typeof t === "string" ? t : t.id
 				const label = typeof t === "string" ? t : t.label
