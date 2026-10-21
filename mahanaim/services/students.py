@@ -68,20 +68,30 @@ CLEARANCE_ROLES = {
 
 
 # ---------------------------------------------------------------------------------- cross-domain calls
-def safe_call(path: str, *args, default=None, **kwargs):
-	"""Call another domain's contract; a stub (NotImplementedError) or any error returns `default`.
+def safe_call(path, *args, default=None, **kwargs):
+	"""Call another domain's contract (dotted path or callable); a stub (NotImplementedError) or any error
+	returns `default`.
 
-	Runs inside a savepoint so a half-finished write by the callee is rolled back before we continue."""
+	Runs inside a savepoint so a half-finished write by the callee is rolled back before we continue, and
+	drops any message the failed callee queued so it does not surface as an error toast."""
+	fn = frappe.get_attr(path) if isinstance(path, str) else path
+	label = path if isinstance(path, str) else getattr(path, "__qualname__", repr(path))
+	messages = (
+		frappe.local.message_log if isinstance(getattr(frappe.local, "message_log", None), list) else []
+	)
+	queued = len(messages)
 	savepoint = f"mbc_{frappe.generate_hash(length=8)}"
 	frappe.db.savepoint(savepoint)
 	try:
-		return frappe.get_attr(path)(*args, **kwargs)
+		return fn(*args, **kwargs)
 	except NotImplementedError:
 		frappe.db.rollback(save_point=savepoint)
+		del messages[queued:]
 		return default
 	except Exception:
 		frappe.db.rollback(save_point=savepoint)
-		frappe.log_error(title=f"Mahanaim: {path} failed")
+		del messages[queued:]
+		frappe.log_error(title=f"Mahanaim: {label} failed")
 		return default
 
 

@@ -158,9 +158,30 @@ term's registration window is open.
   "upcoming_exams": [{"name": "EXM-0001", "title": "CAT 1", "exam_type": "CAT", "course_offering": "OFF-0003",
                       "delivery_mode": "Online", "status": "Scheduled", "start_datetime": "…", "end_datetime": "…", "venue": null}],
   "unread_notifications": 3,
-  "announcements": [{"name": "ANN-0001", "title": "Chapel week", "audience": "All Students", "sent_on": "…", "body": "…"}],
-  "open_requests": 1}}
+  "announcements": [{"name": "ANN-0001", "title": "Chapel week", "audience": "All Students", "is_pinned": 1, "sent_on": "…",
+                     "body": "…", "summary": "…", "posted_by_name": "…", "course_title": null, "…": "…"}],
+  "open_requests": 1,
+  "today_classes": [{"name": "CS-0012", "offering": "OFF-0003", "course_offering": "OFF-0003", "course_title": "Old Testament Survey",
+                     "session_date": "2026-10-21", "start_time": "08:00:00", "end_time": "10:00:00", "venue": "Hall A",
+                     "mode": "Online", "meeting_link": "https://…", "status": "Scheduled", "topic": "…", "lecturer_name": "Grace L"}],
+  "attendance_summary": {"term": "2026-2027 Term 1", "percent": 66.67, "sessions": 4, "present": 1, "late": 1, "absent": 1, "excused": 1},
+  "clearance": {"exam": {"cleared": false, "message": "Fee clearance for exams requires 100% …", "paid_percent": 80.0, "required_percent": 100.0},
+                "transcript": {"cleared": true, "message": "…", "paid_percent": 100.0, "required_percent": 100.0}}}}
 ```
+
+Block notes:
+- `announcements`: the latest 5 announcements visible to the student, pinned first and then newest. Visibility
+  uses the communication domain's audience rules (`services.messaging.visible_announcements`), so the items are
+  the same as in `mahanaim.api.communication.my_announcements`.
+- `today_classes`: today's Class Sessions for your enrolled offerings, from the academics timetable
+  (`api.academics.my_timetable`). Cancelled sessions are included with `status: "Cancelled"` and no
+  `meeting_link`.
+- `attendance_summary`: covers the current term. It counts held sessions with attendance taken.
+  - `percent = (present + late) / (sessions − excused) × 100`.
+  - `percent` is `null` when nothing countable has been held yet.
+- `clearance`: comes from `fees.fee_clearance(student, "exam" | "transcript")`.
+- `today_classes`, `attendance_summary` and `clearance` are each `null` if the underlying service is unavailable.
+  The rest of the dashboard still loads.
 
 ## Portal: registration
 
@@ -270,7 +291,8 @@ Args: `term?`. Returns all your enrolments, newest first.
 - **Method:** GET
 - **Guard:** student
 
-Returns `{data: [request (+clearance rows, can_cancel)], total}`.
+Returns `{data: [request (+clearance rows, status_log, can_cancel)], total}`. `status_log` is
+`[{timestamp, from_status, to_status}]` in order, as in the request object below.
 
 ### `create_request`
 - **Path:** `mahanaim.api.students.create_request`

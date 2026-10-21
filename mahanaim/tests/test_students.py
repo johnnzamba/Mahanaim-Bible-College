@@ -2,7 +2,7 @@ from unittest.mock import call, patch
 
 import frappe
 from frappe.tests import IntegrationTestCase
-from frappe.utils import add_days, flt, nowdate, random_string
+from frappe.utils import add_days, add_to_date, flt, now_datetime, nowdate, random_string
 
 from mahanaim.api import students as st
 from mahanaim.services import students as svc
@@ -394,6 +394,114 @@ class TestStudents(IntegrationTestCase):
 		self.assertEqual([r["name"] for r in listing["data"]], [w.student.name])
 		self.assertGreaterEqual(st.student_stats()["total"], 1)
 		self.assertEqual(st.list_registrations(term=w.term.name)["total"], 1)
+
+	def test_my_requests_status_log(self):
+		student = f.make_student(phone=fb.unique_phone())
+		fb.as_user(self, student.user)
+		req = st.create_request({"request_type": "Withdrawal", "reason": "Considering"})
+		frappe.set_user("Administrator")
+		st.decide_request(req["name"], "Under Review", "Checking with the dean")
+
+		frappe.set_user(student.user)
+		row = next(r for r in st.my_requests()["data"] if r["name"] == req["name"])
+		self.assertEqual([r["to_status"] for r in row["status_log"]], ["Pending", "Under Review"])
+		self.assertEqual(row["status_log"][-1]["from_status"], "Pending")
+		self.assertNotIn("note", row["status_log"][-1])
+
+	def test_dashboard_blocks(self):
+		w = self.world()
+		self.approved(w)
+		offering, day = w.offerings[0], nowdate()
+
+		def session(on, **values):
+			return frappe.get_doc(
+				{
+					"doctype": "Class Session",
+					"course_offering": offering,
+					"session_date": on,
+					"start_time": "06:00:00",
+					"end_time": "07:00:00",
+					**values,
+				}
+			).insert(ignore_permissions=True)
+
+		today_session = session(day, mode="Online", meeting_link="https://meet.example.com/t")
+		session(add_days(day, 1), mode="In Person", venue=f"Hall {random_string(5)}")
+		for i, status in enumerate(("Present", "Late", "Absent", "Excused"), start=1):
+			session(
+				add_days(day, -i), status="Held", attendance=[{"student": w.student.name, "status": status}]
+			)
+
+		now = now_datetime()
+
+		def announce(title, minutes, **values):
+			return (
+				frappe.get_doc(
+					{
+						"doctype": "Announcement",
+						"title": title,
+						"body": "<p>Hello</p>",
+						"status": "Sent",
+						"show_in_portal": 1,
+						"sent_on": add_to_date(now, minutes=minutes),
+						**values,
+					}
+				)
+				.insert(ignore_permissions=True)
+				.name
+			)
+
+		pinned = announce("Pinned _T", 0, audience="Programme", programme=w.programme.name, is_pinned=1)
+		hidden = announce(
+			"Other programme _T", 5, audience="Programme", programme=fb.make_programme().name, is_pinned=1
+		)
+		latest = [announce(f"News {i} _T", 525600 + i, audience="All Students") for i in range(5)]
+
+		fb.as_user(self, w.student.user)
+		dash = st.my_dashboard()
+
+		self.assertEqual(
+			[(c["name"], c["offering"], c["mode"], c["meeting_link"]) for c in dash["today_classes"]],
+			[(today_session.name, offering, "Online", "https://meet.example.com/t")],
+		)
+		attendance = dash["attendance_summary"]
+		self.assertEqual(
+			(attendance["sessions"], attendance["present"], attendance["late"], attendance["excused"]),
+			(4, 1, 1, 1),
+		)
+		self.assertAlmostEqual(attendance["percent"], 66.67, places=2)
+		self.assertEqual(
+			{k: (v["cleared"], v["message"]) for k, v in dash["clearance"].items()},
+			{"exam": (True, ""), "transcript": (True, "")},
+		)
+		self.fee_clearance.assert_has_calls(
+			[call(w.student.name, "exam"), call(w.student.name, "transcript")], any_order=True
+		)
+
+		names = [a["name"] for a in dash["announcements"]]
+		flags = [a["is_pinned"] for a in dash["announcements"]]
+		self.assertEqual(len(names), 5)
+		self.assertIn(pinned, names)
+		self.assertNotIn(hidden, names)
+		self.assertEqual(flags, sorted(flags, reverse=True))
+		unpinned = [a["name"] for a in dash["announcements"] if not a["is_pinned"]]
+		self.assertTrue(unpinned)
+		self.assertEqual(unpinned, latest[::-1][: len(unpinned)])
+
+		with (
+			patch("mahanaim.api.academics.my_timetable", side_effect=frappe.ValidationError("x")),
+			patch("mahanaim.api.academics.attendance_summary", side_effect=RuntimeError("down")),
+			patch(
+				"mahanaim.services.fees.fee_clearance",
+				side_effect=lambda *a: frappe.throw("Fees offline _T"),
+			),
+		):
+			dash = st.my_dashboard()
+		self.assertEqual(
+			(dash["today_classes"], dash["attendance_summary"], dash["clearance"]), (None, None, None)
+		)
+		self.assertEqual(dash["student"]["name"], w.student.name)
+		self.assertFalse([m for m in frappe.local.message_log if "Fees offline _T" in str(m)])
 
 	def test_permission_denials(self):
 		w = self.world()

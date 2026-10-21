@@ -40,6 +40,9 @@ REQUEST_STAFF = (ROLE_REGISTRAR, ROLE_DEAN, ROLE_FINANCE, ROLE_LIBRARY)
 OPEN_REGISTRATION = ("Draft", "Submitted")
 OPEN_REQUEST = ("Pending", "Under Review")
 REQUEST_DECISIONS = ("Under Review", "Approved", "Rejected", "Completed")
+PORTAL_LOG_FIELDS = ("timestamp", "from_status", "to_status")
+STAFF_LOG_FIELDS = (*PORTAL_LOG_FIELDS, "note", "user")
+DASHBOARD_ANNOUNCEMENTS = 5
 
 PROFILE_FIELDS = (
 	"name",
@@ -245,11 +248,7 @@ def _child_rows(child: str, parent_doctype: str, parents: list[str], fields: lis
 
 
 def _status_log(doc, staff: bool = False) -> list[dict]:
-	fields = (
-		("timestamp", "from_status", "to_status", "note", "user")
-		if staff
-		else ("timestamp", "from_status", "to_status")
-	)
+	fields = STAFF_LOG_FIELDS if staff else PORTAL_LOG_FIELDS
 	return [{f: r.get(f) for f in fields} for r in doc.get("status_log") or []]
 
 
@@ -602,32 +601,9 @@ def my_dashboard():
 			if not (e.end_datetime or e.start_datetime) or (e.end_datetime or e.start_datetime) >= now
 		][:8]
 
-	announcements = [
-		a
-		for a in frappe.get_all(
-			"Announcement",
-			filters={"status": "Sent", "show_in_portal": 1, "is_pinned": 1},
-			or_filters=[["expires_on", "is", "not set"], ["expires_on", ">=", today()]],
-			fields=[
-				"name",
-				"title",
-				"audience",
-				"programme",
-				"campus",
-				"course_offering",
-				"publish_on",
-				"sent_on",
-				"body",
-				"attachment",
-			],
-			order_by="sent_on desc",
-			limit=30,
-		)
-		if a.audience in ("Everyone", "All Students")
-		or (a.audience == "Programme" and a.programme == student.programme)
-		or (a.audience == "Campus" and a.campus == student.campus)
-		or (a.audience == "Course Offering" and a.course_offering in offerings)
-	][:5]
+	announcements = svc.safe_call(
+		"mahanaim.services.messaging.visible_announcements", user, limit=DASHBOARD_ANNOUNCEMENTS, default=[]
+	)
 
 	registration = (
 		frappe.db.get_value(
@@ -662,7 +638,78 @@ def my_dashboard():
 		"open_requests": frappe.db.count(
 			"Student Request", {"student": student.name, "status": ["in", OPEN_REQUEST]}
 		),
+		"today_classes": svc.safe_call(_today_classes),
+		"attendance_summary": svc.safe_call(_attendance_block, student.name, term),
+		"clearance": _clearance_block(student.name),
 	}
+
+
+def _today_classes() -> list[dict]:
+	"""Today's sessions for the student's enrolled offerings, via the academics timetable (B2)."""
+	day = today()
+	timetable = frappe.get_attr("mahanaim.api.academics.my_timetable")(from_date=day, to_date=day)
+	return [
+		{
+			"name": s.get("name"),
+			"offering": s.get("course_offering"),
+			"course_offering": s.get("course_offering"),
+			"course_title": s.get("course_title"),
+			"session_date": s.get("session_date"),
+			"start_time": s.get("start_time"),
+			"end_time": s.get("end_time"),
+			"venue": s.get("venue"),
+			"mode": s.get("mode"),
+			"meeting_link": s.get("meeting_link"),
+			"status": s.get("status"),
+			"topic": s.get("topic"),
+			"lecturer_name": s.get("lecturer_name"),
+		}
+		for s in (timetable or {}).get("sessions") or []
+	]
+
+
+def _attendance_block(student: str, term: str | None) -> dict | None:
+	"""Attendance across the student's offerings in `term`, using the academics attendance maths (B2)."""
+	if not term:
+		return None
+	from mahanaim.api.academics import attendance_percent, attendance_summary
+	from mahanaim.services.assessments import student_offerings
+
+	totals = dict.fromkeys(("held", "present", "late", "absent", "excused"), 0)
+	for per_student in attendance_summary(student_offerings(student, term=term), [student]).values():
+		stats = per_student.get(student) or {}
+		for key in totals:
+			totals[key] += cint(stats.get(key))
+	counted = totals["held"] - totals["excused"]
+	return {
+		"term": term,
+		"percent": attendance_percent(totals["present"], totals["late"], totals["held"], totals["excused"])
+		if counted > 0
+		else None,
+		"sessions": totals["held"],
+		"present": totals["present"],
+		"late": totals["late"],
+		"absent": totals["absent"],
+		"excused": totals["excused"],
+	}
+
+
+def _clearance_block(student: str) -> dict | None:
+	"""Exam and transcript fee clearance from the fees contract (B3); null when it is unavailable."""
+	out = {}
+	for purpose in ("exam", "transcript"):
+		state = svc.safe_call("mahanaim.services.fees.fee_clearance", student, purpose)
+		out[purpose] = (
+			{
+				"cleared": bool(state.get("cleared")),
+				"message": state.get("message") or "",
+				"paid_percent": state.get("paid_percent"),
+				"required_percent": state.get("required_percent"),
+			}
+			if isinstance(state, dict)
+			else None
+		)
+	return out if any(out.values()) else None
 
 
 # ---------------------------------------------------------------------------------- portal: registration
@@ -953,14 +1000,17 @@ def my_requests():
 		order_by="creation desc",
 		limit=200,
 	)
+	names = [r.name for r in rows]
 	clearance = _child_rows(
 		"Clearance Item",
 		"Student Request",
 		[r.name for r in rows if r.request_type == "Clearance"],
 		["name", "department", "status", "cleared_on", "remarks"],
 	)
+	logs = _child_rows("Mahanaim Status Log", "Student Request", names, list(PORTAL_LOG_FIELDS))
 	for r in rows:
 		r["clearance"] = clearance.get(r.name, [])
+		r["status_log"] = logs.get(r.name, [])
 		r["can_cancel"] = r.status in OPEN_REQUEST
 		r.pop("reviewer", None)
 	return {"data": rows, "total": len(rows)}
