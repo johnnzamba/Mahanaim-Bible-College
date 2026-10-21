@@ -1,0 +1,125 @@
+{#- Award certificate — A4 landscape, rendered edge-to-edge (0 mm PDF margins) so the border frames the page.
+    Context: brand_context() + certificate_context(): doc (Certificate), student, programme_name, qr,
+    verification_code, verification_url, watermark (SPECIMEN for drafts, REVOKED). Table layout only. -#}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{ title }}</title>
+<style>
+	@page { size: A4 landscape; margin: 0; }
+	* { -webkit-box-sizing: border-box; box-sizing: border-box; }
+	html, body { margin: 0; padding: 0; background: #ffffff; }
+	body { -webkit-print-color-adjust: exact; print-color-adjust: exact; color: #1f2a24;
+		font-family: "Libre Baskerville", Georgia, "DejaVu Serif", "Times New Roman", serif; }
+	.page { position: relative; width: 297mm; height: 209mm; overflow: hidden; background: #f7f3ea; padding: 7mm; margin: 0 auto; }
+	.frame-outer { height: 100%; border: 3.5mm solid #14372a; padding: 1.6mm; }
+	.frame-mid { height: 100%; border: 0.8mm solid #c99a43; padding: 2.2mm; }
+	.frame-inner { position: relative; height: 100%; border: 0.35mm solid #1d4d3a; padding: 7mm 16mm 6mm;
+		background: #fbf8f1; }
+	.corner { position: absolute; width: 15mm; height: 15mm; border-color: #c99a43; border-style: solid; }
+	.corner.tl { top: 2.5mm; left: 2.5mm; border-width: 0.9mm 0 0 0.9mm; }
+	.corner.tr { top: 2.5mm; right: 2.5mm; border-width: 0.9mm 0.9mm 0 0; }
+	.corner.bl { bottom: 2.5mm; left: 2.5mm; border-width: 0 0 0.9mm 0.9mm; }
+	.corner.br { bottom: 2.5mm; right: 2.5mm; border-width: 0 0.9mm 0.9mm 0; }
+	table { border-collapse: collapse; width: 100%; }
+	td { vertical-align: top; }
+	.center { text-align: center; }
+	.logo { height: 22mm; }
+	.inst { font-size: 25px; font-weight: 700; letter-spacing: 3px; text-transform: uppercase; color: #14372a; margin: 2mm 0 0; }
+	.motto { font-style: italic; color: #8a6a2a; font-size: 12px; margin: 1mm 0 0; }
+	.ornament { color: #c99a43; font-size: 14px; letter-spacing: 6px; margin: 2mm 0 1mm; }
+	.lead { font-size: 13px; color: #3f4a44; letter-spacing: .6px; margin: 2mm 0; }
+	.name { font-size: 34px; font-style: italic; color: #1d4d3a; margin: 1mm 0 1mm; line-height: 1.2; }
+	.name-rule { width: 150mm; height: 0.4mm; background: #c99a43; margin: 0 auto 3mm; }
+	.body { font-size: 12.5px; color: #3f4a44; line-height: 1.65; margin: 0 18mm; }
+	.award { font-size: 23px; font-weight: 700; color: #14372a; margin: 2mm 0 1mm; letter-spacing: .5px; }
+	.programme { font-size: 13px; color: #1d4d3a; margin: 0; }
+	.class { display: inline-block; margin-top: 2mm; padding: 1mm 6mm; border: 0.35mm solid #c99a43; color: #8a6a2a;
+		font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; }
+	.sign td { vertical-align: bottom; }
+	.sigimg { height: 15mm; max-width: 55mm; }
+	.sigline { border-top: 0.3mm solid #1f2a24; width: 62mm; margin: 0 auto; padding-top: 1mm; font-size: 11px; }
+	.role { font-size: 9.5px; color: #6b766f; letter-spacing: 1px; text-transform: uppercase; }
+	.seal { height: 30mm; }
+	.seal-ph { width: 30mm; height: 30mm; border: 0.6mm double #c99a43; border-radius: 50%; margin: 0 auto; color: #c99a43;
+		font-size: 9px; letter-spacing: 1px; padding-top: 12mm; text-transform: uppercase; }
+	.meta { font-family: "Helvetica Neue", Helvetica, Arial, "DejaVu Sans", sans-serif; font-size: 9px; color: #55625b; }
+	.meta .code { font-family: "DejaVu Sans Mono", Menlo, Consolas, monospace; color: #14372a; font-weight: 700; letter-spacing: 1px; }
+	.qr { width: 21mm; height: 21mm; }
+	.watermark { position: absolute; top: 72mm; left: 0; width: 100%; text-align: center; font-size: 120px; font-weight: 700;
+		color: rgba(155, 28, 28, 0.13); -webkit-transform: rotate(-18deg); transform: rotate(-18deg); letter-spacing: 12px; z-index: 5; }
+	.toolbar { position: fixed; top: 10px; right: 10px; z-index: 10; }
+	.toolbar button { background: #14372a; color: #fff; border: 0; border-radius: 4px; padding: 8px 14px; cursor: pointer; font-size: 13px; }
+	@media print { .toolbar { display: none; } }
+	{% if for_pdf and pdf_zoom and pdf_zoom != 1 %}body { zoom: {{ pdf_zoom }}; }{% endif %}
+</style>
+</head>
+<body>
+{% if not for_pdf %}<div class="toolbar"><button onclick="window.print()">{{ _("Print") }}</button></div>{% endif %}
+<div class="page">
+	<div class="frame-outer"><div class="frame-mid"><div class="frame-inner">
+		<div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
+		{% if watermark %}<div class="watermark">{{ watermark }}</div>{% endif %}
+
+		<div class="center">
+			{% if logo %}<img class="logo" src="{{ logo }}" alt="">{% endif %}
+			<p class="inst">{{ institution }}</p>
+			{% if motto %}<p class="motto">&ldquo;{{ motto }}&rdquo;</p>{% endif %}
+			<div class="ornament">&#10070; &#10070; &#10070;</div>
+			<p class="lead">{{ _("This is to certify that") }}</p>
+			<div class="name">{{ doc.student_name or student.full_name }}</div>
+			<div class="name-rule"></div>
+			<p class="body">
+				{{ _("having satisfactorily completed the prescribed course of study and fulfilled all the requirements of the College, was admitted to the award of") }}
+			</p>
+			<div class="award">{{ doc.award_title or programme_name }}</div>
+			{% if doc.award_title and programme_name and programme_name != doc.award_title %}<p class="programme">{{ programme_name }}</p>{% endif %}
+			{% if doc.classification %}<div class="class">{{ doc.classification }}</div>{% endif %}
+			<p class="body" style="margin-top: 3mm;">
+				{{ _("Given under the seal of the College on") }}
+				<strong>{{ fmt_date(doc.graduation_date or doc.issue_date or generated_on, "d MMMM yyyy") }}</strong>
+			</p>
+		</div>
+
+		<table class="sign" style="margin-top: 3mm;">
+			<tr>
+				<td class="center" style="width: 36%;">
+					{% if principal_signature %}<img class="sigimg" src="{{ principal_signature }}" alt="">{% else %}<div style="height: 15mm;"></div>{% endif %}
+					<div class="sigline">{{ principal_name or "" }}<br><span class="role">{{ _("Principal") }}</span></div>
+				</td>
+				<td class="center">
+					{% if seal %}<img class="seal" src="{{ seal }}" alt="">{% else %}<div class="seal-ph">{{ _("College seal") }}</div>{% endif %}
+				</td>
+				<td class="center" style="width: 36%;">
+					{% if registrar_signature %}<img class="sigimg" src="{{ registrar_signature }}" alt="">{% else %}<div style="height: 15mm;"></div>{% endif %}
+					<div class="sigline">{{ registrar_name or "" }}<br><span class="role">{{ _("Registrar") }}</span></div>
+				</td>
+			</tr>
+		</table>
+
+		<table class="meta" style="margin-top: 2mm;">
+			<tr>
+				<td style="vertical-align: bottom;">
+					{{ _("Certificate No.") }} <span class="code">{{ doc.certificate_serial or "—" }}</span><br>
+					{{ _("Student No.") }} {{ doc.student_number or student.student_number }}
+				</td>
+				<td style="text-align: right; vertical-align: bottom;">
+					{% if qr %}
+					<table style="width: auto; margin-left: auto;">
+						<tr>
+							<td style="vertical-align: bottom; text-align: right; padding-right: 2mm;">
+								{{ _("Verify at") }} {{ verification_url }}<br>
+								{{ _("Code") }} <span class="code">{{ verification_code }}</span>
+							</td>
+							<td><img class="qr" src="{{ qr }}" alt="QR"></td>
+						</tr>
+					</table>
+					{% endif %}
+				</td>
+			</tr>
+		</table>
+	</div></div></div>
+</div>
+</body>
+</html>

@@ -13,6 +13,7 @@
   "column_break_0_1",
   "student",
   "programme_application",
+  "sponsor",
   "reference_doctype",
   "reference_name",
   "daraja_section_1",
@@ -28,6 +29,7 @@
   "payment",
   "column_break_2_3",
   "initiated_by",
+  "remarks",
   "payloads_section_3",
   "request_payload",
   "response_payload",
@@ -81,6 +83,12 @@
    "fieldtype": "Link",
    "label": "Programme Application",
    "options": "Programme Application"
+  },
+  {
+   "fieldname": "sponsor",
+   "fieldtype": "Link",
+   "label": "Sponsor",
+   "options": "Sponsor"
   },
   {
    "fieldname": "reference_doctype",
@@ -168,6 +176,12 @@
    "read_only": 1
   },
   {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks",
+   "read_only": 1
+  },
+  {
    "collapsible": 1,
    "fieldname": "payloads_section_3",
    "fieldtype": "Section Break",
@@ -197,7 +211,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-05-01 09:00:00.000000",
+ "modified": "2026-10-21 20:30:00.000000",
  "modified_by": "Administrator",
  "module": "Finance",
  "name": "M-Pesa Request",

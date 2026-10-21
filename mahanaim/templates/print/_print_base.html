@@ -1,0 +1,130 @@
+{#- Shared layout for B3 print documents (invoice, receipt, statement, transcript).
+    Rendered by mahanaim.services.documents.render_html with brand_context(): institution, short_name, motto, address,
+    phone, email, website, logo/seal/signatures (data URIs), money(), fmt_date(), qr, verification_code/url,
+    watermark, for_pdf. Table layout only: wkhtmltopdf's WebKit has no flexbox/grid. -#}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{{ title }}</title>
+<style>
+	@page { size: A4 {% block orientation %}portrait{% endblock %}; margin: 12mm; }
+	* { -webkit-box-sizing: border-box; box-sizing: border-box; }
+	html, body { margin: 0; padding: 0; background: #ffffff; }
+	body { font-family: "Helvetica Neue", Helvetica, Arial, "DejaVu Sans", sans-serif; color: #1f2a24; font-size: 11.5px;
+		line-height: 1.45; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+	h1, h2, h3, .serif { font-family: "Libre Baskerville", Georgia, "DejaVu Serif", "Times New Roman", serif; }
+	.sheet { position: relative; max-width: 186mm; margin: 0 auto; padding: 4mm 2mm; }
+	table { border-collapse: collapse; width: 100%; }
+	td, th { vertical-align: top; }
+	.brand td { vertical-align: middle; }
+	.brand .logo { width: 70px; height: 70px; }
+	.brand .inst { font-size: 19px; font-weight: 700; color: #14372a; margin: 0; letter-spacing: .2px; }
+	.brand .motto { font-style: italic; color: #8a6a2a; margin: 1px 0 0; font-size: 11px; }
+	.brand .contacts { color: #55625b; font-size: 10px; margin-top: 3px; }
+	.doc-title { text-align: right; }
+	.doc-title h1 { margin: 0; font-size: 17px; color: #14372a; text-transform: uppercase; letter-spacing: 1.5px; }
+	.doc-title .no { font-size: 12px; font-weight: 700; color: #1d4d3a; margin-top: 2px; }
+	.doc-title .sub { font-size: 10.5px; color: #55625b; }
+	.rule { height: 4px; background: #14372a; margin: 8px 0 0; }
+	.rule-gold { height: 2px; background: #c99a43; margin: 2px 0 12px; }
+	.panel { background: #f7f3ea; border: 1px solid #e6dcc6; border-radius: 4px; padding: 8px 10px; }
+	.label { color: #6b766f; font-size: 9.5px; text-transform: uppercase; letter-spacing: .6px; }
+	.value { font-weight: 600; color: #1f2a24; }
+	.kv td { padding: 2px 6px 2px 0; }
+	.grid { margin-top: 10px; }
+	.grid th { background: #14372a; color: #ffffff; font-weight: 600; text-align: left; padding: 6px 8px; font-size: 10.5px;
+		text-transform: uppercase; letter-spacing: .4px; }
+	.grid td { padding: 5px 8px; border-bottom: 1px solid #e8e4da; }
+	.grid tr.alt td { background: #fbf9f4; }
+	.grid tr.sub td { background: #efe8d7; font-weight: 700; color: #14372a; }
+	.grid .num, .num { text-align: right; white-space: nowrap; }
+	.totals { width: 46%; margin-left: 54%; margin-top: 8px; }
+	.totals td { padding: 4px 8px; }
+	.totals tr.grand td { border-top: 2px solid #14372a; font-size: 13px; font-weight: 700; color: #14372a; }
+	.section { margin-top: 14px; font-size: 12px; font-weight: 700; color: #14372a; text-transform: uppercase;
+		letter-spacing: .8px; border-bottom: 1px solid #c99a43; padding-bottom: 3px; }
+	.badge { display: inline-block; padding: 1px 8px; border-radius: 9px; font-size: 10px; font-weight: 700;
+		background: #e5efe9; color: #14372a; }
+	.badge.warn { background: #fbecd0; color: #8a5a00; }
+	.badge.bad { background: #fde2e1; color: #9b1c1c; }
+	.muted { color: #6b766f; }
+	.small { font-size: 9.5px; }
+	.sign td { vertical-align: bottom; padding-top: 14px; }
+	.sigimg { height: 46px; max-width: 160px; }
+	.sigline { border-top: 1px solid #1f2a24; width: 190px; padding-top: 3px; font-size: 10.5px; }
+	.seal { height: 82px; }
+	.verify { margin-top: 16px; border-top: 1px solid #e6dcc6; padding-top: 8px; }
+	.verify td { vertical-align: middle; }
+	.verify .qr { width: 84px; height: 84px; }
+	.code { font-family: "DejaVu Sans Mono", Menlo, Consolas, monospace; font-weight: 700; color: #14372a; letter-spacing: 1px; }
+	.watermark { position: absolute; top: 38%; left: 0; width: 100%; text-align: center; font-size: 92px; font-weight: 700;
+		color: rgba(201, 154, 67, 0.16); -webkit-transform: rotate(-28deg); transform: rotate(-28deg); z-index: 0;
+		letter-spacing: 8px; font-family: Georgia, serif; }
+	.content { position: relative; z-index: 1; }
+	.toolbar { position: fixed; top: 10px; right: 10px; z-index: 10; }
+	.toolbar button { background: #14372a; color: #fff; border: 0; border-radius: 4px; padding: 8px 14px; cursor: pointer;
+		font-size: 13px; }
+	@media print { .toolbar { display: none; } }
+	{% block extra_css %}{% endblock %}
+	{% if for_pdf and pdf_zoom and pdf_zoom != 1 %}body { zoom: {{ pdf_zoom }}; }{% endif %}
+</style>
+</head>
+<body>
+{% if not for_pdf %}<div class="toolbar"><button onclick="window.print()">{{ _("Print") }}</button></div>{% endif %}
+{% block page %}
+<div class="sheet">
+	{% if watermark %}<div class="watermark">{{ watermark }}</div>{% endif %}
+	<div class="content">
+		<table class="brand">
+			<tr>
+				<td style="width: 80px;">{% if logo %}<img class="logo" src="{{ logo }}" alt="">{% endif %}</td>
+				<td>
+					<p class="inst serif">{{ institution }}</p>
+					{% if motto %}<p class="motto serif">&ldquo;{{ motto }}&rdquo;</p>{% endif %}
+					<div class="contacts">{{ [address, phone, email, website] | select | join(" &middot; ") }}</div>
+				</td>
+				<td class="doc-title" style="width: 34%;">
+					<h1>{% block doc_title %}{% endblock %}</h1>
+					<div class="no">{% block doc_number %}{{ doc.name }}{% endblock %}</div>
+					<div class="sub">{% block doc_sub %}{% endblock %}</div>
+				</td>
+			</tr>
+		</table>
+		<div class="rule"></div><div class="rule-gold"></div>
+		{% block content %}{% endblock %}
+		{% block signatures %}
+		<table class="sign">
+			<tr>
+				<td style="width: 40%;">
+					{% if principal_signature %}<img class="sigimg" src="{{ principal_signature }}" alt=""><br>{% endif %}
+					<div class="sigline">{{ principal_name or _("Authorised signatory") }}<br><span class="muted">{% block signatory_role %}{{ _("Authorised signatory") }}{% endblock %}</span></div>
+				</td>
+				<td style="text-align: center;">{% if seal %}<img class="seal" src="{{ seal }}" alt="">{% endif %}</td>
+				<td class="num small muted" style="width: 34%;">{% block signature_note %}{{ _("This is a computer-generated document.") }}{% endblock %}</td>
+			</tr>
+		</table>
+		{% endblock %}
+		{% block verification %}
+		{% if qr %}
+		<table class="verify">
+			<tr>
+				<td style="width: 92px;"><img class="qr" src="{{ qr }}" alt="QR"></td>
+				<td>
+					<div class="small muted">{{ _("Verify this document by scanning the QR code or visiting") }}</div>
+					<div class="small">{{ verification_url }}</div>
+					<div class="small muted" style="margin-top: 3px;">{{ _("Verification code") }}: <span class="code">{{ verification_code }}</span></div>
+				</td>
+				<td class="num small muted" style="width: 34%;">
+					{{ _("Generated") }} {{ fmt_date(generated_on, "d MMM yyyy") }}<br>{{ short_name }} &middot; {{ _("Finance & Registry") }}
+				</td>
+			</tr>
+		</table>
+		{% endif %}
+		{% endblock %}
+	</div>
+</div>
+{% endblock %}
+</body>
+</html>

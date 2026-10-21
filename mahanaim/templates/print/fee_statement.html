@@ -1,0 +1,77 @@
+{#- Fee statement. Context: brand_context() + statement_context(): doc (name=student), student, statement
+    {opening_balance, lines[date, voucher_type, voucher_no, description, debit, credit, balance], total_debit,
+    total_credit, closing_balance, from_date, to_date}. Positive balance = owed; negative = credit. -#}
+{% extends "mahanaim/templates/print/_print_base.html" %}
+{% block doc_title %}{{ _("Fee Statement") }}{% endblock %}
+{% block doc_number %}{{ student.student_number or doc.name }}{% endblock %}
+{% block doc_sub %}
+	{% if statement.from_date or statement.to_date %}
+		{{ fmt_date(statement.from_date, "d MMM yyyy") or _("Start") }} – {{ fmt_date(statement.to_date, "d MMM yyyy") or _("Today") }}
+	{% else %}{{ _("All transactions") }}{% endif %}
+	<br>{{ _("As at") }} {{ fmt_date(generated_on, "d MMM yyyy") }}
+{% endblock %}
+{% block content %}
+<table>
+	<tr>
+		<td style="width: 58%; padding-right: 10px;">
+			<div class="panel">
+				<div class="label">{{ _("Student") }}</div>
+				<div class="value serif" style="font-size: 14px;">{{ student.full_name }}</div>
+				<table class="kv small" style="margin-top: 4px;">
+					<tr><td class="muted">{{ _("Student No.") }}</td><td class="value">{{ student.student_number or student.name }}</td></tr>
+					<tr><td class="muted">{{ _("Programme") }}</td><td>{{ student.programme_name or "" }}</td></tr>
+					<tr><td class="muted">{{ _("Campus / Mode") }}</td><td>{{ [student.campus_name, student.study_mode] | select | join(" · ") }}</td></tr>
+				</table>
+			</div>
+		</td>
+		<td>
+			<div class="panel" style="text-align: right;">
+				<div class="label">{{ _("Closing balance") }}</div>
+				{% set closing = statement.closing_balance or 0 %}
+				<div class="serif" style="font-size: 20px; font-weight: 700; color: {{ '#9b1c1c' if closing > 0 else '#14372a' }};">
+					{{ money(closing if closing >= 0 else -closing) }}
+				</div>
+				<div class="small muted">{{ _("Amount due") if closing > 0 else (_("Credit in your favour") if closing < 0 else _("Fully paid")) }}</div>
+			</div>
+		</td>
+	</tr>
+</table>
+
+<table class="grid">
+	<thead>
+		<tr>
+			<th style="width: 13%;">{{ _("Date") }}</th>
+			<th style="width: 19%;">{{ _("Reference") }}</th>
+			<th>{{ _("Description") }}</th>
+			<th class="num" style="width: 13%;">{{ _("Debit") }}</th>
+			<th class="num" style="width: 13%;">{{ _("Credit") }}</th>
+			<th class="num" style="width: 14%;">{{ _("Balance") }}</th>
+		</tr>
+	</thead>
+	<tbody>
+		{% if statement.from_date %}
+		<tr class="sub"><td>{{ fmt_date(statement.from_date, "d MMM yyyy") }}</td><td></td><td>{{ _("Opening balance") }}</td><td></td><td></td><td class="num">{{ money(statement.opening_balance, False) }}</td></tr>
+		{% endif %}
+		{% for line in statement.lines %}
+		<tr class="{{ 'alt' if loop.index is even else '' }}">
+			<td>{{ fmt_date(line.date, "d MMM yyyy") }}</td>
+			<td>{{ line.voucher_no }}</td>
+			<td>{{ line.description }}</td>
+			<td class="num">{{ money(line.debit, False) if line.debit else "" }}</td>
+			<td class="num">{{ money(line.credit, False) if line.credit else "" }}</td>
+			<td class="num">{{ money(line.balance, False) }}</td>
+		</tr>
+		{% else %}
+		<tr><td colspan="6" class="muted" style="text-align: center; padding: 14px;">{{ _("No transactions in this period.") }}</td></tr>
+		{% endfor %}
+		<tr class="sub">
+			<td colspan="3">{{ _("Totals") }}</td>
+			<td class="num">{{ money(statement.total_debit, False) }}</td>
+			<td class="num">{{ money(statement.total_credit, False) }}</td>
+			<td class="num">{{ money(statement.closing_balance, False) }}</td>
+		</tr>
+	</tbody>
+</table>
+<p class="small muted" style="margin-top: 8px;">{{ _("Balances in {0}. A negative balance is a credit on your account.").format(currency) }}</p>
+{% endblock %}
+{% block signatory_role %}{{ _("For the Finance Office") }}{% endblock %}

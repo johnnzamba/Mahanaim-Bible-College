@@ -1,0 +1,85 @@
+{#- Payment receipt. Context: brand_context() + receipt_context(): doc (Student Payment), student, application,
+    amount_in_words, balance (None for non-fee payments). -#}
+{% extends "mahanaim/templates/print/_print_base.html" %}
+{% block doc_title %}{{ _("Official Receipt") }}{% endblock %}
+{% block doc_sub %}
+	{{ _("Date") }}: {{ fmt_date(doc.posting_date, "d MMM yyyy") }}
+	<br><span class="badge {{ 'bad' if doc.docstatus == 2 else ('warn' if doc.docstatus == 0 else '') }}">{{ _(doc.status or "Draft") }}</span>
+{% endblock %}
+{% block content %}
+<table>
+	<tr>
+		<td style="width: 58%; padding-right: 10px;">
+			<div class="panel">
+				<div class="label">{{ _("Received from") }}</div>
+				{% if student.name %}
+					<div class="value serif" style="font-size: 14px;">{{ student.full_name }}</div>
+					<table class="kv small" style="margin-top: 4px;">
+						<tr><td class="muted">{{ _("Student No.") }}</td><td class="value">{{ student.student_number or student.name }}</td></tr>
+						<tr><td class="muted">{{ _("Programme") }}</td><td>{{ student.programme_name or "" }}</td></tr>
+					</table>
+				{% elif application %}
+					<div class="value serif" style="font-size: 14px;">{{ application.full_name }}</div>
+					<table class="kv small" style="margin-top: 4px;">
+						<tr><td class="muted">{{ _("Application") }}</td><td class="value">{{ application.name }}</td></tr>
+						<tr><td class="muted">{{ _("Programme") }}</td><td>{{ application.programme_name or "" }}</td></tr>
+					</table>
+				{% else %}
+					<div class="value serif" style="font-size: 14px;">{{ doc.payer_name or doc.sponsor or "—" }}</div>
+				{% endif %}
+				{% if doc.payer_name and (student.name or application) %}<div class="small muted" style="margin-top: 3px;">{{ _("Paid by") }}: {{ doc.payer_name }}</div>{% endif %}
+			</div>
+		</td>
+		<td>
+			<div class="panel">
+				<table class="kv small">
+					<tr><td class="muted">{{ _("Payment for") }}</td><td class="value">{{ _(doc.payment_for) }}</td></tr>
+					<tr><td class="muted">{{ _("Mode") }}</td><td>{{ doc.mode_of_payment }}</td></tr>
+					{% if doc.reference_no %}<tr><td class="muted">{{ _("Reference") }}</td><td class="code">{{ doc.reference_no }}</td></tr>{% endif %}
+					{% if doc.reference_date %}<tr><td class="muted">{{ _("Reference date") }}</td><td>{{ fmt_date(doc.reference_date, "d MMM yyyy") }}</td></tr>{% endif %}
+					{% if doc.msisdn %}<tr><td class="muted">{{ _("Phone") }}</td><td>{{ doc.msisdn }}</td></tr>{% endif %}
+				</table>
+			</div>
+		</td>
+	</tr>
+</table>
+
+<table style="margin-top: 14px; border: 2px solid #14372a;">
+	<tr>
+		<td style="background: #14372a; color: #ffffff; padding: 12px 14px; width: 38%; vertical-align: middle;">
+			<div class="small" style="text-transform: uppercase; letter-spacing: 1px; color: #e9d4a6;">{{ _("Amount received") }}</div>
+			<div class="serif" style="font-size: 22px; font-weight: 700;">{{ money(doc.amount) }}</div>
+		</td>
+		<td style="padding: 12px 14px; vertical-align: middle; background: #f7f3ea;">
+			<div class="label">{{ _("In words") }}</div>
+			<div class="serif" style="font-style: italic;">{{ amount_in_words }}</div>
+		</td>
+	</tr>
+</table>
+
+{% if doc.allocations %}
+<div class="section">{{ _("Allocation") }}</div>
+<table class="grid">
+	<thead><tr><th>{{ _("Invoice") }}</th><th>{{ _("Term") }}</th><th class="num">{{ _("Allocated") }} ({{ currency }})</th></tr></thead>
+	<tbody>
+	{% for a in doc.allocations %}
+		<tr class="{{ 'alt' if loop.index is even else '' }}">
+			<td>{{ a.invoice }}</td>
+			<td>{{ a.academic_term or "" }}</td>
+			<td class="num">{{ money(a.allocated_amount, False) }}</td>
+		</tr>
+	{% endfor %}
+	</tbody>
+</table>
+{% endif %}
+
+<table class="totals">
+	<tr><td>{{ _("Allocated to invoices") }}</td><td class="num">{{ money(doc.allocated_amount) }}</td></tr>
+	{% if doc.unallocated_amount %}<tr><td>{{ _("Held as credit") }}</td><td class="num">{{ money(doc.unallocated_amount) }}</td></tr>{% endif %}
+	{% if balance is not none %}
+	<tr class="grand"><td>{{ _("Balance due") if balance > 0 else _("Account credit") }}</td><td class="num">{{ money(balance if balance > 0 else -balance) }}</td></tr>
+	{% endif %}
+</table>
+{% if doc.remarks %}<p class="small muted" style="margin-top: 10px;">{{ doc.remarks }}</p>{% endif %}
+{% endblock %}
+{% block signatory_role %}{{ _("For the Finance Office") }}{% endblock %}

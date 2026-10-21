@@ -1,0 +1,123 @@
+{#- Academic transcript. Context: brand_context() + transcript_context(): doc (Transcript), student, data (snapshot:
+    terms[{term, label, courses[{code, title, credits, total, grade, grade_points, status}], gpa, credits}], cgpa,
+    total_credits, classification), terms, grading_key[{grade, min, max, points, description}]. -#}
+{% extends "mahanaim/templates/print/_print_base.html" %}
+{% block extra_css %}
+	.grid.courses th { font-size: 9.5px; padding: 4px 6px; }
+	.grid.courses td { font-size: 10.5px; padding: 3px 6px; }
+	.term-head td { background: #f7f3ea; color: #14372a; font-weight: 700; padding: 5px 6px; border-top: 1px solid #c99a43;
+		font-family: "Libre Baskerville", Georgia, serif; font-size: 11px; }
+	.term-foot td { font-size: 10px; color: #1d4d3a; font-weight: 600; padding: 3px 6px 8px; border-bottom: 2px solid #e6dcc6; }
+	.summary td { text-align: center; padding: 8px 6px; border-right: 1px solid #e6dcc6; }
+	.summary td:last-child { border-right: 0; }
+	.summary .big { font-size: 17px; font-weight: 700; color: #14372a; font-family: "Libre Baskerville", Georgia, serif; }
+	.key td, .key th { font-size: 9px; padding: 2px 5px; border: 1px solid #e6dcc6; text-align: center; }
+	.key th { background: #efe8d7; color: #14372a; }
+	tr { page-break-inside: avoid; }
+	.photo { width: 74px; height: 88px; border: 1px solid #e6dcc6; }
+{% endblock %}
+{% block doc_title %}{{ _("Academic Transcript") }}{% endblock %}
+{% block doc_number %}{{ _(doc.transcript_type) }}{% endblock %}
+{% block doc_sub %}
+	{% if doc.issue_date %}{{ _("Issued") }}: {{ fmt_date(doc.issue_date, "d MMM yyyy") }}{% else %}{{ _("Not issued") }}{% endif %}
+	{% if doc.as_of_term %}<br>{{ _("As of") }}: {{ doc.as_of_term }}{% endif %}
+	{% if doc.status != "Issued" %}<br><span class="badge {{ 'bad' if doc.status == 'Revoked' else 'warn' }}">{{ _(doc.status) }}</span>{% endif %}
+{% endblock %}
+{% block content %}
+<table class="panel">
+	<tr>
+		<td>
+			<table class="kv small">
+				<tr><td class="muted" style="width: 30%;">{{ _("Name") }}</td><td class="value serif" style="font-size: 13px;">{{ doc.student_name or student.full_name }}</td></tr>
+				<tr><td class="muted">{{ _("Student No.") }}</td><td class="value">{{ doc.student_number or student.student_number }}</td></tr>
+				<tr><td class="muted">{{ _("Programme") }}</td><td class="value">{{ student.programme_name or doc.programme }}</td></tr>
+				<tr><td class="muted">{{ _("Campus / Mode") }}</td><td>{{ [student.campus_name, student.study_mode] | select | join(" · ") }}</td></tr>
+			</table>
+		</td>
+		<td style="width: 38%;">
+			<table class="kv small">
+				{% if student.date_of_birth %}<tr><td class="muted">{{ _("Date of birth") }}</td><td>{{ fmt_date(student.date_of_birth, "d MMM yyyy") }}</td></tr>{% endif %}
+				{% if student.admission_year or student.intake %}<tr><td class="muted">{{ _("Admitted") }}</td><td>{{ student.intake or student.admission_year }}</td></tr>{% endif %}
+				{% if student.completion_date %}<tr><td class="muted">{{ _("Completed") }}</td><td>{{ fmt_date(student.completion_date, "d MMM yyyy") }}</td></tr>{% endif %}
+				<tr><td class="muted">{{ _("Status") }}</td><td>{{ _(student.status) if student.status else "" }}</td></tr>
+			</table>
+		</td>
+	</tr>
+</table>
+
+<table class="grid courses">
+	<thead>
+		<tr>
+			<th style="width: 14%;">{{ _("Code") }}</th>
+			<th>{{ _("Course title") }}</th>
+			<th class="num" style="width: 9%;">{{ _("Credits") }}</th>
+			<th class="num" style="width: 9%;">{{ _("Score") }}</th>
+			<th style="width: 8%; text-align: center;">{{ _("Grade") }}</th>
+			<th class="num" style="width: 9%;">{{ _("Points") }}</th>
+		</tr>
+	</thead>
+	<tbody>
+	{% for term in terms %}
+		<tr class="term-head"><td colspan="6">{{ term.label or term.term }}</td></tr>
+		{% for c in term.courses %}
+		<tr class="{{ 'alt' if loop.index is even else '' }}">
+			<td>{{ c.code }}</td>
+			<td>{{ c.title }}</td>
+			<td class="num">{{ "%g" | format(c.credits or 0) }}</td>
+			<td class="num">{{ "%.0f" | format(c.total) if c.total is not none else "" }}</td>
+			<td style="text-align: center; font-weight: 700;">{{ c.grade or "" }}</td>
+			<td class="num">{{ "%.2f" | format(c.grade_points or 0) }}</td>
+		</tr>
+		{% endfor %}
+		<tr class="term-foot">
+			<td colspan="6" class="num">
+				{{ _("Term credits") }}: {{ "%g" | format(term.credits or 0) }} &nbsp;&middot;&nbsp; {{ _("Term GPA") }}: {{ "%.2f" | format(term.gpa or 0) }}
+			</td>
+		</tr>
+	{% else %}
+		<tr><td colspan="6" class="muted" style="text-align: center; padding: 16px;">{{ _("No published results.") }}</td></tr>
+	{% endfor %}
+	</tbody>
+</table>
+
+{% set cgpa = doc.cgpa if doc.cgpa is not none and doc.status != "Draft" else data.cgpa %}
+<table class="panel summary" style="margin-top: 12px; padding: 0;">
+	<tr>
+		<td><div class="label">{{ _("Total credits") }}</div><div class="big">{{ "%g" | format(doc.total_credits or data.total_credits or 0) }}</div></td>
+		<td><div class="label">{{ _("Cumulative GPA") }}</div><div class="big">{{ "%.2f" | format(cgpa or 0) }}</div></td>
+		<td><div class="label">{{ _("Classification") }}</div><div class="big" style="font-size: 14px;">{{ doc.classification or data.classification or "—" }}</div></td>
+	</tr>
+</table>
+
+{% if grading_key %}
+<table style="margin-top: 10px;">
+	<tr>
+		<td style="width: 16%; vertical-align: middle;" class="small muted">{{ _("Grading key") }}</td>
+		<td>
+			<table class="key">
+				<tr><th>{{ _("Grade") }}</th>{% for b in grading_key %}<th>{{ b.grade }}</th>{% endfor %}</tr>
+				<tr><td>{{ _("Marks") }}</td>{% for b in grading_key %}<td>{{ "%g" | format(b.min) }}–{{ "%g" | format(b.max) }}</td>{% endfor %}</tr>
+				<tr><td>{{ _("Points") }}</td>{% for b in grading_key %}<td>{{ "%.1f" | format(b.points) }}</td>{% endfor %}</tr>
+			</table>
+		</td>
+	</tr>
+</table>
+{% endif %}
+{% if doc.status == "Revoked" and doc.revoked_reason %}
+<p class="small" style="color: #9b1c1c; margin-top: 8px;"><strong>{{ _("Revoked") }}:</strong> {{ doc.revoked_reason }}</p>
+{% endif %}
+{% endblock %}
+{% block signatures %}
+<table class="sign">
+	<tr>
+		<td style="width: 40%;">
+			{% if registrar_signature %}<img class="sigimg" src="{{ registrar_signature }}" alt=""><br>{% endif %}
+			<div class="sigline">{{ registrar_name or _("Registrar") }}<br><span class="muted">{{ _("Registrar (Academic Affairs)") }}</span></div>
+		</td>
+		<td style="text-align: center;">{% if seal %}<img class="seal" src="{{ seal }}" alt="">{% endif %}</td>
+		<td class="num small muted" style="width: 34%;">
+			{{ _("This transcript is valid only with the college seal or when verified online.") }}
+		</td>
+	</tr>
+</table>
+{% endblock %}
