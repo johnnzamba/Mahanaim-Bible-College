@@ -15,9 +15,12 @@ staff who can read the log cannot use them to sign in as someone else.
 from __future__ import annotations
 
 import json
+import re
+from html import unescape
 
 import frappe
 from frappe import _
+from frappe.model.document import Document
 from frappe.utils import cint, get_url, now_datetime, strip_html
 
 from mahanaim.utils import normalize_phone, setting
@@ -84,17 +87,33 @@ def _render(template: str | None, ctx: dict) -> str:
 	return frappe.render_template(template, ctx)
 
 
+def _plain(html: str | None, limit: int = 300) -> str:
+	text = re.sub(r"(?i)<br\s*/?>|</(p|div|li|blockquote|h[1-6])>", " ", html or "")
+	return re.sub(r"\s+", " ", unescape(strip_html(text))).strip()[:limit]
+
+
+def _data(value):
+	"""Templates get plain data, never live Documents (no save/db_set/get_password from a template)."""
+	return value.as_dict() if isinstance(value, Document) else value
+
+
+def _public_settings() -> frappe._dict:
+	s = frappe.get_cached_doc("Mahanaim Settings")
+	secret = {df.fieldname for df in s.meta.fields if df.fieldtype == "Password"}
+	return frappe._dict({k: v for k, v in s.as_dict(no_default_fields=True).items() if k not in secret})
+
+
 def _context(doc=None, context: dict | None = None, recipient: dict | None = None) -> dict:
-	settings = frappe.get_cached_doc("Mahanaim Settings")
+	# `frappe` is deliberately not set here: templates use the sandbox's safe `frappe` global.
+	settings = _public_settings()
 	ctx = {
-		"doc": doc,
+		"doc": _data(doc),
 		"settings": settings,
 		"college": settings.institution_name,
 		"site_url": get_url(),
 		"recipient": recipient or {},
-		"frappe": frappe._dict(utils=frappe.utils, format=frappe.format),
 	}
-	ctx.update(context or {})
+	ctx.update({k: _data(v) for k, v in (context or {}).items()})
 	return ctx
 
 
@@ -127,13 +146,15 @@ def notify(
 		],
 	)
 	if not templates and fallback:
+		# Fallback copy is final text (it often embeds user input), so it is never rendered as Jinja.
 		templates = [
 			frappe._dict(
 				name=None,
+				literal=True,
 				subject=fallback.get("subject"),
 				email_body=fallback.get("message"),
-				sms_body=fallback.get("sms") or strip_html(fallback.get("message") or "")[:300],
-				in_app_body=fallback.get("in_app") or strip_html(fallback.get("message") or "")[:300],
+				sms_body=fallback.get("sms") or _plain(fallback.get("message")),
+				in_app_body=fallback.get("in_app") or _plain(fallback.get("message")),
 				send_email=1,
 				send_sms=cint(fallback.get("send_sms")),
 				send_in_app=1,
@@ -142,19 +163,20 @@ def notify(
 	for tpl in templates:
 		for r in recipients:
 			ctx = _context(doc, context, r)
+			render = (lambda s: s or "") if tpl.get("literal") else (lambda s, c=ctx: _render(s, c))
 			try:
-				subject = _render(tpl.subject, ctx) or event
+				subject = render(tpl.subject) or event
 				if tpl.send_email and r.get("email") and (not channels or "Email" in channels):
 					send_email(
-						r["email"], subject, _render(tpl.email_body, ctx), doc, tpl.name, event, r.get("user")
+						r["email"], subject, render(tpl.email_body), doc, tpl.name, event, r.get("user")
 					)
 				if tpl.send_sms and r.get("phone") and (not channels or "SMS" in channels):
-					send_sms(r["phone"], _render(tpl.sms_body, ctx), doc, tpl.name, event, r.get("user"))
+					send_sms(r["phone"], render(tpl.sms_body), doc, tpl.name, event, r.get("user"))
 				if tpl.send_in_app and r.get("user") and (not channels or "In-App" in channels):
 					push_portal_notification(
 						r["user"],
 						subject,
-						_render(tpl.in_app_body, ctx) or strip_html(_render(tpl.email_body, ctx))[:300],
+						render(tpl.in_app_body) or _plain(render(tpl.email_body)),
 						link=link,
 						category=category,
 						doc=doc,
