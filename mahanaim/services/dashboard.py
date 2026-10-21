@@ -1487,6 +1487,535 @@ def r_message_delivery(f: dict) -> dict:
 	}
 
 
+# ---------------------------------------------------------------------------------- payment reconciliation
+TRANSACTION_STATUSES = ("Unmatched", "Matched", "Allocated", "Reversed")
+NO_TRANSACTION = "No Transaction"  # synthetic status: confirmed M-Pesa Student Payment without a transaction
+EXTERNAL_MATCHES = {"Giving": "Giving Record", "Event Fee": "Event Registration"}
+
+
+def _mask_phone(phone: str | None) -> str | None:
+	if not phone:
+		return None
+	try:
+		from mahanaim.services.auth import mask_phone
+
+		return mask_phone(phone)
+	except ImportError:
+		phone = str(phone)
+		return "*" * max(len(phone) - 3, 0) + phone[-3:]
+
+
+def _day_bounds(f: dict, default_days: int | None = None) -> tuple[str | None, str | None]:
+	"""[start, end) date strings for filtering a Datetime column by the from_date/to_date filters."""
+	from_date, to_date = f.get("from_date"), f.get("to_date")
+	if not from_date and default_days:
+		from_date = add_days(nowdate(), -default_days)
+	return (
+		str(getdate(from_date)) if from_date else None,
+		str(add_days(getdate(to_date), 1)) if to_date else None,
+	)
+
+
+def _external_matches(requests_by_purpose: dict[str, set]) -> dict[str, tuple[str, str]]:
+	"""{M-Pesa Request: (doctype, name)} for Giving Records / Event Registrations paid by STK push."""
+	out = {}
+	for purpose, doctype in EXTERNAL_MATCHES.items():
+		reqs = [r for r in requests_by_purpose.get(purpose, ()) if r]
+		if not reqs:
+			continue
+		for name, req in frappe.get_all(
+			doctype,
+			filters={"mpesa_request": ["in", reqs]},
+			fields=["name", "mpesa_request"],
+			as_list=True,
+		):
+			out[req] = (doctype, name)
+	return out
+
+
+def _mpesa_transactions(f: dict, start: str | None, end: str | None) -> list[dict]:
+	from frappe.query_builder import Order
+	from frappe.query_builder.functions import Coalesce
+
+	MT, RQ = frappe.qb.DocType("M-Pesa Transaction"), frappe.qb.DocType("M-Pesa Request")
+	ST, PA = frappe.qb.DocType("Student"), frappe.qb.DocType("Programme Application")
+	campus = Coalesce(ST.campus, PA.campus)
+	q = (
+		frappe.qb.from_(MT)
+		.left_join(RQ)
+		.on(RQ.name == MT.request)
+		.left_join(ST)
+		.on(ST.name == Coalesce(MT.student, RQ.student))
+		.left_join(PA)
+		.on(PA.name == Coalesce(MT.programme_application, RQ.programme_application))
+		.select(
+			MT.name,
+			MT.trans_time,
+			MT.source,
+			MT.msisdn,
+			MT.payer_name,
+			MT.amount,
+			MT.bill_ref_number,
+			MT.status,
+			MT.request,
+			MT.payment,
+			RQ.purpose,
+			ST.name.as_("student"),
+			PA.name.as_("programme_application"),
+			campus.as_("campus"),
+		)
+		.orderby(MT.trans_time, order=Order.desc)
+		.limit(MAX_ROWS)
+	)
+	if start:
+		q = q.where(MT.trans_time >= start)
+	if end:
+		q = q.where(MT.trans_time < end)
+	if f.get("campus"):
+		q = q.where(campus == f["campus"])
+	if f.get("status") in TRANSACTION_STATUSES:
+		q = q.where(MT.status == f["status"])
+	return q.run(as_dict=True)
+
+
+def _payments_without_transaction(f: dict) -> list[dict]:
+	"""Confirmed M-Pesa Student Payments that no M-Pesa Transaction backs (by link, reference or allocation)."""
+	from frappe.query_builder.functions import Coalesce
+
+	SP, ST = frappe.qb.DocType("Student Payment"), frappe.qb.DocType("Student")
+	PA = frappe.qb.DocType("Programme Application")
+	campus = Coalesce(ST.campus, PA.campus)
+	q = (
+		frappe.qb.from_(SP)
+		.left_join(ST)
+		.on(ST.name == SP.student)
+		.left_join(PA)
+		.on(PA.name == SP.programme_application)
+		.select(
+			SP.name,
+			SP.posting_date,
+			SP.payment_for,
+			SP.student,
+			SP.programme_application,
+			SP.payer_name,
+			SP.amount,
+			SP.reference_no,
+			SP.msisdn,
+			SP.mpesa_transaction,
+			campus.as_("campus"),
+		)
+		.where((SP.docstatus == 1) & (SP.mode_of_payment == "M-Pesa"))
+		.limit(MAX_ROWS)
+	)
+	start, end = _day_bounds(f, default_days=30)
+	if start:
+		q = q.where(SP.posting_date >= start)
+	if end:
+		q = q.where(SP.posting_date < end)
+	if f.get("campus"):
+		q = q.where(campus == f["campus"])
+	payments = q.run(as_dict=True)
+	if not payments:
+		return []
+	refs = set()
+	for p in payments:
+		refs.update(x for x in (p.mpesa_transaction, p.reference_no, (p.reference_no or "").upper()) if x)
+	known = set(frappe.get_all("M-Pesa Transaction", filters={"name": ["in", list(refs)]}, pluck="name"))
+	allocated = set(
+		frappe.get_all(
+			"M-Pesa Transaction", filters={"payment": ["in", [p.name for p in payments]]}, pluck="payment"
+		)
+	)
+	return [
+		p
+		for p in payments
+		if p.name not in allocated
+		and not {p.mpesa_transaction, p.reference_no, (p.reference_no or "").upper()} & known
+	]
+
+
+def r_payment_reconciliation(f: dict) -> dict:
+	start, end = _day_bounds(f, default_days=30)
+	status = f.get("status")
+	trans = [] if status == NO_TRANSACTION else _mpesa_transactions(f, start, end)
+	by_purpose = defaultdict(set)
+	for t in trans:
+		if not t.payment and t.purpose in EXTERNAL_MATCHES:
+			by_purpose[t.purpose].add(t.request)
+	external = _external_matches(by_purpose)
+	rows = []
+	by_status = {s: 0 for s in TRANSACTION_STATUSES}
+	amount_by_status = {s: 0.0 for s in TRANSACTION_STATUSES}
+	matched_by_day, unmatched_by_day = defaultdict(float), defaultdict(float)
+	for t in trans:
+		if t.payment:
+			matched = ("Student Payment", t.payment)
+		elif t.request in external:
+			matched = external[t.request]
+		elif t.programme_application:
+			matched = ("Programme Application", t.programme_application)
+		elif t.student:
+			matched = ("Student", t.student)
+		else:
+			matched = (None, None)
+		rows.append(
+			{
+				"receipt": t.name,
+				"trans_time": t.trans_time,
+				"source": t.source,
+				"phone": _mask_phone(t.msisdn),
+				"payer_name": t.payer_name,
+				"amount": flt(t.amount),
+				"bill_ref_number": t.bill_ref_number,
+				"purpose": t.purpose,
+				"matched_doctype": matched[0],
+				"matched_name": matched[1],
+				"matched_route": route_for(*matched) if matched[0] else None,
+				"student": t.student,
+				"campus": t.campus,
+				"payment": t.payment,
+				"status": t.status,
+			}
+		)
+		if t.status in by_status:
+			by_status[t.status] += 1
+			amount_by_status[t.status] += flt(t.amount)
+		day = str(getdate(t.trans_time)) if t.trans_time else ""
+		(unmatched_by_day if t.status == "Unmatched" else matched_by_day)[day] += flt(t.amount)
+	orphans = [] if status in TRANSACTION_STATUSES else _payments_without_transaction(f)
+	for p in orphans:
+		rows.append(
+			{
+				"receipt": p.reference_no,
+				"trans_time": p.posting_date,
+				"source": None,
+				"phone": _mask_phone(p.msisdn),
+				"payer_name": p.payer_name,
+				"amount": flt(p.amount),
+				"bill_ref_number": None,
+				"purpose": p.payment_for,
+				"matched_doctype": "Student Payment",
+				"matched_name": p.name,
+				"matched_route": route_for("Student Payment", p.name),
+				"student": p.student,
+				"campus": p.campus,
+				"payment": p.name,
+				"status": NO_TRANSACTION,
+			}
+		)
+	days = sorted(d for d in set(matched_by_day) | set(unmatched_by_day) if d)
+	return {
+		"columns": [
+			_col("receipt", _("Receipt")),
+			_col("trans_time", _("Date"), "Datetime"),
+			_col("source", _("Source")),
+			_col("phone", _("Phone")),
+			_col("payer_name", _("Payer")),
+			_col("amount", _("Amount"), "Currency"),
+			_col("bill_ref_number", _("Account / Bill ref")),
+			_col("purpose", _("Purpose")),
+			_col("matched_doctype", _("Matched to")),
+			_col("matched_name", _("Matched document")),
+			_col("student", _("Student"), "Link"),
+			_col("campus", _("Campus"), "Link"),
+			_col("payment", _("Payment"), "Link"),
+			_col("status", _("Status")),
+		],
+		"rows": rows[:MAX_ROWS],
+		"chart": {
+			"type": "bar",
+			"labels": days,
+			"datasets": [
+				{"name": _("Matched amount"), "values": [matched_by_day[d] for d in days]},
+				{"name": _("Unmatched amount"), "values": [unmatched_by_day[d] for d in days]},
+			],
+		},
+		"summary": {
+			"transactions": len(trans),
+			"total_amount": sum(amount_by_status.values()),
+			"allocated_amount": amount_by_status["Allocated"],
+			"unmatched": by_status["Unmatched"],
+			"unmatched_amount": amount_by_status["Unmatched"],
+			"payments_without_transaction": len(orphans),
+			"payments_without_transaction_amount": sum(flt(p.amount) for p in orphans),
+			"by_status": {**by_status, NO_TRANSACTION: len(orphans)},
+			"amount_by_status": {
+				**amount_by_status,
+				NO_TRANSACTION: sum(flt(p.amount) for p in orphans),
+			},
+		},
+	}
+
+
+# ---------------------------------------------------------------------------------- lecturer workload
+GRADING_DUE = ("Submitted", "Late")
+MARKS_SUBMITTED = ("Submitted", "Approved", "Published")
+LIVE_ENROLMENT = ("Enrolled", "Completed", "Failed")
+
+
+def r_lecturer_workload(f: dict) -> dict:
+	term = f.get("academic_term") or current_term()
+	off_filters = _apply({"status": ["!=", "Cancelled"]}, f, ("campus",))
+	if term:
+		off_filters["academic_term"] = term
+	offerings = {
+		o.name: o
+		for o in frappe.get_all(
+			"Course Offering",
+			filters=off_filters,
+			fields=["name", "course", "course_title", "credits"],
+			limit_page_length=MAX_ROWS,
+		)
+	}
+	names = list(offerings)
+	teachers, sessions = defaultdict(set), []
+	if names:
+		for parent, staff in frappe.get_all(
+			"Course Offering Lecturer",
+			filters={"parenttype": "Course Offering", "parent": ["in", names], "staff_member": ["is", "set"]},
+			fields=["parent", "staff_member"],
+			as_list=True,
+		):
+			teachers[parent].add(staff)
+		in_offerings = {"course_offering": ["in", names]}
+		students = _count_by(
+			"Course Enrolment", "course_offering", {**in_offerings, "status": ["in", LIVE_ENROLMENT]}
+		)
+		assignments = _count_by("Assignment", "course_offering", {**in_offerings, "status": ["!=", "Draft"]})
+		to_grade = _count_by(
+			"Assignment Submission", "course_offering", {**in_offerings, "status": ["in", GRADING_DUE]}
+		)
+		marks_done = _count_by(
+			"Mark Sheet", "course_offering", {**in_offerings, "status": ["in", MARKS_SUBMITTED]}
+		)
+		sessions = frappe.get_all(
+			"Class Session",
+			filters={**in_offerings, "attendance_taken": 1, "status": ["!=", "Cancelled"]},
+			fields=["course_offering", "lecturer", {"COUNT": "*", "as": "n"}],
+			group_by="course_offering, lecturer",
+		)
+	else:
+		students = assignments = to_grade = marks_done = {}
+	staff_filters = _apply({}, f, ("department",))
+	active_lecturers = frappe.get_all(
+		"Staff Member",
+		filters={**staff_filters, "is_lecturer": 1, "status": "Active", **_apply({}, f, ("campus",))},
+		pluck="name",
+	)
+	involved = {s for group in teachers.values() for s in group} | {
+		s.lecturer for s in sessions if s.lecturer
+	}
+	staff = frappe.get_all(
+		"Staff Member",
+		filters={**staff_filters, "name": ["in", list(involved | set(active_lecturers)) or [""]]},
+		fields=["name", "full_name", "department", "campus"],
+	)
+	per = {
+		s.name: {
+			"staff_member": s.name,
+			"lecturer_name": s.full_name,
+			"department": s.department,
+			"campus": s.campus,
+			"offerings": 0,
+			"courses": [],
+			"credit_hours": 0.0,
+			"students": 0,
+			"assignments_published": 0,
+			"submissions_to_grade": 0,
+			"mark_sheets_pending": 0,
+			"sessions_recorded": 0,
+		}
+		for s in staff
+	}
+	for offering, lecturers in teachers.items():
+		o = offerings[offering]
+		for staff_member in lecturers:
+			row = per.get(staff_member)
+			if not row:
+				continue
+			row["offerings"] += 1
+			row["courses"].append(o.course or o.course_title)
+			row["credit_hours"] += flt(o.credits)
+			row["students"] += students.get(offering, 0)
+			row["assignments_published"] += assignments.get(offering, 0)
+			row["submissions_to_grade"] += to_grade.get(offering, 0)
+			row["mark_sheets_pending"] += 0 if marks_done.get(offering) else 1
+	for s in sessions:
+		# a session is credited to the lecturer who took it, else to everyone teaching the offering
+		for staff_member in [s.lecturer] if s.lecturer else teachers.get(s.course_offering, ()):
+			if staff_member in per:
+				per[staff_member]["sessions_recorded"] += cint(s.n)
+	data = sorted(per.values(), key=lambda r: (-r["credit_hours"], -r["offerings"], r["lecturer_name"] or ""))
+	for r in data:
+		r["courses"] = ", ".join(sorted(c for c in r["courses"] if c))
+	teaching = [r for r in data if r["offerings"]]
+	return {
+		"columns": [
+			_col("staff_member", _("Staff ID")),
+			_col("lecturer_name", _("Lecturer")),
+			_col("department", _("Department"), "Link"),
+			_col("campus", _("Campus"), "Link"),
+			_col("offerings", _("Offerings"), "Int"),
+			_col("courses", _("Courses")),
+			_col("credit_hours", _("Credit hours"), "Float"),
+			_col("students", _("Students"), "Int"),
+			_col("assignments_published", _("Assignments published"), "Int"),
+			_col("submissions_to_grade", _("Submissions to grade"), "Int"),
+			_col("mark_sheets_pending", _("Mark sheets pending"), "Int"),
+			_col("sessions_recorded", _("Sessions recorded"), "Int"),
+		],
+		"rows": data,
+		"chart": {
+			"type": "bar",
+			"labels": [r["lecturer_name"] or r["staff_member"] for r in teaching],
+			"datasets": [
+				{"name": _("Credit hours"), "values": [r["credit_hours"] for r in teaching]},
+				{"name": _("Offerings"), "values": [r["offerings"] for r in teaching]},
+			],
+		},
+		"summary": {
+			"term": term,
+			"lecturers": len(data),
+			"teaching": len(teaching),
+			"offerings": len(offerings),
+			"unassigned_offerings": sum(1 for o in offerings if not teachers.get(o)),
+			"credit_hours": sum(flt(o.credits) for o in offerings.values()),
+			"submissions_to_grade": sum(to_grade.values()),
+			"mark_sheets_pending": sum(1 for o in offerings if not marks_done.get(o)),
+		},
+	}
+
+
+# ---------------------------------------------------------------------------------- credentials
+CREDENTIAL_TYPES = ("Transcript", "Certificate")
+CREDENTIAL_STATUSES = ("Pending", "Issued", "Reissued", "Revoked")
+
+
+def _credentials(doctype: str, f: dict) -> list[dict]:
+	"""All credentials of one doctype (oldest first) with a display status; "Reissued" = issued after the same
+	student's earlier credential of the same kind (programme, and transcript type) was revoked."""
+	detail = "transcript_type" if doctype == "Transcript" else "award_title"
+	rows = frappe.get_all(
+		doctype,
+		filters=_apply({}, f, ("programme",)),
+		fields=[
+			"name",
+			"student",
+			"student_name",
+			"student_number",
+			"programme",
+			"status",
+			"issue_date",
+			"verification_count",
+			"revoked_reason",
+			"creation",
+			detail,
+		],
+		order_by="creation asc",
+	)
+	revoked = set()
+	for r in rows:
+		r.detail = r.get(detail)
+		key = (r.student, r.programme, r.detail if doctype == "Transcript" else None)
+		r.credential_type = doctype
+		r.display_status = {"Draft": "Pending"}.get(r.status, r.status)
+		if r.status == "Issued" and key in revoked:
+			r.display_status = "Reissued"
+		elif r.status == "Revoked":
+			revoked.add(key)
+	return rows
+
+
+def r_credentials_issued(f: dict) -> dict:
+	types = [f["credential_type"]] if f.get("credential_type") in CREDENTIAL_TYPES else list(CREDENTIAL_TYPES)
+	from_date = getdate(f["from_date"]) if f.get("from_date") else None
+	to_date = getdate(f["to_date"]) if f.get("to_date") else None
+	status = f.get("status") if f.get("status") in CREDENTIAL_STATUSES else None
+	docs = []
+	for doctype in types:
+		for r in _credentials(doctype, f):
+			day = getdate(r.issue_date or r.creation)
+			if (from_date and day < from_date) or (to_date and day > to_date):
+				continue
+			if status and r.display_status != status:
+				continue
+			docs.append(r)
+	docs.sort(key=lambda r: (getdate(r.issue_date or r.creation), r.creation), reverse=True)
+	docs = docs[:MAX_ROWS]
+	logs = {}
+	for doctype in types:
+		names = [r.name for r in docs if r.credential_type == doctype]
+		if not names:
+			continue
+		for r in frappe.get_all(
+			"Verification Log",
+			filters={"document_type": doctype, "document_name": ["in", names]},
+			fields=["document_name", {"COUNT": "*", "as": "n"}, {"MAX": "verified_on", "as": "last"}],
+			group_by="document_name",
+		):
+			logs[(doctype, r.document_name)] = r
+	rows, by_type = [], {t: 0 for t in types}
+	by_status = {s: 0 for s in CREDENTIAL_STATUSES}
+	per_type_status = {t: dict.fromkeys(CREDENTIAL_STATUSES, 0) for t in types}
+	for r in docs:
+		log = logs.get((r.credential_type, r.name))
+		rows.append(
+			{
+				"name": r.name,
+				"credential_type": r.credential_type,
+				"detail": r.detail,
+				"student": r.student,
+				"student_name": r.student_name,
+				"student_number": r.student_number,
+				"programme": r.programme,
+				"issue_date": r.issue_date,
+				"status": r.display_status,
+				"verification_count": max(cint(r.verification_count), cint(log.n) if log else 0),
+				"last_verified": log.last if log else None,
+				"revoked_reason": r.revoked_reason,
+			}
+		)
+		by_type[r.credential_type] += 1
+		by_status[r.display_status] += 1
+		per_type_status[r.credential_type][r.display_status] += 1
+	type_labels = {"Transcript": _("Transcripts"), "Certificate": _("Certificates")}
+	return {
+		"columns": [
+			_col("name", _("Document")),
+			_col("credential_type", _("Type")),
+			_col("detail", _("Kind / award")),
+			_col("student", _("Student"), "Link"),
+			_col("student_name", _("Name")),
+			_col("student_number", _("Student No.")),
+			_col("programme", _("Programme"), "Link"),
+			_col("issue_date", _("Issued on"), "Date"),
+			_col("status", _("Status")),
+			_col("verification_count", _("Verifications"), "Int"),
+			_col("last_verified", _("Last verified"), "Datetime"),
+			_col("revoked_reason", _("Revocation reason")),
+		],
+		"rows": rows,
+		"chart": {
+			"type": "bar",
+			"labels": [_(s) for s in CREDENTIAL_STATUSES],
+			"datasets": [
+				{"name": type_labels[t], "values": [per_type_status[t][s] for s in CREDENTIAL_STATUSES]}
+				for t in types
+			],
+		},
+		"summary": {
+			"credentials": len(rows),
+			"issued": by_status["Issued"],
+			"reissued": by_status["Reissued"],
+			"pending": by_status["Pending"],
+			"revoked": by_status["Revoked"],
+			"verifications": sum(r["verification_count"] for r in rows),
+			"by_type": by_type,
+			"by_status": by_status,
+		},
+	}
+
+
 REPORTS = {
 	"enrolment_by_programme": {
 		"label": "Enrolment by programme",
@@ -1571,6 +2100,18 @@ REPORTS = {
 		"filters": [F_PROGRAMME, F_CAMPUS, F_TERM, _f("as_of", "As of", "Date")],
 		"run": r_aging,
 	},
+	"payment_reconciliation": {
+		"label": "M-Pesa payment reconciliation",
+		"category": "Finance",
+		"roles": FINANCE_ROLES,
+		"filters": [
+			F_FROM,
+			F_TO,
+			F_CAMPUS,
+			_f("status", "Status", "Select", "\n".join((*TRANSACTION_STATUSES, NO_TRANSACTION))),
+		],
+		"run": r_payment_reconciliation,
+	},
 	"results_summary": {
 		"label": "Results summary (grade distribution)",
 		"category": "Academic",
@@ -1598,6 +2139,26 @@ REPORTS = {
 		"roles": ACADEMIC_ROLES,
 		"filters": [F_TERM, F_CAMPUS, _f("course_offering", "Course Offering", "Link", "Course Offering")],
 		"run": r_lms_engagement,
+	},
+	"lecturer_workload": {
+		"label": "Lecturer workload",
+		"category": "Academic",
+		"roles": ACADEMIC_ROLES,
+		"filters": [F_TERM, F_CAMPUS, _f("department", "Department", "Link", "Department")],
+		"run": r_lecturer_workload,
+	},
+	"credentials_issued": {
+		"label": "Transcripts & certificates",
+		"category": "Academic",
+		"roles": ACADEMIC_ROLES | {ROLE_AUDITOR},
+		"filters": [
+			F_FROM,
+			F_TO,
+			_f("credential_type", "Type", "Select", "\n".join(CREDENTIAL_TYPES)),
+			F_PROGRAMME,
+			_f("status", "Status", "Select", "\n".join(CREDENTIAL_STATUSES)),
+		],
+		"run": r_credentials_issued,
 	},
 	"library_loans": {
 		"label": "Library loans",

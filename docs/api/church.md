@@ -453,6 +453,51 @@ Example args: `{"name": "SPN-00002"}`
 }
 ```
 
+### `send_sponsor_reports`
+- **Path:** `mahanaim.api.church.send_sponsor_reports`
+- **Method:** POST
+- **Guard:** roles: Chaplain, Finance Officer
+
+Sends the "Sponsor Report" notification (Message Template event `Sponsor Report`, link `/sponsor`) through
+`services.church.send_sponsor_reports(sponsor=None)`.
+- With `sponsor`, it sends at once and returns the result.
+- Without it, every active sponsor is sent a report by a background job on the `long` queue, and the call returns
+  `{queued: true, job}`.
+
+Who receives it:
+- Recipients: the sponsor's portal user (in-app), email and phone, following the template's channels.
+- Skipped: sponsors that are inactive, have no Active/Suspended sponsorship, or have no contact details.
+- When no template is active, a literal fallback (subject, email and in-app text) is used.
+
+Template context: the standard keys (`doc` = the Sponsor, `settings`, `college`, `site_url`, `recipient`) plus:
+- `students` (int): currently sponsored students;
+- `outstanding` (str): their combined positive fee balance, e.g. `"KES 12,500.00"`.
+
+Args: `sponsor` (default `None` = all active sponsors).
+
+Example args: `{"sponsor": "SPN-00002"}`
+
+```json
+{
+  "message": {
+    "queued": false,
+    "sent": 1,
+    "skipped": 0,
+    "sponsors": ["SPN-00002"],
+    "message": "Sponsor report sent."
+  }
+}
+```
+
+Without `sponsor`:
+
+```json
+{"message": {"queued": true, "job": "mahanaim.localhost||3b1f…", "message": "Sponsor reports are being sent to all active sponsors."}}
+```
+
+`services.church.send_termly_sponsor_reports(days_after=14)` is a daily-cron helper. It sends every report once,
+14 days after an Academic Term's `end_date`, and only once the lead wires it into `hooks.py`.
+
 ### `sponsor_360`
 - **Path:** `mahanaim.api.church.sponsor_360`
 - **Method:** GET

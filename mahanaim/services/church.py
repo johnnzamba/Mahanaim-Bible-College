@@ -247,6 +247,98 @@ def attendance_by_student(students: list[str], academic_term: str | None = None)
 	return out
 
 
+# ---------------------------------------------------------------------------------- sponsor reports
+REPORT_SPONSORSHIP_STATUSES = ("Active", "Suspended")  # students a sponsor currently supports
+SPONSOR_REPORT_DAYS_AFTER_TERM = 14  # results are usually published within two weeks of the term ending
+
+
+def money_text(amount) -> str:
+	return f"KES {flt(amount):,.2f}"
+
+
+def _sponsor_report_fallback(name: str | None, count: int, outstanding: str) -> dict:
+	from frappe.utils import escape_html, get_url
+
+	college = escape_html(setting("institution_name") or "Mahanaim Bible College")
+	url = get_url("/sponsor")
+	students = _("{0} student").format(count) if count == 1 else _("{0} students").format(count)
+	paragraphs = (
+		_("Dear {0},").format(escape_html(name or _("Partner"))),
+		_("Thank you for partnering with {0}.").format(college)
+		+ " "
+		+ _("A progress update for the {0} you sponsor is available in your sponsor portal: {1}.").format(
+			students, f'<a href="{url}">{url}</a>'
+		),
+		_("Outstanding fees across your sponsored students: {0}.").format(outstanding),
+	)
+	return {
+		"subject": _("Progress update on the students you sponsor"),
+		"message": "".join(f"<p>{p}</p>" for p in paragraphs),
+		"in_app": _("A progress update for the {0} you sponsor is ready. Outstanding fees: {1}.").format(
+			students, outstanding
+		),
+	}
+
+
+def send_sponsor_reports(sponsor: str | None = None) -> dict:
+	"""Notify active sponsors that their progress report is ready (event "Sponsor Report", link "/sponsor").
+
+	Template context = the standard notify keys plus `students` (int: currently sponsored students) and
+	`outstanding` (str: their combined fee balance, e.g. "KES 12,500.00"). Sponsors that are inactive, have no
+	Active/Suspended sponsorship or have no user/email/phone are skipped.
+	Returns {"sent": n, "skipped": n, "sponsors": [notified sponsor names]}.
+	"""
+	from mahanaim.services.communication import notify, recipient_for_sponsor
+
+	filters = {"status": "Active", **({"name": sponsor} if sponsor else {})}
+	sponsors = frappe.get_all(
+		"Sponsor",
+		filters=filters,
+		fields=["name", "sponsor_name", "user", "email", "phone"],
+		order_by="sponsor_name asc",
+	)
+	skipped = 0 if sponsors or not sponsor else 1
+	if not sponsors:
+		return {"sent": 0, "skipped": skipped, "sponsors": []}
+	students = defaultdict(set)
+	for r in frappe.get_all(
+		"Sponsorship",
+		filters={
+			"sponsor": ["in", [s.name for s in sponsors]],
+			"status": ["in", REPORT_SPONSORSHIP_STATUSES],
+		},
+		fields=["sponsor", "student"],
+	):
+		students[r.sponsor].add(r.student)
+	balances = student_balances([st for group in students.values() for st in group])
+	sent = []
+	for s in sponsors:
+		mine = students.get(s.name)
+		recipient = recipient_for_sponsor(s)
+		if not mine or not (recipient.get("user") or recipient.get("email") or recipient.get("phone")):
+			skipped += 1
+			continue
+		outstanding = money_text(sum(max(flt(balances.get(st)), 0) for st in mine))
+		notify(
+			"Sponsor Report",
+			doc=frappe.get_doc("Sponsor", s.name),
+			recipients=[recipient],
+			context={"students": len(mine), "outstanding": outstanding},
+			link="/sponsor",
+			category="Info",
+			fallback=_sponsor_report_fallback(s.sponsor_name, len(mine), outstanding),
+		)
+		sent.append(s.name)
+	return {"sent": len(sent), "skipped": skipped, "sponsors": sent}
+
+
+def send_termly_sponsor_reports(days_after: int = SPONSOR_REPORT_DAYS_AFTER_TERM) -> dict | None:
+	"""Daily cron: send every sponsor report once, `days_after` days after an academic term ends."""
+	if not frappe.db.exists("Academic Term", {"end_date": add_days(nowdate(), -cint(days_after))}):
+		return None
+	return send_sponsor_reports()
+
+
 # ---------------------------------------------------------------------------------- giving
 def giver_name_for(doc) -> str | None:
 	if doc.giver_type == "Anonymous":

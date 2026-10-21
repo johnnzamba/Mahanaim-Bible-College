@@ -26,9 +26,11 @@ Covers SOW 6.18 / M16 and the M20 campus comparison. Aggregates use grouped SQL 
   - library: Library Officer
   - church: Chaplain, Finance Officer
 - Reports by category:
-  - Finance (fee_collections, outstanding_balances, aging): Finance Officer, Auditor
-  - Academic (student_list, results_summary, pass_rates_by_course, attendance_summary, lms_engagement): Academic
-    Dean, Registrar. `enrolment_by_programme` also allows the Admissions Officer.
+  - Finance (fee_collections, outstanding_balances, aging, payment_reconciliation): Finance Officer, Auditor
+  - Academic (student_list, results_summary, pass_rates_by_course, attendance_summary, lms_engagement,
+    lecturer_workload): Academic Dean, Registrar. `enrolment_by_programme` also allows the Admissions Officer.
+  - credentials_issued (category Academic): Registrar, Academic Dean, Auditor (the same roles that can read
+    credentials)
   - Admissions (admissions_funnel, applications_list): Admissions Officer, Registrar, Academic Dean
   - library_loans: Library Officer, Auditor
   - sponsorship_summary, giving_summary: Finance Officer, Auditor, Chaplain
@@ -288,6 +290,152 @@ Example args: `{"report": "student_list"}`
     "mimetype": "text/csv",
     "rows": 42
   }
+}
+```
+
+#### Reconciliation, workload and credentials reports
+
+These three reports follow the same `run_report` shape (`columns`, `rows`, `chart`, `summary`, `report`, `label`,
+`filters`), and `export_report` writes their columns to CSV. Rows may carry extra keys that are not columns (e.g.
+`matched_route`).
+
+**`payment_reconciliation`**: "M-Pesa payment reconciliation", category Finance.
+- Filters: `from_date`, `to_date` (default: the last 30 days), `campus`, and `status`
+  (`Unmatched|Matched|Allocated|Reversed|No Transaction`).
+- Rows: one per M-Pesa Transaction, newest first. After them come confirmed Student Payments with mode M-Pesa that
+  no transaction backs, with status `No Transaction`. A payment counts as backed when it has an `mpesa_transaction`
+  link, a `reference_no` equal to a transaction's receipt, or a transaction whose `payment` points at it.
+- Campus comes from the student, or from the application when there is no student.
+- Phones are masked (`+2547*****678`).
+- `matched_doctype`/`matched_name` is one of:
+  - Student Payment (the transaction is allocated);
+  - Giving Record or Event Registration (STK push for purpose Giving/Event Fee);
+  - Programme Application or Student (identified but not yet allocated);
+  - null.
+
+```json
+{
+  "columns": [
+    {"key": "receipt", "label": "Receipt", "type": "Data"},
+    {"key": "trans_time", "label": "Date", "type": "Datetime"},
+    {"key": "source", "label": "Source", "type": "Data"},
+    {"key": "phone", "label": "Phone", "type": "Data"},
+    {"key": "payer_name", "label": "Payer", "type": "Data"},
+    {"key": "amount", "label": "Amount", "type": "Currency"},
+    {"key": "bill_ref_number", "label": "Account / Bill ref", "type": "Data"},
+    {"key": "purpose", "label": "Purpose", "type": "Data"},
+    {"key": "matched_doctype", "label": "Matched to", "type": "Data"},
+    {"key": "matched_name", "label": "Matched document", "type": "Data"},
+    {"key": "student", "label": "Student", "type": "Link"},
+    {"key": "campus", "label": "Campus", "type": "Link"},
+    {"key": "payment", "label": "Payment", "type": "Link"},
+    {"key": "status", "label": "Status", "type": "Data"}
+  ],
+  "rows": [
+    {"receipt": "SIMOCRTJWU", "trans_time": "2026-10-21 21:13:58", "source": "STK Push", "phone": "+2547*****001",
+     "payer_name": null, "amount": 500.0, "bill_ref_number": "APP-2026-00002", "purpose": "Application Fee",
+     "matched_doctype": "Student Payment", "matched_name": "RCT-2026-00001",
+     "matched_route": "/admin/finance/payments/RCT-2026-00001", "student": null, "campus": "Nairobi Main Campus",
+     "payment": "RCT-2026-00001", "status": "Allocated"},
+    {"receipt": "SVVDCERPKP", "trans_time": "2026-10-18", "source": null, "phone": "+2547*****201",
+     "payer_name": "Lilian Auma", "amount": 1000.0, "bill_ref_number": null, "purpose": "Application Fee",
+     "matched_doctype": "Student Payment", "matched_name": "RCT-2026-00009",
+     "matched_route": "/admin/finance/payments/RCT-2026-00009", "student": null, "campus": "Main Campus Nairobi",
+     "payment": "RCT-2026-00009", "status": "No Transaction"}
+  ],
+  "chart": {"type": "bar", "labels": ["2026-10-21"],
+            "datasets": [{"name": "Matched amount", "values": [500.0]}, {"name": "Unmatched amount", "values": [0.0]}]},
+  "summary": {
+    "transactions": 1, "total_amount": 500.0, "allocated_amount": 500.0, "unmatched": 0, "unmatched_amount": 0.0,
+    "payments_without_transaction": 8, "payments_without_transaction_amount": 8000.0,
+    "by_status": {"Unmatched": 0, "Matched": 0, "Allocated": 1, "Reversed": 0, "No Transaction": 8},
+    "amount_by_status": {"Unmatched": 0.0, "Matched": 0.0, "Allocated": 500.0, "Reversed": 0.0, "No Transaction": 8000.0}
+  }
+}
+```
+
+**`lecturer_workload`**: "Lecturer workload", category Academic.
+- Filters: `academic_term` (default: the current term), `campus` (the offering's campus; for lecturers with no
+  offerings, their home campus), `department` (Staff Member department).
+- Rows: one per active lecturer (`is_lecturer`) plus anyone teaching or taking sessions that term, heaviest load
+  first. Cancelled offerings are ignored.
+- Offering metrics count towards every lecturer listed on the offering:
+  - `students`: enrolments that are Enrolled, Completed or Failed;
+  - `assignments_published`: assignments that are not Draft;
+  - `submissions_to_grade`: submissions that are Submitted or Late;
+  - `mark_sheets_pending`: offerings with no Submitted, Approved or Published mark sheet.
+- `sessions_recorded` counts non-cancelled sessions that have attendance taken. Each goes to the session's lecturer,
+  or to the offering's lecturers when the session has none.
+- The summary totals are per offering, so co-taught offerings are not double counted.
+
+```json
+{
+  "columns": [
+    {"key": "staff_member", "label": "Staff ID", "type": "Data"},
+    {"key": "lecturer_name", "label": "Lecturer", "type": "Data"},
+    {"key": "department", "label": "Department", "type": "Link"},
+    {"key": "campus", "label": "Campus", "type": "Link"},
+    {"key": "offerings", "label": "Offerings", "type": "Int"},
+    {"key": "courses", "label": "Courses", "type": "Data"},
+    {"key": "credit_hours", "label": "Credit hours", "type": "Float"},
+    {"key": "students", "label": "Students", "type": "Int"},
+    {"key": "assignments_published", "label": "Assignments published", "type": "Int"},
+    {"key": "submissions_to_grade", "label": "Submissions to grade", "type": "Int"},
+    {"key": "mark_sheets_pending", "label": "Mark sheets pending", "type": "Int"},
+    {"key": "sessions_recorded", "label": "Sessions recorded", "type": "Int"}
+  ],
+  "rows": [
+    {"staff_member": "STF-00004", "lecturer_name": "Joseph Mwangi", "department": "Pastoral Ministry",
+     "campus": "Main Campus Nairobi", "offerings": 4, "courses": "MIN120, MIS130, PAS201, PAS210",
+     "credit_hours": 12.0, "students": 22, "assignments_published": 1, "submissions_to_grade": 0,
+     "mark_sheets_pending": 4, "sessions_recorded": 12}
+  ],
+  "chart": {"type": "bar", "labels": ["Joseph Mwangi"],
+            "datasets": [{"name": "Credit hours", "values": [12.0]}, {"name": "Offerings", "values": [4]}]},
+  "summary": {"term": "2026-2027 Term 1", "lecturers": 9, "teaching": 9, "offerings": 27, "unassigned_offerings": 4,
+              "credit_hours": 81.0, "submissions_to_grade": 9, "mark_sheets_pending": 25}
+}
+```
+
+**`credentials_issued`**: "Transcripts & certificates", category Academic.
+- Filters:
+  - `from_date`, `to_date`: the issue date, or the creation date for drafts;
+  - `credential_type`: `Transcript|Certificate`;
+  - `programme`;
+  - `status`: `Pending|Issued|Reissued|Revoked`.
+- Statuses: `Pending` is a Draft. `Reissued` is an Issued credential created after the same student's earlier
+  credential of the same kind was revoked. "Same kind" means the same programme and, for transcripts, the same
+  transcript type.
+- `verification_count` is the larger of the document's counter and its Verification Log rows. `last_verified` is
+  the latest log entry.
+
+```json
+{
+  "columns": [
+    {"key": "name", "label": "Document", "type": "Data"},
+    {"key": "credential_type", "label": "Type", "type": "Data"},
+    {"key": "detail", "label": "Kind / award", "type": "Data"},
+    {"key": "student", "label": "Student", "type": "Link"},
+    {"key": "student_name", "label": "Name", "type": "Data"},
+    {"key": "student_number", "label": "Student No.", "type": "Data"},
+    {"key": "programme", "label": "Programme", "type": "Link"},
+    {"key": "issue_date", "label": "Issued on", "type": "Date"},
+    {"key": "status", "label": "Status", "type": "Data"},
+    {"key": "verification_count", "label": "Verifications", "type": "Int"},
+    {"key": "last_verified", "label": "Last verified", "type": "Datetime"},
+    {"key": "revoked_reason", "label": "Revocation reason", "type": "Data"}
+  ],
+  "rows": [
+    {"name": "TRN-2026-00002", "credential_type": "Transcript", "detail": "Official", "student": "MBC-2026-0001",
+     "student_name": "Grace Wanjiku", "student_number": "MBC/2026/0001", "programme": "DBS",
+     "issue_date": "2026-10-22", "status": "Reissued", "verification_count": 1,
+     "last_verified": "2026-10-22 10:04:11", "revoked_reason": null}
+  ],
+  "chart": {"type": "bar", "labels": ["Pending", "Issued", "Reissued", "Revoked"],
+            "datasets": [{"name": "Transcripts", "values": [0, 0, 1, 1]}, {"name": "Certificates", "values": [1, 0, 0, 0]}]},
+  "summary": {"credentials": 3, "issued": 0, "reissued": 1, "pending": 1, "revoked": 1, "verifications": 1,
+              "by_type": {"Transcript": 2, "Certificate": 1},
+              "by_status": {"Pending": 1, "Issued": 0, "Reissued": 1, "Revoked": 1}}
 }
 ```
 

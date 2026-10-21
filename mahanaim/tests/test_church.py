@@ -263,3 +263,34 @@ class TestChurch(IntegrationTestCase):
 		self.assertEqual([c["name"] for c in hq["children"]], ["Branch One _T"])
 		dash = church.church_dashboard()
 		self.assertIn("kpis", dash)
+
+	def test_send_sponsor_reports(self):
+		user = f.make_user("report.sponsor.b4@example.com", roles=("Sponsor",), first_name="Sponsor").name
+		sp = fb.make_sponsor("Report Sponsor _T", email=user, user=user).name
+		fb.make_sponsorship(sp, self.other_student)
+		idle = fb.make_sponsor("Idle Report Sponsor _T").name
+		with (
+			patch.object(svc, "student_balances", return_value={self.other_student: 12500.0}),
+			patch("mahanaim.services.communication.notify") as notify,
+		):
+			self.assertEqual(svc.send_sponsor_reports(sp), {"sent": 1, "skipped": 0, "sponsors": [sp]})
+		kwargs = notify.call_args.kwargs
+		self.assertEqual(notify.call_args.args[0], "Sponsor Report")
+		self.assertEqual((kwargs["doc"].name, kwargs["link"]), (sp, "/sponsor"))
+		self.assertEqual(kwargs["context"], {"students": 1, "outstanding": "KES 12,500.00"})
+		self.assertEqual(kwargs["recipients"][0]["user"], user)
+		self.assertIn("KES 12,500.00", kwargs["fallback"]["message"])
+		self.assertEqual(svc.send_sponsor_reports(idle), {"sent": 0, "skipped": 1, "sponsors": []})
+
+		svc.send_sponsor_reports(sp)
+		self.assertTrue(frappe.db.exists("Message Log", {"event": "Sponsor Report", "recipient": user}))
+		self.assertTrue(frappe.db.exists("Portal Notification", {"user": user, "link": "/sponsor"}))
+
+		frappe.set_user(f.make_user("church.finance.b4@example.com", roles=("Finance Officer",)).name)
+		self.assertEqual(church.send_sponsor_reports(sponsor=sp)["sent"], 1)
+		self.assertTrue(church.send_sponsor_reports()["queued"])
+		with self.assertRaises(frappe.DoesNotExistError):
+			church.send_sponsor_reports(sponsor="No Such Sponsor _T")
+		frappe.set_user(f.make_user("church.student.b4@example.com", roles=("Student",)).name)
+		with self.assertRaises(frappe.PermissionError):
+			church.send_sponsor_reports(sponsor=sp)

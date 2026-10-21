@@ -353,6 +353,36 @@ def refresh_sponsor(name: str):
 	return frappe.get_doc("Sponsor", name).as_dict()
 
 
+@frappe.whitelist(methods=["POST"])
+def send_sponsor_reports(sponsor: str | None = None):
+	"""Send the "Sponsor Report" notification to one sponsor now, or to every active sponsor in the background."""
+	require_roles(*CHURCH_ROLES)
+	if not sponsor:
+		job = frappe.enqueue(
+			"mahanaim.services.church.send_sponsor_reports",
+			queue="long",
+			timeout=1800,
+			enqueue_after_commit=True,
+			now=bool(frappe.flags.in_test),
+		)
+		return {
+			"queued": True,
+			"job": getattr(job, "id", None),
+			"message": _("Sponsor reports are being sent to all active sponsors."),
+		}
+	if not frappe.db.exists("Sponsor", sponsor):
+		frappe.throw(_("Sponsor {0} not found").format(sponsor), frappe.DoesNotExistError)
+	result = svc.send_sponsor_reports(sponsor)
+	message = (
+		_("Sponsor report sent.")
+		if result["sent"]
+		else _(
+			"No report was sent: the sponsor is inactive, has no active sponsorship or has no contact details."
+		)
+	)
+	return {"queued": False, **result, "message": message}
+
+
 @frappe.whitelist()
 def sponsor_360(name: str):
 	"""Everything about a sponsor in one call: profile, sponsorships with student balances, payments, giving."""

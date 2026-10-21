@@ -192,6 +192,8 @@ scheduler_events = {
 		"mahanaim.services.library.mark_overdue_loans",
 		"mahanaim.services.auth.purge_expired_otps",
 		"mahanaim.services.assessments.send_due_reminders",
+		# sends once, 14 days after an academic term ends
+		"mahanaim.services.church.send_termly_sponsor_reports",
 	],
 }
 

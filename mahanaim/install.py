@@ -640,8 +640,10 @@ MESSAGE_TEMPLATES = [
 		1,
 		0,
 		"Progress update on the students you sponsor",
-		_DEAR + "<p>Thank you for partnering with {{ college|e }}. A progress update for "
-		"the students you sponsor is available in your sponsor portal.</p>" + _SIGN,
+		_DEAR + "<p>Thank you for partnering with {{ college|e }}. A progress update for the "
+		"{{ students }} student{{ '' if students == 1 else 's' }} you sponsor is available in your "
+		'sponsor portal: <a href="{{ site_url }}/sponsor">{{ site_url }}/sponsor</a>.</p>'
+		"<p>Outstanding fees across your sponsored students: {{ outstanding|e }}.</p>" + _SIGN,
 		"",
 	),
 ]
