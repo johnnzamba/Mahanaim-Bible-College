@@ -1,19 +1,16 @@
+import { lazy } from "react"
 import { Route, Routes } from "react-router-dom"
-import { Empty, PageHeader } from "@/shared/components/ui"
+import Catalog from "./Catalog"
 
-/** /admin/reports/* (placeholder until this area is built). */
+const ReportRun = lazy(() => import("./ReportRun"))
+
+/** /admin/reports/*: catalog and the report runner. */
 export default function ReportsArea() {
 	return (
 		<Routes>
-			<Route
-				path="*"
-				element={
-					<>
-						<PageHeader title="Reports" subtitle="This workspace is being prepared." />
-						<Empty title="Coming together" subtitle="Screens for this area are under construction." />
-					</>
-				}
-			/>
+			<Route index element={<Catalog />} />
+			<Route path=":report" element={<ReportRun />} />
+			<Route path="*" element={<Catalog />} />
 		</Routes>
 	)
 }

@@ -4,5 +4,12 @@ import { ShieldCheck } from "lucide-react"
 export default {
 	section: "System",
 	icon: ShieldCheck,
-	items: [{ to: "/admin/audit", label: "Audit log", icon: ShieldCheck }],
+	items: [
+		{
+			to: "/admin/audit",
+			label: "Audit log",
+			icon: ShieldCheck,
+			keywords: "audit trail history version changes who changed sign-in login failed logins access log security sensitive events export",
+		},
+	],
 }
