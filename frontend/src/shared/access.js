@@ -29,9 +29,9 @@ export const ADMIN_ACCESS = [
 	["/", ALL_STAFF],
 	["/admissions", [R.ADMISSIONS, R.REGISTRAR, R.DEAN]],
 	["/students", [R.REGISTRAR, R.ADMISSIONS, R.DEAN, R.FINANCE, R.CHAPLAIN, R.AUDITOR]],
+	// Offerings, timetable, exams, mark sheets and results all live under /academics.
 	["/academics", [R.REGISTRAR, R.DEAN]],
-	["/exams", [R.REGISTRAR, R.DEAN]],
-	["/results", [R.REGISTRAR, R.DEAN, R.AUDITOR]],
+	["/academics/results", [R.REGISTRAR, R.DEAN, R.AUDITOR]],
 	["/credentials", [R.REGISTRAR, R.DEAN]],
 	["/finance", [R.FINANCE, R.AUDITOR]],
 	["/church", [R.FINANCE, R.CHAPLAIN, R.COMMS]],
