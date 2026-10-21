@@ -130,7 +130,9 @@ Every request status change sends "Student Request Update" (link `/student/reque
 - **Guard:** student
 
 Args: `data`, a JSON object. Only `editable_fields` are applied and everything else is ignored silently. `photo`
-must be your own upload (`/api/method/upload_file`). Returns the profile.
+must be your own upload (`/api/method/upload_file`), sent as its `/files/…` or `/private/files/…` path. External
+URLs, `javascript:` or `data:` values fail with "Photo must be a file uploaded through the portal, not a link."
+`""` clears the photo. Returns the profile.
 
 ### `my_dashboard`
 - **Path:** `mahanaim.api.students.my_dashboard`
@@ -303,7 +305,7 @@ Args: `data`, a JSON object with these fields:
 - `request_type` (required)
 - `reason` (required)
 - `academic_term`, `from_date`, `to_date`
-- `attachment`: your own upload
+- `attachment`: your own upload, as a `/files/…` or `/private/files/…` path (links are rejected, as for `photo`)
 - `new_programme`, `new_campus`
 - `course_enrolment`
 - `document_type`, `copies`, `delivery_method`

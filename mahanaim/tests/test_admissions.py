@@ -1,3 +1,4 @@
+import random
 from unittest.mock import patch
 
 import frappe
@@ -221,6 +222,46 @@ class TestAdmissions(IntegrationTestCase):
 			adm.submit_application(data["name"])
 		self.assertEqual(adm.withdraw_application(data["name"])["status"], "Withdrawn")
 
+	def test_application_attach_validation(self):
+		user, other = fb.make_applicant().name, fb.make_applicant().name
+		mine, theirs = _upload(user, "mine.png"), _upload(other, "theirs.png")
+		name = fb.make_application(user).name
+		fb.as_user(self, user)
+
+		for bad in (
+			"https://evil.example/x.png",
+			"//evil.example/x.png",
+			"javascript:alert(1)",
+			"data:image/png;base64,iVBORw0KGgo=",
+			"/files/../private/files/x.png",
+			"/api/method/frappe.client.get",
+		):
+			with self.assertRaisesRegex(frappe.ValidationError, "uploaded through the portal"):
+				adm.save_application({"photo": bad}, name=name)
+			with self.assertRaisesRegex(frappe.ValidationError, "uploaded through the portal"):
+				adm.save_application(
+					{"documents": [{"document_type": "National ID", "file": bad}]}, name=name
+				)
+			with self.assertRaisesRegex(frappe.ValidationError, "uploaded through the portal"):
+				adm.upload_application_document(name, "National ID", bad)
+			with self.assertRaisesRegex(frappe.ValidationError, "uploaded through the portal"):
+				adm.save_application({"photo": bad})
+		with self.assertRaises(frappe.PermissionError):
+			adm.save_application({"photo": theirs.file_url}, name=name)
+		with self.assertRaises(frappe.PermissionError):
+			adm.upload_application_document(name, "National ID", theirs.file_url)
+
+		data = adm.save_application({"photo": f" {mine.file_url} "}, name=name)
+		self.assertEqual(data["photo"], mine.file_url)
+		self.assertEqual(
+			frappe.db.get_value("File", mine.name, ["attached_to_name", "attached_to_field"]),
+			(name, "photo"),
+		)
+		# unchanged value re-saves fine; empty clears it
+		adm.save_application({"photo": mine.file_url, "first_name": "Annie"}, name=name)
+		self.assertIsNone(adm.save_application({"photo": ""}, name=name)["photo"])
+		self.assertEqual(frappe.db.get_value("File", theirs.name, "attached_to_name"), None)
+
 	def test_permission_denials(self):
 		owner, other = fb.make_applicant().name, fb.make_applicant().name
 		app = fb.make_application(owner, status="Admitted")
@@ -301,3 +342,21 @@ class TestAdmissions(IntegrationTestCase):
 		adm.admission_letter(app.name, format="pdf")
 		self.assertEqual(frappe.local.response.type, "pdf")
 		self.assertTrue(frappe.local.response.filecontent.startswith(b"%PDF"))
+
+
+def _upload(user: str, file_name: str):
+	"""A private File uploaded by `user` (what /api/method/upload_file creates)."""
+	import io
+
+	from PIL import Image
+
+	buf = io.BytesIO()
+	Image.new("RGB", (2, 2), tuple(random.randrange(256) for _ in range(3))).save(buf, "PNG")
+	saved = frappe.session.user
+	frappe.set_user(user)
+	try:
+		return frappe.get_doc(
+			{"doctype": "File", "file_name": file_name, "content": buf.getvalue(), "is_private": 1}
+		).insert(ignore_permissions=True)
+	finally:
+		frappe.set_user(saved)

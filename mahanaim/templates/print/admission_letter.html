@@ -5,6 +5,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>{{ _("Admission Letter") }} — {{ doc.name }}</title>
 <style>
 	@page { size: A4; margin: 12mm 14mm; }
@@ -33,6 +34,36 @@
 	.qr img { width: 96px; height: 96px; }
 	.footer { margin-top: 18px; font-size: 10.5px; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 6px; }
 	.badge { display: inline-block; padding: 1px 8px; border-radius: 10px; background: #dcfce7; color: #166534; font-size: 11px; font-weight: 600; }
+
+	/* Browser view only: the PDF is rendered with print media (wkhtmltopdf --print-media-type), so it never sees these. */
+	@media screen {
+		html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+		img { max-width: 100%; }
+		table { max-width: 100%; }
+		td, p, .contacts, .footer { overflow-wrap: anywhere; word-break: break-word; }
+	}
+	@media screen and (max-width: 480px) {
+		body { font-size: 14px; line-height: 1.5; }
+		.page { padding: 12px 14px; }
+		.header, .header tbody, .header tr, .header td,
+		.meta, .meta tbody, .meta tr, .meta td,
+		.details, .details tbody, .details tr, .details td,
+		.sign, .sign tbody, .sign tr, .sign td { display: block; width: auto !important; text-align: left !important; }
+		.header td { padding: 0 0 6px; }
+		.logo { width: 56px; height: 56px; }
+		.inst { font-size: 18px; }
+		.contacts { font-size: 12px; }
+		.qr img { width: 84px; height: 84px; }
+		.meta td { font-size: 13px; padding: 1px 0; }
+		.title { font-size: 15px; margin: 14px 0 10px; }
+		.details td { border-bottom: 0; font-size: 13.5px; }
+		.details td.k { padding-bottom: 2px; }
+		.details td:not(.k) { padding-top: 2px; border-bottom: 1px solid #e5e7eb; }
+		ol { padding-left: 20px; }
+		.sign td { padding-top: 14px; }
+		.sigline { width: auto; max-width: 210px; margin-left: 0 !important; }
+		.footer { font-size: 11.5px; }
+	}
 </style>
 </head>
 <body>

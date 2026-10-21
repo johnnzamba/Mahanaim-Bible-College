@@ -252,13 +252,15 @@ def _status_log(doc, staff: bool = False) -> list[dict]:
 	return [{f: r.get(f) for f in fields} for r in doc.get("status_log") or []]
 
 
-def _validate_own_file(file_url: str | None, doctype: str, name: str | None):
-	"""A browser-supplied file URL must be the user's own upload (or already attached to this record)."""
+def _validate_own_file(file_url: str | None, doctype: str, name: str | None, label: str | None = None):
+	"""A browser-supplied file URL must be a site file path that is the user's own upload (or already attached
+	to this record). Returns the normalised URL (None when empty)."""
+	file_url = svc.local_file_url(file_url, label)
 	if not file_url:
-		return
+		return None
 	user = frappe.session.user
 	if is_staff(user):
-		return
+		return file_url
 	rows = frappe.get_all(
 		"File", filters={"file_url": file_url}, fields=["owner", "attached_to_doctype", "attached_to_name"]
 	)
@@ -269,6 +271,7 @@ def _validate_own_file(file_url: str | None, doctype: str, name: str | None):
 	)
 	if not ok:
 		frappe.throw(_("You can only attach files you uploaded."), frappe.PermissionError)
+	return file_url
 
 
 def _paged_list(
@@ -505,7 +508,7 @@ def update_my_profile(data):
 	if not values:
 		frappe.throw(_("Nothing to update."))
 	if "photo" in values and values["photo"] != student.photo:
-		_validate_own_file(values["photo"], "Student", student.name)
+		values["photo"] = _validate_own_file(values["photo"], "Student", student.name, _("Photo"))
 	student.update(values)
 	student.flags.ignore_permissions = True
 	student.save()
@@ -1022,7 +1025,10 @@ def create_request(data):
 	values = clean_payload(data, REQUEST_FIELDS)
 	if not values.get("request_type"):
 		frappe.throw(_("Choose the type of request."))
-	_validate_own_file(values.get("attachment"), "Student Request", None)
+	if "attachment" in values:
+		values["attachment"] = _validate_own_file(
+			values["attachment"], "Student Request", None, _("Attachment")
+		)
 	doc = frappe.get_doc(
 		{"doctype": "Student Request", **values, "student": student.name, "status": "Pending"}
 	)
@@ -1233,6 +1239,8 @@ def create_student(data):
 	payload = parse_json(data, {}) or {}
 	values = clean_payload(payload, (*STAFF_EDITABLE, "status"))
 	values.setdefault("status", "Admitted")
+	if "photo" in values:
+		values["photo"] = svc.local_file_url(values["photo"], _("Photo"))
 	doc = frappe.get_doc({"doctype": "Student", **values})
 	if "create_user" in payload:
 		doc.flags.create_user = bool(cint(payload.get("create_user")))
@@ -1247,6 +1255,8 @@ def update_student(name: str, data):
 	values = clean_payload(data, STAFF_EDITABLE)
 	if not values:
 		frappe.throw(_("Nothing to update."))
+	if "photo" in values and values["photo"] != doc.photo:
+		values["photo"] = svc.local_file_url(values["photo"], _("Photo"))
 	doc.update(values)
 	doc.save()
 	return _profile(doc, staff=True)

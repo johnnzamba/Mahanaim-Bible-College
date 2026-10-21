@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import frappe
 from frappe import _
-from frappe.utils import add_months, cint, flt, getdate, now_datetime, nowdate
+from frappe.utils import add_months, cint, cstr, flt, getdate, now_datetime, nowdate
 
 from mahanaim.utils import (
 	ROLE_ADMIN,
@@ -93,6 +93,31 @@ def safe_call(path, *args, default=None, **kwargs):
 		del messages[queued:]
 		frappe.log_error(title=f"Mahanaim: {label} failed")
 		return default
+
+
+# ---------------------------------------------------------------------------------- browser-supplied files
+LOCAL_FILE_PREFIXES = ("/files/", "/private/files/")
+
+
+def local_file_url(value, label: str | None = None) -> str | None:
+	"""Validate an Attach value sent by a browser: empty -> None, otherwise a site file path.
+
+	Only `/files/…` and `/private/files/…` are accepted; external links, `javascript:`/`data:` values and path
+	tricks are rejected. (Frappe also allows remote-URL File records, so a File row alone is not enough.)"""
+	value = cstr(value).strip()
+	if not value:
+		return None
+	if (
+		not value.startswith(LOCAL_FILE_PREFIXES)
+		or ".." in value
+		or "\\" in value
+		or any(ord(c) < 32 for c in value)
+	):
+		frappe.throw(
+			_("{0} must be a file uploaded through the portal, not a link.").format(label or _("The file")),
+			title=_("Invalid file"),
+		)
+	return value
 
 
 # ---------------------------------------------------------------------------------- users

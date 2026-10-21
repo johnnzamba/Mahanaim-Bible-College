@@ -20,6 +20,7 @@ from mahanaim.api.utils import (
 	search_filters,
 )
 from mahanaim.services import admissions as svc
+from mahanaim.services.students import local_file_url
 from mahanaim.utils import (
 	ROLE_ADMISSIONS,
 	ROLE_DEAN,
@@ -121,9 +122,9 @@ def _staff_application(name: str, roles=STAFF):
 	return doc
 
 
-def _validate_file(file_url: str, user: str, application: str | None = None) -> str:
-	"""The File behind `file_url` must be the user's own unattached upload (or already on this application)."""
-	file_url = (file_url or "").strip()
+def _validate_file(file_url: str, user: str, application: str | None = None, label: str | None = None) -> str:
+	"""`file_url` must be a site file path whose File is attached to this application or uploaded by `user`."""
+	file_url = local_file_url(file_url, label)
 	if not file_url:
 		frappe.throw(_("Upload the file first."))
 	rows = frappe.get_all(
@@ -137,25 +138,47 @@ def _validate_file(file_url: str, user: str, application: str | None = None) -> 
 	for f in rows:
 		if application and f.attached_to_doctype == DOCTYPE and f.attached_to_name == application:
 			return f.name
-	for f in rows:
-		if f.owner == user and not f.attached_to_name:
-			return f.name
-	if is_staff(user):
-		return rows[0].name
+	own = [f for f in rows if f.owner == user]
+	if own:
+		return next((f.name for f in own if not f.attached_to_name), own[0].name)
 	frappe.throw(_("You can only attach files you uploaded."), frappe.PermissionError)
+
+
+def _attach_fields() -> tuple[str, ...]:
+	"""Applicant-settable Attach / Attach Image fields of the application."""
+	meta = frappe.get_meta(DOCTYPE)
+	return tuple(
+		f
+		for f in svc.APPLICANT_FIELDS
+		if (df := meta.get_field(f)) and df.fieldtype in ("Attach", "Attach Image")
+	)
+
+
+def _check_attach_values(values: dict, user: str, doc=None):
+	"""Validate (in place) every attach value in `values`; unchanged values skip the ownership check."""
+	meta = frappe.get_meta(DOCTYPE)
+	existing = doc if doc is not None and not doc.is_new() else None
+	for field in _attach_fields():
+		if field not in values:
+			continue
+		label = _(meta.get_label(field))
+		value = local_file_url(values[field], label)
+		if value and not (existing and value == existing.get(field)):
+			_validate_file(value, user, existing.name if existing else None, label)
+		values[field] = value
 
 
 def _attach_files(doc):
 	"""Link the applicant's uploads to the application so private-file access follows the application."""
-	for row in doc.documents or []:
-		if not row.file:
-			continue
+	pairs = [(row.file, "documents") for row in doc.documents or [] if row.file]
+	pairs += [(doc.get(f), f) for f in _attach_fields() if doc.get(f)]
+	for file_url, field in pairs:
 		if frappe.db.exists(
-			"File", {"file_url": row.file, "attached_to_doctype": DOCTYPE, "attached_to_name": doc.name}
+			"File", {"file_url": file_url, "attached_to_doctype": DOCTYPE, "attached_to_name": doc.name}
 		):
 			continue
 		name = frappe.db.get_value(
-			"File", {"file_url": row.file, "owner": doc.user, "attached_to_name": ["is", "not set"]}, "name"
+			"File", {"file_url": file_url, "owner": doc.user, "attached_to_name": ["is", "not set"]}, "name"
 		)
 		if name:
 			frappe.db.set_value(
@@ -164,7 +187,7 @@ def _attach_files(doc):
 				{
 					"attached_to_doctype": DOCTYPE,
 					"attached_to_name": doc.name,
-					"attached_to_field": "documents",
+					"attached_to_field": field,
 				},
 			)
 
@@ -281,8 +304,10 @@ def save_application(data, name: str | None = None):
 		doc = _my_application(name, for_update=True)
 		if doc.status != "Draft":
 			frappe.throw(_("A submitted application can no longer be edited."))
+		_check_attach_values(values, user, doc)
 		doc.update(values)
 	else:
+		_check_attach_values(values, user)
 		u = frappe.db.get_value("User", user, ["email", "first_name", "last_name", "mobile_no"], as_dict=True)
 		values.setdefault("email", u.email)
 		values.setdefault("first_name", u.first_name)
@@ -314,8 +339,10 @@ def save_application(data, name: str | None = None):
 					},
 				)
 				continue
-			_validate_file(row.get("file"), user, doc.name if not doc.is_new() else None)
-			doc.append("documents", {"document_type": row.get("document_type"), "file": row.get("file")})
+			label = _("The {0} document").format(_(row.get("document_type") or ""))
+			file_url = local_file_url(row.get("file"), label)
+			_validate_file(file_url, user, doc.name if not doc.is_new() else None, label)
+			doc.append("documents", {"document_type": row.get("document_type"), "file": file_url})
 	doc.save() if not doc.is_new() else doc.insert()
 	_attach_files(doc)
 	return _as_dict(doc)
@@ -330,7 +357,9 @@ def upload_application_document(name: str, document_type: str, file_url: str):
 		frappe.throw(_("Documents can no longer be added to this application."))
 	if document_type not in _document_types():
 		frappe.throw(_("Unknown document type {0}.").format(document_type))
-	_validate_file(file_url, user, doc.name)
+	label = _("The {0} document").format(_(document_type))
+	file_url = local_file_url(file_url, label)
+	_validate_file(file_url, user, doc.name, label)
 	row = None
 	if document_type not in ("Other", "Recommendation Letter", "Academic Certificate"):
 		row = next((r for r in doc.documents if r.document_type == document_type), None)

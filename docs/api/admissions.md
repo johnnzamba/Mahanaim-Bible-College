@@ -145,10 +145,24 @@ All of these use the `require_applicant` guard.
 - `academic_records`: `[{institution, qualification, year_completed, grade}]` replaces all rows.
 - `documents`: `[{name?, document_type, file}]` replaces all rows. Each `file` must be the applicant's own
   upload; verified rows are kept unchanged.
+- `photo` and every `documents[].file` follow the [file rules](#file-values) below. A valid `photo` upload is
+  attached to the application (`attached_to_field=photo`). Send `""` or `null` to clear the photo.
+
+<a id="file-values"></a>**File values (photo, documents, upload_application_document)**
+- Allowed: empty, or a site path that starts with `/files/` or `/private/files/` and whose File record is
+  already attached to this application or was uploaded by you (via `/api/method/upload_file`). Surrounding
+  spaces are trimmed.
+- External URLs (`https://…`, `//…`), `javascript:`/`data:` values, `/api/method/…` links and paths that
+  contain `..` or a backslash fail with `ValidationError` (title "Invalid file"):
+  "Photo must be a file uploaded through the portal, not a link." (or "The National ID document must be…").
+- Another user's file fails with `PermissionError`: "You can only attach files you uploaded."
+- A path with no File record fails with "The uploaded file was not found. Please upload it again."
+- An unchanged `photo` value can be sent back as-is.
 
 **`upload_application_document`**
 1. Upload first with `POST /api/method/upload_file` (`is_private=1`, no doctype).
-2. Pass the returned `file_url` here. The File must belong to you, and it is then attached to the application.
+2. Pass the returned `file_url` here. The File must belong to you (see [file rules](#file-values)), and it is
+   then attached to the application.
 - Single-instance types (for example National ID) replace the existing row unless it is verified.
 - Allowed while the application is Draft, Submitted, Under Review or Interview.
 
@@ -173,6 +187,8 @@ Student is created immediately, so `student` and `student_number` are filled and
 - HTML format returns `{html, name}`. The `pdf` format streams `Admission-Letter-<name>.pdf`, so link to it
   directly: `/api/method/mahanaim.api.admissions.admission_letter?name=…&format=pdf`.
 - Staff with a staff role, or Finance Officer, may also download it.
+- The HTML is responsive: it includes a viewport meta tag and screen-only (`@media screen`) rules that stack the
+  header, details and signature tables below 480px. The PDF uses print media, so it is unaffected.
 
 ## Staff
 

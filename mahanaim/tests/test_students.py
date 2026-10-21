@@ -381,6 +381,11 @@ class TestStudents(IntegrationTestCase):
 		)
 		self.assertEqual(profile["home_church"], "New Life _T")
 		self.assertEqual((profile["status"], profile["programme"]), ("Active", w.programme.name))
+		for bad in ("https://evil.example/me.png", "javascript:alert(1)"):
+			with self.assertRaisesRegex(frappe.ValidationError, "uploaded through the portal"):
+				st.update_my_profile({"photo": bad})
+			with self.assertRaisesRegex(frappe.ValidationError, "uploaded through the portal"):
+				st.create_request({"request_type": "Resumption", "reason": "Back", "attachment": bad})
 		dashboard = st.my_dashboard()
 		self.assertEqual(dashboard["student"]["name"], w.student.name)
 		self.assertEqual(len(dashboard["courses"]), 2)
