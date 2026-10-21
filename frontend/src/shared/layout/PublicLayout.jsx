@@ -333,6 +333,13 @@ function PublicFooter({ site }) {
 				<div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 px-4 py-5 text-xs text-white/60 lg:px-8">
 					<span>
 						© {new Date().getFullYear()} {BRAND.full}. All rights reserved.
+						<span className="mx-1.5" aria-hidden="true">·</span>
+						<span className="whitespace-nowrap">
+							Powered by{" "}
+							<a href={BRAND.vendor.url} target="_blank" rel="noopener noreferrer" className="font-semibold text-white/80 hover:text-white">
+								{BRAND.vendor.name}
+							</a>
+						</span>
 					</span>
 					<span className="flex gap-4">
 						<Link to="/privacy" className="hover:text-white">

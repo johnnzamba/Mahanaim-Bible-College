@@ -230,6 +230,13 @@ export function PortalShell({ portal, nav, tabs, searchPlaceholder, serverSearch
 					<div className="mx-auto flex max-w-[1500px] flex-wrap items-center justify-between gap-2">
 						<span>
 							© {new Date().getFullYear()} {BRAND.full}
+							<span className="mx-1.5" aria-hidden="true">·</span>
+							<span className="whitespace-nowrap">
+								Powered by{" "}
+								<a href={BRAND.vendor.url} target="_blank" rel="noopener noreferrer" className="font-semibold text-ink-muted hover:text-brand-700">
+									{BRAND.vendor.name}
+								</a>
+							</span>
 						</span>
 						<span className="flex items-center gap-3">
 							<Link to="/privacy" className="hover:text-brand-700">

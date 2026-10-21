@@ -17,6 +17,7 @@ export const BRAND = {
 		return settings().logo || "/assets/mahanaim/images/logo.svg"
 	},
 	product: "Digital Campus",
+	vendor: { name: "Masaasoft", url: "https://masaasoft.com/" },
 	colors: { forest: "#14372a", forestSoft: "#1d4d3a", gold: "#c99a43", cream: "#f7f3ea" },
 }
 
