@@ -352,7 +352,7 @@ function MobileTabBar({ tabs, onMore }) {
 					<NavLink
 						key={t.to}
 						to={t.to}
-						end={t.end}
+						end={t.end ?? t.to.split("/").filter(Boolean).length < 2}
 						className={({ isActive }) =>
 							clsx("flex flex-col items-center gap-0.5 py-2.5 text-[10.5px] font-semibold", isActive ? "text-brand-700" : "text-ink-soft")
 						}
