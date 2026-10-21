@@ -48,6 +48,7 @@ _SPA_ROUTES = [
 	"give",
 	"privacy",
 	"terms",
+	"search",
 	"signin",
 	"forgot-password",
 	"reset-password",

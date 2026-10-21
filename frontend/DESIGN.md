@@ -29,7 +29,7 @@ src/
   main.jsx                theme init, service worker, render
   portals/
     public/  PublicSite.jsx        website (PublicLayout) incl. /apply, /verify, /give, /privacy, /terms
-    auth/    AuthRoutes.jsx        sign in (email | student no. | staff no.), forgot + reset password
+    auth/    AuthRoutes.jsx        sign in (password + staff MFA code | one-time code), forgot (code or link) + reset
     applicant/ student/ lecturer/ admin/ sponsor/   one lazy chunk each; <Portal>.jsx is the entry
   shared/
     api/frappe.js         call/get/login/logout/uploadFile, ApiError, server-message parsing, CSRF
@@ -46,6 +46,8 @@ src/
     components/Charts.jsx TrendChart, BarsChart, DonutChart, Legendary
     layout/PortalShell.jsx  rail + header + command palette + notifications + mobile tab bar
     layout/PublicLayout.jsx website header (mega menu), announcement bar, footer
+    components/OtpInput.jsx OtpInput (6 boxes, paste/autofill), useCountdown, ResendLink
+    pages/AccountSettings.jsx  /<portal>/account: profile, change password, verified phone change, appearance
 ```
 
 Portal folders may contain `pages/`, `components/` and a `nav.js`. A portal must not import from another
@@ -83,6 +85,8 @@ export default function StudentPortal() {
 - Nav paths are **absolute**. Items may carry `roles` (only shown to those roles). In `/admin`, items are also
   filtered by `ADMIN_ACCESS`, so a Finance Officer never sees Exams.
 - `PortalShell` already wraps children in `Suspense` and an error boundary, so pages may be lazy.
+- Every portal mounts `<Route path="account" element={<AccountSettings />} />` (lazy from
+  `@/shared/pages/AccountSettings`); the user menu's "Account & security" links to `/<portal>/account`.
 - `serverSearch` (admin only) adds `mahanaim.api.dashboard.global_search` hits to the command palette.
 
 ## Data
@@ -100,7 +104,8 @@ pay.mutate({ invoice, phone })
 - Always render queries through `QueryState` (or `DataTable query={q}`), which gives the skeleton, error and
   retry, and empty states for free.
 - Errors from the server (`frappe.throw`) arrive as `ApiError` with a clean `.message`; `useAction` toasts it.
-- Guests: pass `{ guest: true }` for public endpoints (skips the session-expiry reload).
+- Guests: pass `{ guest: true }` for public endpoints (plain GET, cacheable). An expired session (`session_expired`
+  in the response, or a CSRF error) reloads the page once; a failed sign-in (401) just shows its message.
 - Uploads: `uploadFile(file, isPrivate, { doctype, docname, fieldname })` → `{ file_url, name }`.
 - Real-time: `onRealtime("mbc_notification", fn)`; server publishes with `frappe.publish_realtime(..., user=…)`.
 
@@ -119,6 +124,7 @@ pay.mutate({ invoice, phone })
 | Flow | `Tabs`, `Stepper` (multi-step forms), `Timeline` (status history), `Board` (kanban) |
 | Charts | `TrendChart`, `BarsChart`, `DonutChart` + `Legendary` (palette `PALETTE`) |
 | Feedback | `toast.success/error/info`, `Alert`, `Empty`, `ErrorState` |
+| One-time codes | `OtpInput({value, onChange, onComplete})` + `useCountdown` + `ResendLink` (`mahanaim.api.auth.request_otp` / `verify_otp`) |
 
 DataTable columns: `{ key, label, render?(row), sortValue?(row), align?, hideOnMobile?, width?, export? }`.
 Below `md`, rows become cards automatically (first visible column is the card title).
@@ -144,7 +150,7 @@ Notifications, search results and emails deep-link to these; keep them stable.
 
 ```
 /student  /student/courses/<offering>  /student/assignments  /student/exams/<exam>  /student/results
-/student/fees  /student/fees/pay  /student/library  /student/chapel  /student/profile
+/student/fees  /student/fees/pay  /student/library  /student/chapel  /student/profile  /<portal>/account
 /lecturer  /lecturer/courses/<offering>  /lecturer/gradebook/<offering>  /lecturer/attendance  /lecturer/exams
 /applicant  /applicant/application/<name>  /applicant/documents  /applicant/payments
 /sponsor  /sponsor/students/<student>  /sponsor/giving

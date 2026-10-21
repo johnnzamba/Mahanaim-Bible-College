@@ -1,7 +1,7 @@
 import { Suspense, useEffect, useMemo, useRef, useState } from "react"
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom"
 import clsx from "clsx"
-import { ChevronDown, ExternalLink, Globe, LogOut, Menu, MoreHorizontal, Repeat, UserCircle, X, CalendarRange } from "lucide-react"
+import { ChevronDown, ExternalLink, Globe, LogOut, Menu, MoreHorizontal, Repeat, ShieldCheck, UserCircle, X, CalendarRange } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { frappe } from "../api/frappe"
 import { BRAND, PORTALS } from "../brand"
@@ -282,6 +282,17 @@ function UserMenu({ session, sub, portal, profileTo, onLogout, navigate }) {
 								}}
 							>
 								My profile
+							</MenuItem>
+						) : null}
+						{PORTALS[portal] ? (
+							<MenuItem
+								icon={ShieldCheck}
+								onClick={() => {
+									setOpen(false)
+									navigate(`${PORTALS[portal].path}/account`)
+								}}
+							>
+								Account & security
 							</MenuItem>
 						) : null}
 						{others.map((p) => (

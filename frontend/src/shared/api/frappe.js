@@ -57,13 +57,14 @@ function parseServerMessages(body) {
 
 let reloading = false
 function handleExpired(status, body) {
+	const signedIn = typeof window !== "undefined" && window.mahanaim_boot?.user && window.mahanaim_boot.user !== "Guest"
 	const expired =
-		status === 401 ||
+		(status === 401 && signedIn && body?.exc_type !== "AuthenticationError") ||
 		(status === 403 && body?.exc_type === "CSRFTokenError") ||
 		body?.session_expired
-	if (expired && !reloading && !body?.message) {
+	if (expired && !reloading) {
 		reloading = true
-		// One reload re-issues a fresh session + CSRF token; the AuthGate then routes to /signin.
+		// One reload re-issues a fresh session + CSRF token; RequirePortal then routes to /signin.
 		setTimeout(() => window.location.reload(), 50)
 	}
 }

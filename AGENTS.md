@@ -36,6 +36,7 @@ docs/                     ARCHITECTURE, API reference (docs/api/<domain>.md), MO
 | Redis | cache 13110, queue/socketio 11110 |
 | Web | `http://127.0.0.1:8010` (`serve --port 8010`), Vite dev on 8080 proxies to it |
 | Start services | `bash ~/mahanaim-bench/local-db/start.sh` (idempotent) |
+| Lint | `~/mahanaim-bench/env/bin/ruff check mahanaim` (CI enforces it) |
 
 Run Frappe commands with the absolute interpreter (no `bench` CLI needed):
 

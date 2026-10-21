@@ -1,4 +1,4 @@
-import { createContext, useContext, useMemo } from "react"
+import { createContext, useContext, useEffect, useMemo } from "react"
 import { Link, Navigate, useLocation } from "react-router-dom"
 import { useQuery, useQueryClient } from "@tanstack/react-query"
 import { ShieldAlert } from "lucide-react"
@@ -42,6 +42,12 @@ export function SessionProvider({ children }) {
 			},
 		}
 	}, [q.data, q.isLoading, qc])
+	useEffect(() => {
+		// frappe.js reads this to tell an expired session (reload) from a failed sign-in (show the error).
+		if (!q.data?.user || typeof window === "undefined") return
+		window.mahanaim_boot = { ...(window.mahanaim_boot || {}), user: q.data.user }
+		if (q.data.csrf_token) window.csrf_token = q.data.csrf_token
+	}, [q.data?.user, q.data?.csrf_token])
 	return <SessionCtx.Provider value={value}>{children}</SessionCtx.Provider>
 }
 

@@ -34,6 +34,7 @@ def _settings_brief():
 		"currency": s.currency or "KES",
 		"current_academic_term": s.current_academic_term,
 		"current_academic_year": s.current_academic_year,
+		"sms_enabled": bool(s.get("sms_enabled")),
 	}
 
 
@@ -82,6 +83,8 @@ def session_info():
 		"staff": staff,
 		"sponsor": sponsor,
 		"settings": settings,
+		# Sign-in rotates the session; the SPA swaps this in so later POSTs pass CSRF without a reload.
+		"csrf_token": frappe.sessions.get_csrf_token(),
 	}
 
 
