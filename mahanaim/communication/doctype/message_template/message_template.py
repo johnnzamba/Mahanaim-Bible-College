@@ -32,8 +32,10 @@ class MessageTemplate(Document):
 			frappe.throw(_("SMS text is limited to {0} characters.").format(SMS_MAX))
 
 	def validate_jinja(self):
-		"""Reject syntax errors; ignore runtime errors from a missing document in the empty test context."""
-		jenv = frappe.get_jenv()
+		"""Reject syntax errors. Templates are only parsed here, never executed."""
+		from mahanaim.services.communication import template_env
+
+		jenv = template_env()
 		for field in BODY_FIELDS:
 			source = self.get(field)
 			if not source:
@@ -47,14 +49,6 @@ class MessageTemplate(Document):
 					),
 					title=_("Invalid template"),
 				)
-			try:
-				frappe.render_template(source, {})
-			except TemplateSyntaxError as e:
-				frappe.throw(
-					_("{0} has a template error: {1}").format(_(self.meta.get_label(field)), e.message)
-				)
-			except Exception:
-				pass
 
 	def validate_unique_event(self):
 		if not self.is_active or self.event == "Custom":

@@ -81,10 +81,66 @@ def recipient_for_sponsor(sponsor) -> dict:
 
 
 # ---------------------------------------------------------------------------------- core
+_TEMPLATE_ENV = None
+
+
+def template_env():
+	"""Jinja environment for Message Templates.
+
+	Templates are written by Communications Officers, so they must not reach the database, HTTP or
+	the session. Frappe's own Jinja globals do (frappe.db, frappe.qb, make_get_request), even in its
+	"restricted" mode. This sandbox is immutable and sees only the context notify() passes plus a
+	few formatting helpers.
+	"""
+	global _TEMPLATE_ENV
+	if _TEMPLATE_ENV is None:
+		from frappe.utils import data as d
+		from jinja2.sandbox import ImmutableSandboxedEnvironment
+
+		from mahanaim.utils.jinja import money
+
+		utils = frappe._dict(
+			{
+				fn: getattr(d, fn)
+				for fn in (
+					"fmt_money",
+					"format_datetime",
+					"formatdate",
+					"format_time",
+					"global_date_format",
+					"money_in_words",
+					"flt",
+					"cint",
+					"cstr",
+					"getdate",
+					"get_datetime",
+					"nowdate",
+					"today",
+					"now_datetime",
+					"add_days",
+					"add_months",
+					"date_diff",
+					"strip_html",
+					"escape_html",
+				)
+			}
+		)
+		env = ImmutableSandboxedEnvironment(autoescape=False)
+		env.globals.update(
+			{
+				"_": _,
+				"money": money,
+				"frappe": frappe._dict(utils=utils, format_date=d.global_date_format),
+			}
+		)
+		_TEMPLATE_ENV = env
+	return _TEMPLATE_ENV
+
+
 def _render(template: str | None, ctx: dict) -> str:
 	if not template:
 		return ""
-	return frappe.render_template(template, ctx)
+	return template_env().from_string(template).render(ctx)
 
 
 def _plain(html: str | None, limit: int = 300) -> str:
@@ -104,7 +160,6 @@ def _public_settings() -> frappe._dict:
 
 
 def _context(doc=None, context: dict | None = None, recipient: dict | None = None) -> dict:
-	# `frappe` is deliberately not set here: templates use the sandbox's safe `frappe` global.
 	settings = _public_settings()
 	ctx = {
 		"doc": _data(doc),

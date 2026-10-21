@@ -193,8 +193,27 @@ class TestCommunication(IntegrationTestCase):
 			"{{ settings.get_password('sms_api_key') }}",
 			"{{ doc.db_set('first_name', 'Hacked') }}",
 			"{{ student.save() }}",
+			"{{ frappe.db.sql('select name from `__Auth`') }}",
+			"{{ frappe.db.set_value('Student', doc.name, 'first_name', 'Hacked') }}",
+			"{{ frappe.get_doc('User', 'Administrator') }}",
+			"{{ make_get_request('http://127.0.0.1') }}",
+			"{{ doc.update({'first_name': 'Hacked'}) }}",
+			"{{ ''.__class__.__mro__ }}",
 		):
 			with self.assertRaises(Exception, msg=source):
 				_render(source, ctx)
 		self.assertNotEqual(frappe.db.get_value("Student", student.name, "first_name"), "Hacked")
 		self.assertIn("5.00", _render("{{ frappe.utils.fmt_money(5) }} {{ doc.first_name }}", ctx))
+
+	def test_saving_a_template_never_executes_it(self):
+		student = self.student.name
+		frappe.get_doc(
+			{
+				"doctype": "Message Template",
+				"template_name": f"Probe {frappe.generate_hash(length=6)}",
+				"event": "Custom",
+				"subject": f"{{{{ frappe.db.set_value('Student', '{student}', 'first_name', 'Hacked') }}}}",
+				"email_body": "<p>{{ doc.name }}</p>",
+			}
+		).insert(ignore_permissions=True)
+		self.assertNotEqual(frappe.db.get_value("Student", student, "first_name"), "Hacked")
