@@ -101,7 +101,7 @@ export function PortalShell({ portal, nav, tabs, searchPlaceholder, serverSearch
 		<div className="min-h-screen bg-canvas">
 			<aside
 				className={clsx(
-					"fixed inset-y-0 left-0 z-40 flex w-[264px] flex-col bg-[var(--rail-bg)] text-[var(--rail-muted)] transition-transform duration-200",
+					"no-print fixed inset-y-0 left-0 z-40 flex w-[264px] flex-col bg-[var(--rail-bg)] text-[var(--rail-muted)] transition-transform duration-200",
 					open ? "translate-x-0 shadow-lift" : "-translate-x-full lg:translate-x-0"
 				)}
 			>
@@ -189,7 +189,7 @@ export function PortalShell({ portal, nav, tabs, searchPlaceholder, serverSearch
 
 			{open ? <button type="button" className="fixed inset-0 z-30 bg-brand-900/40 lg:hidden" onClick={() => setOpen(false)} aria-label="Close menu" /> : null}
 
-			<div className={clsx("flex min-h-screen min-w-0 flex-col lg:pl-[264px]", tabs && "pad-for-tabbar lg:pb-0")}>
+			<div className={clsx("flex min-h-screen min-w-0 flex-col lg:pl-[264px] print:!pl-0", tabs && "pad-for-tabbar lg:pb-0")}>
 				<header
 					className="no-print sticky top-0 z-20 flex h-16 shrink-0 items-center gap-2 border-b border-line px-3 backdrop-blur-md lg:px-6"
 					style={{ background: "var(--header-bg)" }}

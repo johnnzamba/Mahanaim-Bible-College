@@ -44,7 +44,7 @@ export function PageHeader({ title, subtitle, eyebrow, actions, back, children }
 					</Link>
 				) : null}
 				{eyebrow ? <div className="eyebrow mb-1">{eyebrow}</div> : null}
-				<h1 className="truncate font-serif text-[1.6rem] leading-tight text-ink">{title}</h1>
+				<h1 className="break-words font-serif text-[1.35rem] leading-tight text-ink sm:truncate sm:text-[1.6rem]">{title}</h1>
 				{subtitle ? <p className="mt-1 max-w-3xl text-sm text-ink-muted">{subtitle}</p> : null}
 				{children}
 			</div>
@@ -105,7 +105,7 @@ export function StatCard({ label, value, icon: Icon, tone = "brand", hint, delta
 				{loading ? (
 					<div className="skeleton mt-2 h-6 w-20" />
 				) : (
-					<div className="mt-1 truncate text-[1.45rem] font-bold leading-tight text-ink">{value ?? "—"}</div>
+					<div className="mt-1 break-words text-[1.2rem] font-bold leading-tight text-ink sm:truncate sm:text-[1.45rem]">{value ?? "—"}</div>
 				)}
 				{hint || delta != null ? (
 					<div className="mt-1 flex items-center gap-2 text-xs text-ink-soft">
@@ -205,18 +205,20 @@ const STATUS_TONE = {
 	green: [
 		"active", "approved", "paid", "confirmed", "completed", "complete", "published", "passed", "pass", "enrolled",
 		"accepted", "admitted", "issued", "sent", "delivered", "success", "graduated", "cleared", "open", "verified",
-		"present", "registered", "in session", "valid", "approved by dean", "settled", "returned", "available",
+		"present", "registered", "in session", "valid", "approved by dean", "settled", "returned", "available", "attended",
 	],
 	orange: [
 		"pending", "draft", "submitted", "under review", "partially paid", "partly paid", "awaiting payment", "in progress",
 		"queued", "scheduled", "planned", "on hold", "interview scheduled", "registration open", "late", "processing",
 		"waitlisted", "deferred", "examinations", "provisional", "moderation", "pending approval", "borrowed", "reserved",
+		"interview", "unmatched", "matched", "reissued", "excused", "rescheduled",
 	],
 	red: [
 		"rejected", "cancelled", "failed", "fail", "overdue", "suspended", "withdrawn", "expired", "revoked", "absent",
 		"unpaid", "dismissed", "closed", "error", "blocked", "lost", "discontinued", "inactive", "retake", "supplementary",
+		"declined", "voided", "reversed", "no transaction",
 	],
-	blue: ["new", "offered", "shortlisted", "info", "upcoming", "alumni", "transferred", "offer sent", "returned for changes"],
+	blue: ["new", "offered", "shortlisted", "info", "upcoming", "alumni", "transferred", "offer sent", "returned for changes", "allocated"],
 }
 
 export function toneForStatus(status) {
