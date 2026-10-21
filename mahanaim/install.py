@@ -106,6 +106,7 @@ def before_uninstall():
 
 def setup():
 	_ensure_roles()
+	_ensure_time_zone()
 	_ensure_currency()
 	_ensure_settings()
 	_ensure_grading_scale()
@@ -124,6 +125,16 @@ def _ensure_roles():
 			frappe.get_doc({"doctype": "Role", "role_name": role, "desk_access": desk}).insert(
 				ignore_permissions=True
 			)
+
+
+def _ensure_time_zone():
+	# With no time zone set Frappe falls back to Asia/Kolkata, which puts every timestamp 2.5 h ahead of
+	# Nairobi (exam windows, due dates, receipts). Only fills a blank value; a chosen zone is kept.
+	if frappe.db.get_single_value("System Settings", "time_zone"):
+		return
+	frappe.db.set_single_value("System Settings", "time_zone", "Africa/Nairobi")
+	frappe.clear_document_cache("System Settings", "System Settings")
+	frappe.local.system_settings = None
 
 
 def _ensure_currency():
