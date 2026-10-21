@@ -1,0 +1,322 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "ATT-.YYYY.-.######",
+ "creation": "2026-05-01 09:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "exam",
+  "exam_title",
+  "student",
+  "student_name",
+  "course_offering",
+  "column_break_0_1",
+  "attempt_number",
+  "status",
+  "started_on",
+  "deadline",
+  "submitted_on",
+  "score_section_1",
+  "auto_score",
+  "manual_score",
+  "total_score",
+  "column_break_1_2",
+  "max_score",
+  "percentage",
+  "marked_by",
+  "marked_on",
+  "answers_tab",
+  "question_order",
+  "answers",
+  "integrity_tab",
+  "ip_address",
+  "user_agent",
+  "column_break_1_3",
+  "focus_lost_count",
+  "section_section_2",
+  "events",
+  "remarks"
+ ],
+ "fields": [
+  {
+   "fieldname": "exam",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Exam",
+   "options": "Exam",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fetch_from": "exam.title",
+   "fieldname": "exam_title",
+   "fieldtype": "Data",
+   "label": "Exam Title",
+   "read_only": 1
+  },
+  {
+   "fieldname": "student",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Student",
+   "options": "Student",
+   "reqd": 1,
+   "search_index": 1
+  },
+  {
+   "fetch_from": "student.full_name",
+   "fieldname": "student_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Student Name",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "exam.course_offering",
+   "fieldname": "course_offering",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Course Offering",
+   "options": "Course Offering",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_0_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "attempt_number",
+   "fieldtype": "Int",
+   "label": "Attempt Number"
+  },
+  {
+   "default": "In Progress",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "In Progress\nSubmitted\nAuto Submitted\nMarking\nMarked\nReleased\nVoid"
+  },
+  {
+   "fieldname": "started_on",
+   "fieldtype": "Datetime",
+   "label": "Started on"
+  },
+  {
+   "fieldname": "deadline",
+   "fieldtype": "Datetime",
+   "label": "Deadline"
+  },
+  {
+   "fieldname": "submitted_on",
+   "fieldtype": "Datetime",
+   "label": "Submitted on"
+  },
+  {
+   "fieldname": "score_section_1",
+   "fieldtype": "Section Break",
+   "label": "Score"
+  },
+  {
+   "fieldname": "auto_score",
+   "fieldtype": "Float",
+   "label": "Auto Score",
+   "read_only": 1
+  },
+  {
+   "fieldname": "manual_score",
+   "fieldtype": "Float",
+   "label": "Manual Score",
+   "read_only": 1
+  },
+  {
+   "fieldname": "total_score",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Total Score",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_1_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "max_score",
+   "fieldtype": "Float",
+   "label": "Max Score",
+   "read_only": 1
+  },
+  {
+   "fieldname": "percentage",
+   "fieldtype": "Percent",
+   "label": "Percentage",
+   "read_only": 1
+  },
+  {
+   "fieldname": "marked_by",
+   "fieldtype": "Link",
+   "label": "Marked by",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "marked_on",
+   "fieldtype": "Datetime",
+   "label": "Marked on",
+   "read_only": 1
+  },
+  {
+   "fieldname": "answers_tab",
+   "fieldtype": "Tab Break",
+   "label": "Answers"
+  },
+  {
+   "fieldname": "question_order",
+   "fieldtype": "JSON",
+   "hidden": 1,
+   "label": "Question Order",
+   "read_only": 1
+  },
+  {
+   "fieldname": "answers",
+   "fieldtype": "Table",
+   "label": "Answers",
+   "options": "Exam Attempt Answer"
+  },
+  {
+   "fieldname": "integrity_tab",
+   "fieldtype": "Tab Break",
+   "label": "Integrity"
+  },
+  {
+   "fieldname": "ip_address",
+   "fieldtype": "Data",
+   "label": "Ip Address",
+   "read_only": 1
+  },
+  {
+   "fieldname": "user_agent",
+   "fieldtype": "Small Text",
+   "label": "User Agent",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_1_3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "focus_lost_count",
+   "fieldtype": "Int",
+   "label": "Focus Lost Count",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_section_2",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "events",
+   "fieldtype": "Table",
+   "label": "Events",
+   "options": "Exam Attempt Event",
+   "read_only": 1
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-05-01 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Assessments",
+ "name": "Exam Attempt",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "College Administrator",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Lecturer",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Academic Dean",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Registrar",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Auditor",
+   "share": 1
+  }
+ ],
+ "search_fields": "exam,student",
+ "show_title_field_in_link": 1,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "student_name",
+ "track_changes": 1
+}

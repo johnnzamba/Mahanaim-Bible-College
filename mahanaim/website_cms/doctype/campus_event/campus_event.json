@@ -1,0 +1,293 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "EVT-.YYYY.-.#####",
+ "creation": "2026-05-01 09:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "event_tab",
+  "title",
+  "route",
+  "event_type",
+  "status",
+  "column_break_0_1",
+  "start_datetime",
+  "end_datetime",
+  "venue",
+  "campus",
+  "section_section_1",
+  "is_public",
+  "partner_church",
+  "organiser",
+  "column_break_1_2",
+  "cover_image",
+  "livestream_url",
+  "description_section_2",
+  "summary",
+  "description",
+  "notices",
+  "registration_tab",
+  "registration_required",
+  "capacity",
+  "registration_deadline",
+  "column_break_2_3",
+  "fee",
+  "registered_count",
+  "attended_count"
+ ],
+ "fields": [
+  {
+   "fieldname": "event_tab",
+   "fieldtype": "Tab Break",
+   "label": "Event"
+  },
+  {
+   "bold": 1,
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Title",
+   "reqd": 1
+  },
+  {
+   "fieldname": "route",
+   "fieldtype": "Data",
+   "label": "Route",
+   "unique": 1
+  },
+  {
+   "default": "Other",
+   "fieldname": "event_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Event Type",
+   "options": "Chapel\nConference\nSeminar\nRetreat\nGraduation\nOpen Day\nMission\nFellowship\nConcert\nSports\nOther"
+  },
+  {
+   "default": "Draft",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Draft\nUpcoming\nOngoing\nCompleted\nCancelled"
+  },
+  {
+   "fieldname": "column_break_0_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "start_datetime",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Start Datetime",
+   "reqd": 1
+  },
+  {
+   "fieldname": "end_datetime",
+   "fieldtype": "Datetime",
+   "label": "End Datetime"
+  },
+  {
+   "fieldname": "venue",
+   "fieldtype": "Data",
+   "label": "Venue"
+  },
+  {
+   "fieldname": "campus",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Campus",
+   "options": "Campus"
+  },
+  {
+   "fieldname": "section_section_1",
+   "fieldtype": "Section Break"
+  },
+  {
+   "default": "1",
+   "description": "Show on the public website",
+   "fieldname": "is_public",
+   "fieldtype": "Check",
+   "label": "Is Public"
+  },
+  {
+   "fieldname": "partner_church",
+   "fieldtype": "Link",
+   "label": "Partner Church",
+   "options": "Partner Church"
+  },
+  {
+   "fieldname": "organiser",
+   "fieldtype": "Data",
+   "label": "Organiser"
+  },
+  {
+   "fieldname": "column_break_1_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "cover_image",
+   "fieldtype": "Attach Image",
+   "label": "Cover Image"
+  },
+  {
+   "fieldname": "livestream_url",
+   "fieldtype": "Data",
+   "label": "Livestream URL"
+  },
+  {
+   "fieldname": "description_section_2",
+   "fieldtype": "Section Break",
+   "label": "Description"
+  },
+  {
+   "fieldname": "summary",
+   "fieldtype": "Small Text",
+   "label": "Summary"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Text Editor",
+   "label": "Description"
+  },
+  {
+   "fieldname": "notices",
+   "fieldtype": "Small Text",
+   "label": "Notices"
+  },
+  {
+   "fieldname": "registration_tab",
+   "fieldtype": "Tab Break",
+   "label": "Registration"
+  },
+  {
+   "fieldname": "registration_required",
+   "fieldtype": "Check",
+   "label": "Registration Required"
+  },
+  {
+   "depends_on": "registration_required",
+   "fieldname": "capacity",
+   "fieldtype": "Int",
+   "label": "Capacity"
+  },
+  {
+   "depends_on": "registration_required",
+   "fieldname": "registration_deadline",
+   "fieldtype": "Datetime",
+   "label": "Registration Deadline"
+  },
+  {
+   "fieldname": "column_break_2_3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "registration_required",
+   "fieldname": "fee",
+   "fieldtype": "Currency",
+   "label": "Fee"
+  },
+  {
+   "fieldname": "registered_count",
+   "fieldtype": "Int",
+   "label": "Registered Count",
+   "read_only": 1
+  },
+  {
+   "fieldname": "attended_count",
+   "fieldtype": "Int",
+   "label": "Attended Count",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-05-01 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Website CMS",
+ "name": "Campus Event",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "College Administrator",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Communications Officer",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Chaplain",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Registrar",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Auditor",
+   "share": 1
+  }
+ ],
+ "search_fields": "title,event_type",
+ "show_title_field_in_link": 1,
+ "sort_field": "start_datetime",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "title",
+ "track_changes": 1
+}

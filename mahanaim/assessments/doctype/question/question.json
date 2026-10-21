@@ -1,0 +1,246 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "Q-.######",
+ "creation": "2026-05-01 09:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "course",
+  "topic",
+  "question_type",
+  "question_title",
+  "column_break_0_1",
+  "marks",
+  "difficulty",
+  "is_active",
+  "created_by_staff",
+  "question_section_1",
+  "question",
+  "options_section_2",
+  "options",
+  "answer_section_3",
+  "correct_boolean",
+  "accepted_answers",
+  "case_sensitive",
+  "matching_pairs",
+  "marking_guide",
+  "section_section_4",
+  "explanation"
+ ],
+ "fields": [
+  {
+   "fieldname": "course",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Course",
+   "options": "Course",
+   "reqd": 1
+  },
+  {
+   "fieldname": "topic",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Topic"
+  },
+  {
+   "fieldname": "question_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Question Type",
+   "options": "Multiple Choice\nMultiple Select\nTrue or False\nShort Answer\nEssay\nMatching\nFill in the Blank",
+   "reqd": 1
+  },
+  {
+   "fieldname": "question_title",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Question Title",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_0_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "marks",
+   "fieldtype": "Float",
+   "label": "Marks",
+   "reqd": 1
+  },
+  {
+   "default": "Medium",
+   "fieldname": "difficulty",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Difficulty",
+   "options": "Easy\nMedium\nHard"
+  },
+  {
+   "default": "1",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "in_standard_filter": 1,
+   "label": "Is Active"
+  },
+  {
+   "fieldname": "created_by_staff",
+   "fieldtype": "Link",
+   "label": "Created by Staff",
+   "options": "Staff Member"
+  },
+  {
+   "fieldname": "question_section_1",
+   "fieldtype": "Section Break",
+   "label": "Question"
+  },
+  {
+   "fieldname": "question",
+   "fieldtype": "Text Editor",
+   "label": "Question",
+   "reqd": 1
+  },
+  {
+   "fieldname": "options_section_2",
+   "fieldtype": "Section Break",
+   "label": "Options"
+  },
+  {
+   "depends_on": "eval:['Multiple Choice','Multiple Select'].includes(doc.question_type)",
+   "fieldname": "options",
+   "fieldtype": "Table",
+   "label": "Options",
+   "options": "Question Option"
+  },
+  {
+   "fieldname": "answer_section_3",
+   "fieldtype": "Section Break",
+   "label": "Answer"
+  },
+  {
+   "depends_on": "eval:doc.question_type=='True or False'",
+   "fieldname": "correct_boolean",
+   "fieldtype": "Select",
+   "label": "Correct Boolean",
+   "options": "\nTrue\nFalse"
+  },
+  {
+   "depends_on": "eval:['Short Answer','Fill in the Blank'].includes(doc.question_type)",
+   "description": "One accepted answer per line. Auto-marked when an answer matches.",
+   "fieldname": "accepted_answers",
+   "fieldtype": "Small Text",
+   "label": "Accepted Answers"
+  },
+  {
+   "depends_on": "eval:['Short Answer','Fill in the Blank'].includes(doc.question_type)",
+   "fieldname": "case_sensitive",
+   "fieldtype": "Check",
+   "label": "Case Sensitive"
+  },
+  {
+   "depends_on": "eval:doc.question_type=='Matching'",
+   "fieldname": "matching_pairs",
+   "fieldtype": "Table",
+   "label": "Matching Pairs",
+   "options": "Question Match Pair"
+  },
+  {
+   "depends_on": "eval:doc.question_type=='Essay'",
+   "fieldname": "marking_guide",
+   "fieldtype": "Text Editor",
+   "label": "Marking Guide"
+  },
+  {
+   "fieldname": "section_section_4",
+   "fieldtype": "Section Break"
+  },
+  {
+   "description": "Shown to students after results are released (if enabled on the exam)",
+   "fieldname": "explanation",
+   "fieldtype": "Text Editor",
+   "label": "Explanation"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-05-01 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Assessments",
+ "name": "Question",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "College Administrator",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Lecturer",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Academic Dean",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Auditor",
+   "share": 1
+  }
+ ],
+ "search_fields": "course,topic",
+ "show_title_field_in_link": 1,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "question_title",
+ "track_changes": 1
+}

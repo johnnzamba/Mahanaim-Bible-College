@@ -1,0 +1,211 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:template_name",
+ "creation": "2026-05-01 09:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "template_name",
+  "event",
+  "is_active",
+  "column_break_0_1",
+  "send_email",
+  "send_sms",
+  "send_in_app",
+  "email_section_1",
+  "subject",
+  "email_body",
+  "sms_in_app_section_2",
+  "sms_body",
+  "column_break_2_2",
+  "in_app_body",
+  "section_section_3",
+  "description"
+ ],
+ "fields": [
+  {
+   "bold": 1,
+   "fieldname": "template_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Template Name",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "event",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Event",
+   "options": "Account Created\nOTP Code\nApplication Submitted\nApplication Fee Paid\nApplication Under Review\nApplication Document Flagged\nInterview Scheduled\nApplication Approved\nApplication Rejected\nOffer Accepted\nStudent Created\nRegistration Approved\nInvoice Issued\nPayment Received\nFee Reminder\nAssignment Published\nAssignment Due Reminder\nAssignment Graded\nExam Scheduled\nExam Reminder\nResults Published\nTranscript Ready\nCertificate Ready\nStudent Request Update\nAnnouncement\nEvent Registration\nSponsor Report\nContact Enquiry\nEnquiry Response\nLibrary Loan Overdue\nGiving Receipt\nDirect Message\nEvent Waitlist\nEvent Cancelled\nPassword Reset Link\nRegistration Rejected\nExam Results Released\nApplication Waitlisted\nOffer Declined\nApplication Withdrawn\nCustom",
+   "reqd": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Is Active"
+  },
+  {
+   "fieldname": "column_break_0_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "send_email",
+   "fieldtype": "Check",
+   "label": "Send Email"
+  },
+  {
+   "fieldname": "send_sms",
+   "fieldtype": "Check",
+   "label": "Send SMS"
+  },
+  {
+   "default": "1",
+   "fieldname": "send_in_app",
+   "fieldtype": "Check",
+   "label": "Send in App"
+  },
+  {
+   "fieldname": "email_section_1",
+   "fieldtype": "Section Break",
+   "label": "Email"
+  },
+  {
+   "description": "Jinja allowed, e.g. Application {{ doc.name }} received",
+   "fieldname": "subject",
+   "fieldtype": "Data",
+   "label": "Subject"
+  },
+  {
+   "fieldname": "email_body",
+   "fieldtype": "Text Editor",
+   "label": "Email Body"
+  },
+  {
+   "fieldname": "sms_in_app_section_2",
+   "fieldtype": "Section Break",
+   "label": "SMS & In-App"
+  },
+  {
+   "description": "Keep under 160 characters. Jinja allowed.",
+   "fieldname": "sms_body",
+   "fieldtype": "Small Text",
+   "label": "SMS Body"
+  },
+  {
+   "fieldname": "column_break_2_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "in_app_body",
+   "fieldtype": "Small Text",
+   "label": "In App Body"
+  },
+  {
+   "fieldname": "section_section_3",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-10-22 10:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Communication",
+ "name": "Message Template",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "College Administrator",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Communications Officer",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Registrar",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Admissions Officer",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Finance Officer",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Auditor",
+   "share": 1
+  }
+ ],
+ "show_title_field_in_link": 1,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "template_name",
+ "track_changes": 1
+}

@@ -1,0 +1,594 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "STU-.YYYY.-.#####",
+ "creation": "2026-05-01 09:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "profile_tab",
+  "student_number",
+  "first_name",
+  "middle_name",
+  "last_name",
+  "full_name",
+  "column_break_0_1",
+  "photo",
+  "status",
+  "user",
+  "personal_details_section_1",
+  "gender",
+  "date_of_birth",
+  "marital_status",
+  "column_break_1_2",
+  "national_id",
+  "nationality",
+  "column_break_1_3",
+  "email",
+  "phone",
+  "county",
+  "postal_address",
+  "next_of_kin_section_2",
+  "nok_name",
+  "nok_relationship",
+  "column_break_2_4",
+  "nok_phone",
+  "church_ministry_section_3",
+  "home_church",
+  "partner_church",
+  "denomination",
+  "column_break_3_5",
+  "pastor_name",
+  "pastor_phone",
+  "ministry_role",
+  "academic_tab",
+  "programme",
+  "programme_name",
+  "campus",
+  "study_mode",
+  "column_break_3_6",
+  "intake",
+  "admission_year",
+  "year_of_study",
+  "current_term",
+  "dates_section_4",
+  "enrollment_date",
+  "expected_completion",
+  "column_break_4_7",
+  "completion_date",
+  "graduation_date",
+  "funding_section_5",
+  "fee_category",
+  "primary_sponsor",
+  "column_break_5_8",
+  "programme_application",
+  "standing_section_6",
+  "cgpa",
+  "credits_earned",
+  "column_break_6_9",
+  "fee_balance",
+  "academic_standing",
+  "alumni_history_tab",
+  "current_ministry",
+  "current_position",
+  "column_break_6_10",
+  "alumni_consent",
+  "status_history_section_7",
+  "status_log"
+ ],
+ "fields": [
+  {
+   "fieldname": "profile_tab",
+   "fieldtype": "Tab Break",
+   "label": "Profile"
+  },
+  {
+   "bold": 1,
+   "description": "Generated on admission, e.g. MBC/DT/2026/0001",
+   "fieldname": "student_number",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "in_list_view": 1,
+   "label": "Student Number",
+   "read_only": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "first_name",
+   "fieldtype": "Data",
+   "label": "First Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "middle_name",
+   "fieldtype": "Data",
+   "label": "Middle Name"
+  },
+  {
+   "fieldname": "last_name",
+   "fieldtype": "Data",
+   "label": "Last Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "full_name",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "in_list_view": 1,
+   "label": "Full Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_0_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "photo",
+   "fieldtype": "Attach Image",
+   "label": "Photo"
+  },
+  {
+   "default": "Admitted",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Applicant\nAdmitted\nRegistered\nActive\nDeferred\nSuspended\nWithdrawn\nCompleted\nAlumni"
+  },
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "label": "User",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "personal_details_section_1",
+   "fieldtype": "Section Break",
+   "label": "Personal Details"
+  },
+  {
+   "fieldname": "gender",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Gender",
+   "options": "\nMale\nFemale"
+  },
+  {
+   "fieldname": "date_of_birth",
+   "fieldtype": "Date",
+   "label": "Date of Birth"
+  },
+  {
+   "fieldname": "marital_status",
+   "fieldtype": "Select",
+   "label": "Marital Status",
+   "options": "\nSingle\nMarried\nWidowed\nDivorced\nSeparated"
+  },
+  {
+   "fieldname": "column_break_1_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "national_id",
+   "fieldtype": "Data",
+   "label": "National ID / Passport No"
+  },
+  {
+   "default": "Kenyan",
+   "fieldname": "nationality",
+   "fieldtype": "Data",
+   "label": "Nationality"
+  },
+  {
+   "fieldname": "column_break_1_3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "email",
+   "fieldtype": "Data",
+   "label": "Email",
+   "options": "Email",
+   "reqd": 1
+  },
+  {
+   "fieldname": "phone",
+   "fieldtype": "Data",
+   "label": "Phone",
+   "reqd": 1
+  },
+  {
+   "fieldname": "county",
+   "fieldtype": "Data",
+   "label": "County"
+  },
+  {
+   "fieldname": "postal_address",
+   "fieldtype": "Small Text",
+   "label": "Postal Address"
+  },
+  {
+   "fieldname": "next_of_kin_section_2",
+   "fieldtype": "Section Break",
+   "label": "Next of Kin"
+  },
+  {
+   "fieldname": "nok_name",
+   "fieldtype": "Data",
+   "label": "Next of Kin Name"
+  },
+  {
+   "fieldname": "nok_relationship",
+   "fieldtype": "Data",
+   "label": "Relationship"
+  },
+  {
+   "fieldname": "column_break_2_4",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "nok_phone",
+   "fieldtype": "Data",
+   "label": "Next of Kin Phone"
+  },
+  {
+   "fieldname": "church_ministry_section_3",
+   "fieldtype": "Section Break",
+   "label": "Church & Ministry"
+  },
+  {
+   "fieldname": "home_church",
+   "fieldtype": "Data",
+   "label": "Home Church"
+  },
+  {
+   "fieldname": "partner_church",
+   "fieldtype": "Link",
+   "label": "Partner Church",
+   "options": "Partner Church"
+  },
+  {
+   "fieldname": "denomination",
+   "fieldtype": "Data",
+   "label": "Denomination"
+  },
+  {
+   "fieldname": "column_break_3_5",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "pastor_name",
+   "fieldtype": "Data",
+   "label": "Pastor Name"
+  },
+  {
+   "fieldname": "pastor_phone",
+   "fieldtype": "Data",
+   "label": "Pastor Phone"
+  },
+  {
+   "fieldname": "ministry_role",
+   "fieldtype": "Data",
+   "label": "Ministry Role"
+  },
+  {
+   "fieldname": "academic_tab",
+   "fieldtype": "Tab Break",
+   "label": "Academic"
+  },
+  {
+   "fieldname": "programme",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Programme",
+   "options": "Programme",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "programme.programme_name",
+   "fieldname": "programme_name",
+   "fieldtype": "Data",
+   "label": "Programme Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "campus",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Campus",
+   "options": "Campus",
+   "reqd": 1
+  },
+  {
+   "fieldname": "study_mode",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Study Mode",
+   "options": "Study Mode"
+  },
+  {
+   "fieldname": "column_break_3_6",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "intake",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Intake",
+   "options": "Intake"
+  },
+  {
+   "fieldname": "admission_year",
+   "fieldtype": "Link",
+   "label": "Admission Year",
+   "options": "Academic Year"
+  },
+  {
+   "default": "1",
+   "fieldname": "year_of_study",
+   "fieldtype": "Int",
+   "label": "Year of Study"
+  },
+  {
+   "fieldname": "current_term",
+   "fieldtype": "Link",
+   "label": "Current Term",
+   "options": "Academic Term"
+  },
+  {
+   "fieldname": "dates_section_4",
+   "fieldtype": "Section Break",
+   "label": "Dates"
+  },
+  {
+   "fieldname": "enrollment_date",
+   "fieldtype": "Date",
+   "label": "Enrollment Date"
+  },
+  {
+   "fieldname": "expected_completion",
+   "fieldtype": "Date",
+   "label": "Expected Completion"
+  },
+  {
+   "fieldname": "column_break_4_7",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "completion_date",
+   "fieldtype": "Date",
+   "label": "Completion Date"
+  },
+  {
+   "fieldname": "graduation_date",
+   "fieldtype": "Date",
+   "label": "Graduation Date"
+  },
+  {
+   "fieldname": "funding_section_5",
+   "fieldtype": "Section Break",
+   "label": "Funding"
+  },
+  {
+   "default": "Standard",
+   "fieldname": "fee_category",
+   "fieldtype": "Select",
+   "label": "Fee Category",
+   "options": "Standard\nSponsored\nStaff Dependent\nInternational"
+  },
+  {
+   "fieldname": "primary_sponsor",
+   "fieldtype": "Link",
+   "label": "Primary Sponsor",
+   "options": "Sponsor"
+  },
+  {
+   "fieldname": "column_break_5_8",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "programme_application",
+   "fieldtype": "Link",
+   "label": "Programme Application",
+   "options": "Programme Application",
+   "read_only": 1
+  },
+  {
+   "fieldname": "standing_section_6",
+   "fieldtype": "Section Break",
+   "label": "Standing"
+  },
+  {
+   "fieldname": "cgpa",
+   "fieldtype": "Float",
+   "label": "CGPA",
+   "precision": "2",
+   "read_only": 1
+  },
+  {
+   "fieldname": "credits_earned",
+   "fieldtype": "Float",
+   "label": "Credits Earned",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_6_9",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "fee_balance",
+   "fieldtype": "Currency",
+   "label": "Fee Balance",
+   "read_only": 1
+  },
+  {
+   "fieldname": "academic_standing",
+   "fieldtype": "Select",
+   "label": "Academic Standing",
+   "options": "\nGood Standing\nProbation\nDean's List\nAcademic Warning",
+   "read_only": 1
+  },
+  {
+   "fieldname": "alumni_history_tab",
+   "fieldtype": "Tab Break",
+   "label": "Alumni & History"
+  },
+  {
+   "fieldname": "current_ministry",
+   "fieldtype": "Data",
+   "label": "Current Ministry"
+  },
+  {
+   "fieldname": "current_position",
+   "fieldtype": "Data",
+   "label": "Current Position"
+  },
+  {
+   "fieldname": "column_break_6_10",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Consents to appear in the alumni directory",
+   "fieldname": "alumni_consent",
+   "fieldtype": "Check",
+   "label": "Alumni Consent"
+  },
+  {
+   "fieldname": "status_history_section_7",
+   "fieldtype": "Section Break",
+   "label": "Status History"
+  },
+  {
+   "fieldname": "status_log",
+   "fieldtype": "Table",
+   "label": "Status Log",
+   "options": "Mahanaim Status Log",
+   "read_only": 1
+  }
+ ],
+ "image_field": "photo",
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-05-01 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Student Records",
+ "name": "Student",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "College Administrator",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Registrar",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Admissions Officer",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Finance Officer",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Academic Dean",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Lecturer",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Library Officer",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Chaplain",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Auditor",
+   "share": 1
+  }
+ ],
+ "search_fields": "full_name,student_number,email,phone",
+ "show_title_field_in_link": 1,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "full_name",
+ "track_changes": 1
+}

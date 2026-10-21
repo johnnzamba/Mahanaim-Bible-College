@@ -1,0 +1,76 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-05-01 09:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "grade",
+  "min_score",
+  "max_score",
+  "grade_points",
+  "description",
+  "is_pass"
+ ],
+ "fields": [
+  {
+   "columns": 1,
+   "fieldname": "grade",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Grade",
+   "reqd": 1
+  },
+  {
+   "columns": 1,
+   "fieldname": "min_score",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Min Score",
+   "reqd": 1
+  },
+  {
+   "columns": 1,
+   "fieldname": "max_score",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Max Score",
+   "reqd": 1
+  },
+  {
+   "columns": 1,
+   "fieldname": "grade_points",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Grade Points",
+   "precision": "2",
+   "reqd": 1
+  },
+  {
+   "columns": 2,
+   "fieldname": "description",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Description"
+  },
+  {
+   "columns": 1,
+   "default": "1",
+   "fieldname": "is_pass",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Is Pass"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-05-01 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Mahanaim Setup",
+ "name": "Grading Scale Band",
+ "owner": "Administrator",
+ "permissions": [],
+ "states": []
+}

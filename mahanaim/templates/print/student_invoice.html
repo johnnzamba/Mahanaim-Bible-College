@@ -1,0 +1,99 @@
+{#- Student Invoice. Context: brand_context() + invoice_context(): doc, student, payments, balance, term_label. -#}
+{% extends "mahanaim/templates/print/_print_base.html" %}
+{% block doc_title %}{{ _("Invoice") }}{% endblock %}
+{% block doc_sub %}
+	{{ _("Date") }}: {{ fmt_date(doc.posting_date, "d MMM yyyy") }}
+	{% if doc.due_date %}<br>{{ _("Due") }}: {{ fmt_date(doc.due_date, "d MMM yyyy") }}{% endif %}
+	<br><span class="badge {{ 'bad' if doc.status in ('Overdue', 'Cancelled') else ('warn' if doc.status in ('Unpaid', 'Partly Paid', 'Draft') else '') }}">{{ _(doc.status or "Draft") }}</span>
+{% endblock %}
+{% block content %}
+<table>
+	<tr>
+		<td style="width: 58%; padding-right: 10px;">
+			<div class="panel">
+				<div class="label">{{ _("Billed to") }}</div>
+				<div class="value serif" style="font-size: 14px;">{{ student.full_name or doc.student_name }}</div>
+				<table class="kv small" style="margin-top: 4px;">
+					<tr><td class="muted">{{ _("Student No.") }}</td><td class="value">{{ student.student_number or doc.student }}</td></tr>
+					<tr><td class="muted">{{ _("Programme") }}</td><td>{{ student.programme_name or doc.programme or "" }}</td></tr>
+					<tr><td class="muted">{{ _("Campus / Mode") }}</td><td>{{ [student.campus_name, student.study_mode] | select | join(" · ") }}</td></tr>
+				</table>
+			</div>
+		</td>
+		<td>
+			<div class="panel">
+				<table class="kv small">
+					<tr><td class="muted">{{ _("Academic term") }}</td><td class="value">{{ term_label or "—" }}</td></tr>
+					<tr><td class="muted">{{ _("Fee structure") }}</td><td>{{ doc.fee_structure or "—" }}</td></tr>
+					{% if doc.semester_registration %}<tr><td class="muted">{{ _("Registration") }}</td><td>{{ doc.semester_registration }}</td></tr>{% endif %}
+					<tr><td class="muted">{{ _("Account balance") }}</td><td class="value">{{ money(balance) }}</td></tr>
+				</table>
+			</div>
+		</td>
+	</tr>
+</table>
+
+<table class="grid">
+	<thead><tr><th style="width: 6%;">#</th><th>{{ _("Description") }}</th><th class="num" style="width: 26%;">{{ _("Amount") }} ({{ currency }})</th></tr></thead>
+	<tbody>
+	{% for item in doc.items %}
+		<tr class="{{ 'alt' if loop.index is even else '' }}">
+			<td>{{ loop.index }}</td>
+			<td>{{ item.description or item.fee_component }}</td>
+			<td class="num">{{ money(item.amount, False) }}</td>
+		</tr>
+	{% endfor %}
+	</tbody>
+</table>
+
+<table class="totals">
+	<tr><td>{{ _("Total") }}</td><td class="num">{{ money(doc.total_amount) }}</td></tr>
+	{% if doc.credit_applied %}<tr><td>{{ _("Credit applied") }}</td><td class="num">− {{ money(doc.credit_applied) }}</td></tr>{% endif %}
+	<tr><td>{{ _("Paid") }}</td><td class="num">− {{ money(doc.paid_amount) }}</td></tr>
+	<tr class="grand"><td>{{ _("Outstanding") }}</td><td class="num">{{ money(doc.outstanding_amount) }}</td></tr>
+</table>
+
+{% if doc.installments %}
+<div class="section">{{ _("Payment plan") }}</div>
+<table class="grid">
+	<thead><tr><th>{{ _("Installment") }}</th><th>{{ _("Due date") }}</th><th class="num">{{ _("Amount") }}</th><th class="num">{{ _("Paid") }}</th><th>{{ _("Status") }}</th></tr></thead>
+	<tbody>
+	{% for row in doc.installments %}
+		<tr class="{{ 'alt' if loop.index is even else '' }}">
+			<td>{{ row.label or (_("Installment") ~ " " ~ loop.index) }}</td>
+			<td>{{ fmt_date(row.due_date, "d MMM yyyy") }}</td>
+			<td class="num">{{ money(row.amount, False) }}</td>
+			<td class="num">{{ money(row.paid_amount, False) }}</td>
+			<td>{{ _(row.status or "Unpaid") }}</td>
+		</tr>
+	{% endfor %}
+	</tbody>
+</table>
+{% endif %}
+
+{% if payments %}
+<div class="section">{{ _("Payments received") }}</div>
+<table class="grid">
+	<thead><tr><th>{{ _("Receipt") }}</th><th>{{ _("Date") }}</th><th>{{ _("Mode") }}</th><th>{{ _("Reference") }}</th><th class="num">{{ _("Allocated") }}</th></tr></thead>
+	<tbody>
+	{% for p in payments %}
+		<tr class="{{ 'alt' if loop.index is even else '' }}">
+			<td>{{ p.name }}</td>
+			<td>{{ fmt_date(p.posting_date, "d MMM yyyy") }}</td>
+			<td>{{ p.mode_of_payment }}</td>
+			<td>{{ p.reference_no or "" }}</td>
+			<td class="num">{{ money(p.allocated_amount, False) }}</td>
+		</tr>
+	{% endfor %}
+	</tbody>
+</table>
+{% endif %}
+
+<div class="panel small" style="margin-top: 14px;">
+	<strong>{{ _("How to pay") }}:</strong>
+	{{ _("Pay via M-Pesa from the student portal (Fees → Pay now) or PayBill using your student number") }}
+	(<span class="code">{{ student.student_number or doc.student }}</span>) {{ _("as the account number") }}.
+	{{ _("Bank and cash payments are receipted by the Finance Office.") }}
+	{% if doc.remarks %}<br><span class="muted">{{ doc.remarks }}</span>{% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,378 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "EXM-.YYYY.-.#####",
+ "creation": "2026-05-01 09:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "details_tab",
+  "title",
+  "exam_type",
+  "course_offering",
+  "course_title",
+  "academic_term",
+  "column_break_0_1",
+  "assessment_component",
+  "delivery_mode",
+  "status",
+  "created_by_staff",
+  "schedule_section_1",
+  "start_datetime",
+  "end_datetime",
+  "duration_minutes",
+  "column_break_1_2",
+  "venue",
+  "access_code",
+  "rules_section_2",
+  "total_marks",
+  "pass_mark",
+  "max_attempts",
+  "column_break_2_3",
+  "shuffle_questions",
+  "shuffle_options",
+  "random_question_count",
+  "column_break_2_4",
+  "require_fee_clearance",
+  "show_answers_after_release",
+  "auto_release_objective",
+  "instructions_section_3",
+  "instructions",
+  "questions_tab",
+  "questions",
+  "stats_tab",
+  "attempt_count",
+  "submitted_count",
+  "column_break_3_5",
+  "average_score"
+ ],
+ "fields": [
+  {
+   "fieldname": "details_tab",
+   "fieldtype": "Tab Break",
+   "label": "Details"
+  },
+  {
+   "bold": 1,
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Title",
+   "reqd": 1
+  },
+  {
+   "default": "CAT",
+   "fieldname": "exam_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Exam Type",
+   "options": "CAT\nMain Exam\nSupplementary\nSpecial\nQuiz",
+   "reqd": 1
+  },
+  {
+   "fieldname": "course_offering",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Course Offering",
+   "options": "Course Offering",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "course_offering.course_title",
+   "fieldname": "course_title",
+   "fieldtype": "Data",
+   "label": "Course Title",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "course_offering.academic_term",
+   "fieldname": "academic_term",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Academic Term",
+   "options": "Academic Term",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_0_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "CAT",
+   "fieldname": "assessment_component",
+   "fieldtype": "Select",
+   "label": "Assessment Component",
+   "options": "CAT\nExam\nPractical\nParticipation",
+   "reqd": 1
+  },
+  {
+   "default": "Online",
+   "fieldname": "delivery_mode",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Delivery Mode",
+   "options": "Online\nIn Person"
+  },
+  {
+   "default": "Draft",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Draft\nScheduled\nOpen\nClosed\nMarking\nReleased\nCancelled"
+  },
+  {
+   "fieldname": "created_by_staff",
+   "fieldtype": "Link",
+   "label": "Created by Staff",
+   "options": "Staff Member"
+  },
+  {
+   "fieldname": "schedule_section_1",
+   "fieldtype": "Section Break",
+   "label": "Schedule"
+  },
+  {
+   "fieldname": "start_datetime",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Start Datetime",
+   "reqd": 1
+  },
+  {
+   "fieldname": "end_datetime",
+   "fieldtype": "Datetime",
+   "label": "End Datetime",
+   "reqd": 1
+  },
+  {
+   "default": "60",
+   "fieldname": "duration_minutes",
+   "fieldtype": "Int",
+   "label": "Duration Minutes",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_1_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.delivery_mode=='In Person'",
+   "fieldname": "venue",
+   "fieldtype": "Data",
+   "label": "Venue"
+  },
+  {
+   "description": "Optional code read out by the invigilator",
+   "fieldname": "access_code",
+   "fieldtype": "Data",
+   "label": "Access Code"
+  },
+  {
+   "fieldname": "rules_section_2",
+   "fieldtype": "Section Break",
+   "label": "Rules"
+  },
+  {
+   "fieldname": "total_marks",
+   "fieldtype": "Float",
+   "label": "Total Marks",
+   "read_only": 1
+  },
+  {
+   "default": "40",
+   "fieldname": "pass_mark",
+   "fieldtype": "Float",
+   "label": "Pass Mark"
+  },
+  {
+   "default": "1",
+   "fieldname": "max_attempts",
+   "fieldtype": "Int",
+   "label": "Max Attempts"
+  },
+  {
+   "fieldname": "column_break_2_3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "shuffle_questions",
+   "fieldtype": "Check",
+   "label": "Shuffle Questions"
+  },
+  {
+   "default": "1",
+   "fieldname": "shuffle_options",
+   "fieldtype": "Check",
+   "label": "Shuffle Options"
+  },
+  {
+   "description": "Serve N random questions from the list (0 = all)",
+   "fieldname": "random_question_count",
+   "fieldtype": "Int",
+   "label": "Random Question Count"
+  },
+  {
+   "fieldname": "column_break_2_4",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "require_fee_clearance",
+   "fieldtype": "Check",
+   "label": "Require Fee Clearance"
+  },
+  {
+   "fieldname": "show_answers_after_release",
+   "fieldtype": "Check",
+   "label": "Show Answers After Release"
+  },
+  {
+   "description": "Release scores immediately when the exam has only auto-marked questions",
+   "fieldname": "auto_release_objective",
+   "fieldtype": "Check",
+   "label": "Auto Release Objective"
+  },
+  {
+   "fieldname": "instructions_section_3",
+   "fieldtype": "Section Break",
+   "label": "Instructions"
+  },
+  {
+   "fieldname": "instructions",
+   "fieldtype": "Text Editor",
+   "label": "Instructions"
+  },
+  {
+   "fieldname": "questions_tab",
+   "fieldtype": "Tab Break",
+   "label": "Questions"
+  },
+  {
+   "fieldname": "questions",
+   "fieldtype": "Table",
+   "label": "Questions",
+   "options": "Exam Question"
+  },
+  {
+   "fieldname": "stats_tab",
+   "fieldtype": "Tab Break",
+   "label": "Stats"
+  },
+  {
+   "fieldname": "attempt_count",
+   "fieldtype": "Int",
+   "label": "Attempt Count",
+   "read_only": 1
+  },
+  {
+   "fieldname": "submitted_count",
+   "fieldtype": "Int",
+   "label": "Submitted Count",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_3_5",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "average_score",
+   "fieldtype": "Float",
+   "label": "Average Score",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-05-01 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Assessments",
+ "name": "Exam",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "College Administrator",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Lecturer",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Academic Dean",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Registrar",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Auditor",
+   "share": 1
+  }
+ ],
+ "search_fields": "course_offering,exam_type",
+ "show_title_field_in_link": 1,
+ "sort_field": "start_datetime",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "title",
+ "track_changes": 1
+}

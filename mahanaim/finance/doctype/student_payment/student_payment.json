@@ -1,0 +1,308 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "RCT-.YYYY.-.#####",
+ "creation": "2026-05-01 09:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "payment_for",
+  "student",
+  "programme_application",
+  "payer_name",
+  "column_break_0_1",
+  "posting_date",
+  "mode_of_payment",
+  "amount",
+  "status",
+  "reference_section_1",
+  "reference_no",
+  "reference_date",
+  "column_break_1_2",
+  "msisdn",
+  "mpesa_transaction",
+  "sponsor",
+  "allocation_section_2",
+  "allocations",
+  "section_section_3",
+  "allocated_amount",
+  "column_break_3_3",
+  "unallocated_amount",
+  "section_section_4",
+  "remarks",
+  "receipt_sent",
+  "journal_entry",
+  "amended_from"
+ ],
+ "fields": [
+  {
+   "default": "Student Fees",
+   "fieldname": "payment_for",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Payment for",
+   "options": "Student Fees\nApplication Fee\nOther",
+   "reqd": 1
+  },
+  {
+   "fieldname": "student",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Student",
+   "mandatory_depends_on": "eval:doc.payment_for=='Student Fees'",
+   "options": "Student",
+   "search_index": 1
+  },
+  {
+   "fieldname": "programme_application",
+   "fieldtype": "Link",
+   "label": "Programme Application",
+   "mandatory_depends_on": "eval:doc.payment_for=='Application Fee'",
+   "options": "Programme Application"
+  },
+  {
+   "fieldname": "payer_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Payer Name"
+  },
+  {
+   "fieldname": "column_break_0_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Today",
+   "fieldname": "posting_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "label": "Posting Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "mode_of_payment",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Mode of Payment",
+   "options": "M-Pesa\nBank Deposit\nBank Transfer\nCash\nCheque\nCard\nSponsor Remittance",
+   "reqd": 1
+  },
+  {
+   "bold": 1,
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Amount",
+   "reqd": 1
+  },
+  {
+   "default": "Draft",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Status",
+   "no_copy": 1,
+   "options": "Draft\nConfirmed\nCancelled",
+   "read_only": 1
+  },
+  {
+   "fieldname": "reference_section_1",
+   "fieldtype": "Section Break",
+   "label": "Reference"
+  },
+  {
+   "description": "M-Pesa receipt, bank slip or cheque number",
+   "fieldname": "reference_no",
+   "fieldtype": "Data",
+   "label": "Reference No",
+   "search_index": 1
+  },
+  {
+   "fieldname": "reference_date",
+   "fieldtype": "Date",
+   "label": "Reference Date"
+  },
+  {
+   "fieldname": "column_break_1_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "msisdn",
+   "fieldtype": "Data",
+   "label": "Phone (MSISDN)"
+  },
+  {
+   "fieldname": "mpesa_transaction",
+   "fieldtype": "Link",
+   "label": "M-Pesa Transaction",
+   "options": "M-Pesa Transaction",
+   "read_only": 1
+  },
+  {
+   "fieldname": "sponsor",
+   "fieldtype": "Link",
+   "label": "Sponsor",
+   "options": "Sponsor"
+  },
+  {
+   "fieldname": "allocation_section_2",
+   "fieldtype": "Section Break",
+   "label": "Allocation"
+  },
+  {
+   "fieldname": "allocations",
+   "fieldtype": "Table",
+   "label": "Allocations",
+   "options": "Payment Allocation"
+  },
+  {
+   "fieldname": "section_section_3",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "allocated_amount",
+   "fieldtype": "Currency",
+   "label": "Allocated Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_3_3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Held as a credit on the student's account",
+   "fieldname": "unallocated_amount",
+   "fieldtype": "Currency",
+   "label": "Unallocated Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_section_4",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  },
+  {
+   "fieldname": "receipt_sent",
+   "fieldtype": "Check",
+   "label": "Receipt Sent",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "journal_entry",
+   "fieldtype": "Data",
+   "label": "Journal Entry",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "amended_from",
+   "fieldtype": "Link",
+   "label": "Amended From",
+   "no_copy": 1,
+   "options": "Student Payment",
+   "print_hide": 1,
+   "read_only": 1,
+   "search_index": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "is_submittable": 1,
+ "links": [],
+ "modified": "2026-05-01 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Finance",
+ "name": "Student Payment",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "amend": 1,
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "amend": 1,
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "College Administrator",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "amend": 1,
+   "cancel": 1,
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Finance Officer",
+   "share": 1,
+   "submit": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Registrar",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Admissions Officer",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Auditor",
+   "share": 1
+  }
+ ],
+ "search_fields": "student,reference_no",
+ "show_title_field_in_link": 1,
+ "sort_field": "posting_date",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "payer_name",
+ "track_changes": 1
+}

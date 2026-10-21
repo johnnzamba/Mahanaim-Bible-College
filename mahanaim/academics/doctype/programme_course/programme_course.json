@@ -1,0 +1,82 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-05-01 09:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "course",
+  "course_title",
+  "credits",
+  "year_of_study",
+  "term_number",
+  "course_type"
+ ],
+ "fields": [
+  {
+   "columns": 2,
+   "fieldname": "course",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Course",
+   "options": "Course",
+   "reqd": 1
+  },
+  {
+   "columns": 3,
+   "fetch_from": "course.course_title",
+   "fieldname": "course_title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Course Title",
+   "read_only": 1
+  },
+  {
+   "columns": 1,
+   "fetch_from": "course.credits",
+   "fieldname": "credits",
+   "fieldtype": "Float",
+   "in_list_view": 1,
+   "label": "Credits",
+   "read_only": 1
+  },
+  {
+   "columns": 1,
+   "default": "1",
+   "fieldname": "year_of_study",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Year of Study",
+   "reqd": 1
+  },
+  {
+   "columns": 1,
+   "default": "1",
+   "fieldname": "term_number",
+   "fieldtype": "Int",
+   "in_list_view": 1,
+   "label": "Term Number",
+   "reqd": 1
+  },
+  {
+   "columns": 2,
+   "default": "Core",
+   "fieldname": "course_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Course Type",
+   "options": "Core\nElective\nPracticum\nProject"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-05-01 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Academics",
+ "name": "Programme Course",
+ "owner": "Administrator",
+ "permissions": [],
+ "states": []
+}

@@ -1,0 +1,1 @@
+import{j as o}from"./query-BEbt5M_H.js";import{ah as i}from"./index-CVmyJVct.js";import{i as t}from"./hooks-KX6V69Ni.js";import{N as m}from"./SponsorPortal-G4AQO7HA.js";function n({query:r,...s}){return r.isError&&t(r.error)?o.jsx(m,{}):o.jsx(i,{query:r,...s})}export{n as S};

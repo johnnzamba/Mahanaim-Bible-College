@@ -1,0 +1,399 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-05-01 09:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "home_tab",
+  "announcement_bar",
+  "announcement_link",
+  "hero_eyebrow",
+  "hero_title",
+  "hero_subtitle",
+  "column_break_0_1",
+  "hero_image",
+  "hero_cta_label",
+  "hero_cta_link",
+  "hero_video_url",
+  "highlights_section_1",
+  "stat_students",
+  "stat_graduates",
+  "column_break_1_2",
+  "stat_churches",
+  "stat_years",
+  "about_tab",
+  "about_summary",
+  "mission",
+  "vision",
+  "column_break_1_3",
+  "core_values",
+  "section_section_2",
+  "about_body",
+  "statement_of_faith",
+  "history",
+  "principal_s_message_section_3",
+  "principal_name",
+  "principal_title",
+  "column_break_3_4",
+  "principal_photo",
+  "section_section_4",
+  "principal_message",
+  "pages_tab",
+  "admissions_intro",
+  "admissions_steps",
+  "fees_intro",
+  "library_intro",
+  "contact_social_tab",
+  "contact_phone",
+  "contact_email",
+  "whatsapp",
+  "column_break_4_5",
+  "contact_address",
+  "office_hours",
+  "map_embed_url",
+  "social_section_5",
+  "facebook",
+  "youtube",
+  "column_break_5_6",
+  "instagram",
+  "x_twitter",
+  "footer_seo_section_6",
+  "footer_text",
+  "column_break_6_7",
+  "meta_description"
+ ],
+ "fields": [
+  {
+   "fieldname": "home_tab",
+   "fieldtype": "Tab Break",
+   "label": "Home"
+  },
+  {
+   "fieldname": "announcement_bar",
+   "fieldtype": "Data",
+   "label": "Announcement Bar"
+  },
+  {
+   "description": "Optional link for the announcement bar, e.g. /apply",
+   "fieldname": "announcement_link",
+   "fieldtype": "Data",
+   "label": "Announcement Link"
+  },
+  {
+   "default": "Raising servant leaders since 1998",
+   "fieldname": "hero_eyebrow",
+   "fieldtype": "Data",
+   "label": "Hero Eyebrow"
+  },
+  {
+   "default": "Equipping men and women for faithful Christian ministry",
+   "fieldname": "hero_title",
+   "fieldtype": "Data",
+   "label": "Hero Title"
+  },
+  {
+   "default": "Accredited theological training rooted in Scripture, shaped by prayer and practised in the local church.",
+   "fieldname": "hero_subtitle",
+   "fieldtype": "Small Text",
+   "label": "Hero Subtitle"
+  },
+  {
+   "fieldname": "column_break_0_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "hero_image",
+   "fieldtype": "Attach Image",
+   "label": "Hero Image"
+  },
+  {
+   "default": "Apply for the next intake",
+   "fieldname": "hero_cta_label",
+   "fieldtype": "Data",
+   "label": "Hero CTA Label"
+  },
+  {
+   "default": "/apply",
+   "fieldname": "hero_cta_link",
+   "fieldtype": "Data",
+   "label": "Hero CTA Link"
+  },
+  {
+   "fieldname": "hero_video_url",
+   "fieldtype": "Data",
+   "label": "Hero Video URL"
+  },
+  {
+   "fieldname": "highlights_section_1",
+   "fieldtype": "Section Break",
+   "label": "Highlights"
+  },
+  {
+   "default": "1200",
+   "fieldname": "stat_students",
+   "fieldtype": "Int",
+   "label": "Students"
+  },
+  {
+   "default": "4800",
+   "fieldname": "stat_graduates",
+   "fieldtype": "Int",
+   "label": "Graduates"
+  },
+  {
+   "fieldname": "column_break_1_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "350",
+   "fieldname": "stat_churches",
+   "fieldtype": "Int",
+   "label": "Partner Churches"
+  },
+  {
+   "default": "27",
+   "fieldname": "stat_years",
+   "fieldtype": "Int",
+   "label": "Years of Ministry"
+  },
+  {
+   "fieldname": "about_tab",
+   "fieldtype": "Tab Break",
+   "label": "About"
+  },
+  {
+   "default": "Mahanaim Bible College trains pastors, evangelists, missionaries and lay leaders for the church in Africa and beyond.",
+   "fieldname": "about_summary",
+   "fieldtype": "Small Text",
+   "label": "About Summary"
+  },
+  {
+   "default": "To equip Christian workers with sound biblical knowledge, godly character and practical ministry skills.",
+   "fieldname": "mission",
+   "fieldtype": "Small Text",
+   "label": "Mission"
+  },
+  {
+   "default": "A Spirit-filled, biblically grounded generation of leaders transforming communities for Christ.",
+   "fieldname": "vision",
+   "fieldtype": "Small Text",
+   "label": "Vision"
+  },
+  {
+   "fieldname": "column_break_1_3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Scripture\nPrayer\nIntegrity\nServant Leadership\nExcellence\nCommunity",
+   "fieldname": "core_values",
+   "fieldtype": "Small Text",
+   "label": "Core Values"
+  },
+  {
+   "fieldname": "section_section_2",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "about_body",
+   "fieldtype": "Text Editor",
+   "label": "About Body"
+  },
+  {
+   "fieldname": "statement_of_faith",
+   "fieldtype": "Text Editor",
+   "label": "Statement of Faith"
+  },
+  {
+   "fieldname": "history",
+   "fieldtype": "Text Editor",
+   "label": "History"
+  },
+  {
+   "fieldname": "principal_s_message_section_3",
+   "fieldtype": "Section Break",
+   "label": "Principal's Message"
+  },
+  {
+   "fieldname": "principal_name",
+   "fieldtype": "Data",
+   "label": "Principal Name"
+  },
+  {
+   "default": "Principal",
+   "fieldname": "principal_title",
+   "fieldtype": "Data",
+   "label": "Principal Title"
+  },
+  {
+   "fieldname": "column_break_3_4",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "principal_photo",
+   "fieldtype": "Attach Image",
+   "label": "Principal Photo"
+  },
+  {
+   "fieldname": "section_section_4",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "principal_message",
+   "fieldtype": "Text Editor",
+   "label": "Principal Message"
+  },
+  {
+   "fieldname": "pages_tab",
+   "fieldtype": "Tab Break",
+   "label": "Pages"
+  },
+  {
+   "fieldname": "admissions_intro",
+   "fieldtype": "Text Editor",
+   "label": "Admissions Intro"
+  },
+  {
+   "default": "Create an account and verify your email\nChoose a programme, campus and study mode\nComplete your personal, church and academic details\nUpload your documents\nPay the application fee via M-Pesa\nTrack your application and download your admission letter",
+   "fieldname": "admissions_steps",
+   "fieldtype": "Small Text",
+   "label": "Admissions Steps"
+  },
+  {
+   "fieldname": "fees_intro",
+   "fieldtype": "Text Editor",
+   "label": "Fees Intro"
+  },
+  {
+   "fieldname": "library_intro",
+   "fieldtype": "Text Editor",
+   "label": "Library Intro"
+  },
+  {
+   "fieldname": "contact_social_tab",
+   "fieldtype": "Tab Break",
+   "label": "Contact & Social"
+  },
+  {
+   "fieldname": "contact_phone",
+   "fieldtype": "Data",
+   "label": "Contact Phone"
+  },
+  {
+   "fieldname": "contact_email",
+   "fieldtype": "Data",
+   "label": "Contact Email"
+  },
+  {
+   "fieldname": "whatsapp",
+   "fieldtype": "Data",
+   "label": "Whatsapp"
+  },
+  {
+   "fieldname": "column_break_4_5",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "contact_address",
+   "fieldtype": "Small Text",
+   "label": "Contact Address"
+  },
+  {
+   "default": "Mon–Fri 8:00am – 5:00pm\nSat 9:00am – 1:00pm",
+   "fieldname": "office_hours",
+   "fieldtype": "Small Text",
+   "label": "Office Hours"
+  },
+  {
+   "fieldname": "map_embed_url",
+   "fieldtype": "Data",
+   "label": "Map Embed URL"
+  },
+  {
+   "fieldname": "social_section_5",
+   "fieldtype": "Section Break",
+   "label": "Social"
+  },
+  {
+   "fieldname": "facebook",
+   "fieldtype": "Data",
+   "label": "Facebook"
+  },
+  {
+   "fieldname": "youtube",
+   "fieldtype": "Data",
+   "label": "Youtube"
+  },
+  {
+   "fieldname": "column_break_5_6",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "instagram",
+   "fieldtype": "Data",
+   "label": "Instagram"
+  },
+  {
+   "fieldname": "x_twitter",
+   "fieldtype": "Data",
+   "label": "X (Twitter)"
+  },
+  {
+   "fieldname": "footer_seo_section_6",
+   "fieldtype": "Section Break",
+   "label": "Footer & SEO"
+  },
+  {
+   "fieldname": "footer_text",
+   "fieldtype": "Small Text",
+   "label": "Footer Text"
+  },
+  {
+   "fieldname": "column_break_6_7",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "meta_description",
+   "fieldtype": "Small Text",
+   "label": "Meta Description"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-05-01 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Website CMS",
+ "name": "Campus Website Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "College Administrator",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "Communications Officer",
+   "write": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

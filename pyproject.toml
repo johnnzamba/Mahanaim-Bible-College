@@ -1,0 +1,42 @@
+[project]
+name = "mahanaim"
+authors = [
+    { name = "John Kitheka", email = "nzambakitheka@gmail.com" }
+]
+description = "Mahanaim Digital Campus — admissions, academics, LMS bridge, exams, fees, M-Pesa, transcripts and church partnerships for Mahanaim Bible College"
+requires-python = ">=3.10"
+readme = "README.md"
+license = { file = "LICENSE" }
+dynamic = ["version"]
+dependencies = [
+    # "frappe>=15,<17" is installed and managed by bench.
+    # Optional: "lms" (Frappe LMS) and "erpnext" — detected at runtime, never required.
+    # PNG writer behind pyqrcode (shipped with Frappe), used for QR codes on letters and certificates.
+    "pypng>=0.20220715.0",
+]
+
+[build-system]
+requires = ["flit_core >=3.4,<4"]
+build-backend = "flit_core.buildapi"
+
+[tool.bench.dev-dependencies]
+
+[deploy.dependencies.apt]
+packages = []
+
+[tool.ruff]
+line-length = 110
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["F", "E", "W", "I", "UP", "B", "RUF"]
+ignore = [
+    "B017", "B018", "B023", "B904", "E101", "E402", "E501", "E741",
+    "F401", "F403", "F405", "F722", "W191", "RUF001", "RUF002", "RUF003", "RUF012",
+]
+typing-modules = ["frappe.types.DF"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "tab"
+docstring-code-format = true

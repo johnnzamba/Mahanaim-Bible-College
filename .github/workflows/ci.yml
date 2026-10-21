@@ -1,0 +1,137 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  frontend:
+    name: Frontend build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - run: npm ci
+
+      - name: Undefined component/icon references
+        run: npm run check
+
+      - name: Build
+        run: npm run build
+
+      - name: Committed build is up to date
+        working-directory: .
+        run: |
+          if ! git diff --quiet -- mahanaim/public/app mahanaim/www/mbc.html || [ -n "$(git ls-files --others --exclude-standard mahanaim/public/app)" ]; then
+            git status --short mahanaim/public/app mahanaim/www/mbc.html
+            echo "::error::The committed SPA build is stale. Run 'cd frontend && npm run build' and commit mahanaim/public/app and mahanaim/www/mbc.html."
+            exit 1
+          fi
+
+  lint:
+    name: Python lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+      - run: pip install ruff
+      - run: ruff check mahanaim --output-format=github
+      - run: ruff format --check mahanaim
+
+  server-tests:
+    name: Server tests (Frappe v16)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    services:
+      mariadb:
+        image: mariadb:11.4
+        env:
+          MARIADB_ROOT_PASSWORD: root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s --health-timeout=2s --health-retries=20
+      redis-cache:
+        image: redis:alpine
+        ports:
+          - 13000:6379
+      redis-queue:
+        image: redis:alpine
+        ports:
+          - 11000:6379
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: mahanaim-src
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.14"
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: pip-${{ runner.os }}-${{ hashFiles('mahanaim-src/pyproject.toml') }}
+
+      - name: System dependencies
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq libcups2-dev redis-tools mariadb-client >/dev/null
+          # wkhtmltopdf with patched Qt, as in production (PDF letters, receipts, transcripts)
+          wget -q -O /tmp/wkhtmltox.deb https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6.1-2/wkhtmltox_0.12.6.1-2.jammy_amd64.deb
+          sudo apt-get install -y -qq /tmp/wkhtmltox.deb >/dev/null
+          wkhtmltopdf --version
+
+      - name: Install bench
+        run: pip install frappe-bench
+
+      - name: Init bench (Frappe version-16)
+        run: |
+          # Frappe's own assets are built: PDF and email rendering look bundles up in sites/assets/assets.json.
+          bench init --skip-redis-config-generation --frappe-branch version-16 --python "$(which python)" ~/frappe-bench
+          cd ~/frappe-bench
+          bench set-config -g redis_cache redis://127.0.0.1:13000
+          bench set-config -g redis_queue redis://127.0.0.1:11000
+          bench set-config -g redis_socketio redis://127.0.0.1:13000
+
+      - name: Install app
+        working-directory: /home/runner/frappe-bench
+        run: |
+          bench get-app mahanaim "$GITHUB_WORKSPACE/mahanaim-src" --skip-assets
+          bench new-site test.localhost --db-root-password root --admin-password admin --mariadb-user-host-login-scope='%' --db-host 127.0.0.1
+          bench --site test.localhost set-config allow_tests 1
+          bench --site test.localhost set-config mute_emails 1
+          # the suite creates hundreds of users; Frappe's default caps sign-ups at 60/hour
+          bench --site test.localhost set-config throttle_user_limit 5000 --parse
+          bench --site test.localhost install-app mahanaim
+
+      - name: Run tests
+        working-directory: /home/runner/frappe-bench
+        run: bench --site test.localhost run-tests --app mahanaim

@@ -1,0 +1,16 @@
+.DS_Store
+*.pyc
+*.egg-info
+*.swp
+tags
+__pycache__/
+node_modules/
+dist/
+.env
+.env.*
+!.env.example
+# The built SPA in mahanaim/public/app IS committed (deploys need no Node build), like 360-hr-payroll.
+*.log
+.vscode/
+.idea/
+coverage/

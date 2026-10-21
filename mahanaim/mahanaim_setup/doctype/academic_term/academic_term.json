@@ -1,0 +1,242 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "format:{academic_year} {term_name}",
+ "creation": "2026-05-01 09:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "academic_year",
+  "term_name",
+  "term_number",
+  "term_label",
+  "column_break_0_1",
+  "status",
+  "is_current",
+  "calendar_section_1",
+  "start_date",
+  "end_date",
+  "column_break_1_2",
+  "registration_start",
+  "registration_end",
+  "late_registration_end",
+  "column_break_1_3",
+  "exam_start",
+  "exam_end",
+  "results_release_date"
+ ],
+ "fields": [
+  {
+   "fieldname": "academic_year",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Academic Year",
+   "options": "Academic Year",
+   "reqd": 1
+  },
+  {
+   "description": "e.g. Semester 1",
+   "fieldname": "term_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Term Name",
+   "reqd": 1
+  },
+  {
+   "default": "1",
+   "fieldname": "term_number",
+   "fieldtype": "Int",
+   "label": "Term Number"
+  },
+  {
+   "fieldname": "term_label",
+   "fieldtype": "Data",
+   "hidden": 1,
+   "label": "Term Label",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_0_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Planned",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Planned\nRegistration Open\nIn Session\nExaminations\nClosed"
+  },
+  {
+   "fieldname": "is_current",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Is Current"
+  },
+  {
+   "fieldname": "calendar_section_1",
+   "fieldtype": "Section Break",
+   "label": "Calendar"
+  },
+  {
+   "fieldname": "start_date",
+   "fieldtype": "Date",
+   "label": "Start Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "end_date",
+   "fieldtype": "Date",
+   "label": "End Date",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_1_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "registration_start",
+   "fieldtype": "Date",
+   "label": "Registration Start"
+  },
+  {
+   "fieldname": "registration_end",
+   "fieldtype": "Date",
+   "label": "Registration End"
+  },
+  {
+   "fieldname": "late_registration_end",
+   "fieldtype": "Date",
+   "label": "Late Registration End"
+  },
+  {
+   "fieldname": "column_break_1_3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "exam_start",
+   "fieldtype": "Date",
+   "label": "Exam Start"
+  },
+  {
+   "fieldname": "exam_end",
+   "fieldtype": "Date",
+   "label": "Exam End"
+  },
+  {
+   "fieldname": "results_release_date",
+   "fieldtype": "Date",
+   "label": "Results Release Date"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-05-01 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Mahanaim Setup",
+ "name": "Academic Term",
+ "naming_rule": "Expression",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "College Administrator",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Registrar",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Admissions Officer",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Finance Officer",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Academic Dean",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Lecturer",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Library Officer",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Auditor",
+   "share": 1
+  }
+ ],
+ "search_fields": "academic_year,term_name",
+ "show_title_field_in_link": 1,
+ "sort_field": "start_date",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "term_label",
+ "track_changes": 1
+}

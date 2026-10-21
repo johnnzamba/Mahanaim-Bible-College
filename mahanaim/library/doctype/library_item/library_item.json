@@ -1,0 +1,290 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "LIB-.######",
+ "creation": "2026-05-01 09:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "catalogue_tab",
+  "title",
+  "item_type",
+  "authors",
+  "subject",
+  "column_break_0_1",
+  "isbn",
+  "publisher",
+  "publication_year",
+  "edition",
+  "call_number",
+  "section_section_1",
+  "cover_image",
+  "description",
+  "access_tab",
+  "access_level",
+  "is_active",
+  "digital_file",
+  "external_url",
+  "column_break_1_2",
+  "campus",
+  "location",
+  "total_copies",
+  "available_copies",
+  "stats_section_2",
+  "downloads",
+  "loans_count"
+ ],
+ "fields": [
+  {
+   "fieldname": "catalogue_tab",
+   "fieldtype": "Tab Break",
+   "label": "Catalogue"
+  },
+  {
+   "bold": 1,
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "in_list_view": 1,
+   "label": "Title",
+   "reqd": 1
+  },
+  {
+   "default": "Book",
+   "fieldname": "item_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Item Type",
+   "options": "Book\nE-Book\nJournal\nThesis\nAudio\nVideo\nCommentary\nReference\nPeriodical",
+   "reqd": 1
+  },
+  {
+   "fieldname": "authors",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "in_list_view": 1,
+   "label": "Authors"
+  },
+  {
+   "default": "General",
+   "fieldname": "subject",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Subject",
+   "options": "Biblical Studies\nTheology\nChurch History\nPastoral Ministry\nMissions\nChristian Education\nBiblical Languages\nLeadership\nCounselling\nGeneral"
+  },
+  {
+   "fieldname": "column_break_0_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "isbn",
+   "fieldtype": "Data",
+   "label": "ISBN"
+  },
+  {
+   "fieldname": "publisher",
+   "fieldtype": "Data",
+   "label": "Publisher"
+  },
+  {
+   "fieldname": "publication_year",
+   "fieldtype": "Int",
+   "label": "Publication Year"
+  },
+  {
+   "fieldname": "edition",
+   "fieldtype": "Data",
+   "label": "Edition"
+  },
+  {
+   "fieldname": "call_number",
+   "fieldtype": "Data",
+   "label": "Call Number"
+  },
+  {
+   "fieldname": "section_section_1",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "cover_image",
+   "fieldtype": "Attach Image",
+   "label": "Cover Image"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description"
+  },
+  {
+   "fieldname": "access_tab",
+   "fieldtype": "Tab Break",
+   "label": "Access"
+  },
+  {
+   "default": "Students",
+   "fieldname": "access_level",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Access Level",
+   "options": "Public\nStudents\nStaff"
+  },
+  {
+   "default": "1",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "in_standard_filter": 1,
+   "label": "Is Active"
+  },
+  {
+   "description": "E-library file (PDF, EPUB, audio)",
+   "fieldname": "digital_file",
+   "fieldtype": "Attach",
+   "label": "Digital File"
+  },
+  {
+   "fieldname": "external_url",
+   "fieldtype": "Data",
+   "label": "External URL"
+  },
+  {
+   "fieldname": "column_break_1_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "campus",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Campus",
+   "options": "Campus"
+  },
+  {
+   "fieldname": "location",
+   "fieldtype": "Data",
+   "label": "Shelf / Location"
+  },
+  {
+   "default": "1",
+   "fieldname": "total_copies",
+   "fieldtype": "Int",
+   "label": "Total Copies"
+  },
+  {
+   "fieldname": "available_copies",
+   "fieldtype": "Int",
+   "label": "Available Copies",
+   "read_only": 1
+  },
+  {
+   "fieldname": "stats_section_2",
+   "fieldtype": "Section Break",
+   "label": "Stats"
+  },
+  {
+   "fieldname": "downloads",
+   "fieldtype": "Int",
+   "label": "Downloads",
+   "read_only": 1
+  },
+  {
+   "fieldname": "loans_count",
+   "fieldtype": "Int",
+   "label": "Loans Count",
+   "read_only": 1
+  }
+ ],
+ "image_field": "cover_image",
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-10-21 23:50:00.000000",
+ "modified_by": "Administrator",
+ "module": "Library",
+ "name": "Library Item",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "College Administrator",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Library Officer",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Registrar",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Lecturer",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Auditor",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Finance Officer",
+   "share": 1
+  }
+ ],
+ "search_fields": "title,authors,isbn",
+ "show_title_field_in_link": 1,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "title",
+ "track_changes": 1
+}

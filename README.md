@@ -1,66 +1,79 @@
-# Mahanaim Bible College — Digital Campus POC
+# Mahanaim Bible College: Digital Campus
 
-A full frontend proof of concept for the Mahanaim Bible College Digital Campus, created from the project Scope of Work before backend integration.
+The college's complete digital campus on one Frappe backend: public website, online admissions, student
+records, programmes and curriculum, digital learning (LMS bridge), assignments and CATs, an examination
+engine, grading and results, fees with M-Pesa, transcripts and certificates with QR verification, notifications,
+church partners and sponsors, chapel, library, alumni and management reporting.
 
-## What this POC demonstrates
+One React single-page app serves every audience:
 
-- Public recruitment website: home, programmes, admissions, fees, e-library, news/events and contact-oriented navigation
-- Multi-step online application flow with programme selection, applicant details, academics, document uploads, application fee simulation and review
-- Applicant portal with application status, uploaded documents, payment history, admission decision area and messaging
-- Student portal with dashboard, LMS courses, assignments/CATs, examinations, results, fees/M-Pesa history, documents, notifications and profile
-- Lecturer portal with teaching dashboard, course management, content studio, assessment management, grading queue, exams, student roster, announcements and calendar
-- Administrative console covering admissions, students, academics, LMS, assessments, exams, fees, payments/reconciliation, transcripts/certificates, communications, reporting and system settings
-- Public certificate/transcript verification experience
-- Phase 2 previews for digital library, sponsor/church partner portal, alumni, timetable/attendance, student support, advanced PWA, multi-campus and analytics
-- Responsive layouts for desktop, tablet and mobile
+| Portal | Route | Who |
+| --- | --- | --- |
+| Public website | `/`, `/programmes`, `/admissions`, `/fees`, `/news`, `/events`, `/give`, `/verify/<code>` | Everyone |
+| Applicant | `/applicant` | Applicants (sign up with email and phone OTP) |
+| Student | `/student` | Students and alumni |
+| Lecturer | `/lecturer` | Lecturers |
+| Sponsor | `/sponsor` | Sponsors and partner churches |
+| Administration | `/admin` | Registrar, admissions, finance, dean, library, chaplaincy, communications, auditor, administrators |
 
-All operational data is intentionally hardcoded for the POC. The UI structure is designed so mock data can later be replaced with Frappe REST/resource calls and Frappe LMS integration.
+Every portal works on a phone (360 px and up), installs as a PWA, and supports light and dark themes.
 
-## Technology
+## Documentation
 
-- React
-- Vite
-- Plain CSS design system (no UI framework dependency)
-- Hash-based POC navigation to keep hosting simple
+| Document | What it covers |
+| --- | --- |
+| [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) | Layers, key flows, cross-cutting concerns, frontend serving |
+| [`docs/MODULES.md`](docs/MODULES.md) | Where each SOW module (M01–M28) lives in the code |
+| [`docs/ROLES.md`](docs/ROLES.md) | Roles, portals, admin access matrix, sign-in and staff MFA |
+| [`docs/api/`](docs/api) | Endpoint reference per module |
+| [`docs/MPESA.md`](docs/MPESA.md) | Safaricom Daraja setup, callbacks, simulation, going live |
+| [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md) | Install, configuration, email/SMS, security, jobs, backups, upgrades |
+| [`frontend/DESIGN.md`](frontend/DESIGN.md) | Frontend architecture, components, visual language, routes |
+| [`AGENTS.md`](AGENTS.md) | Contributor guide: dev environment, conventions, ownership, tests |
 
-## Run locally
+## Repository layout
+
+```
+mahanaim/                 Frappe app
+  <module>/doctype/       DocTypes for the 13 modules (setup, academics, admissions, student records, learning,
+                          assessments, results, finance, credentials, communication, website CMS, church, library)
+  services/               Business logic (one module per domain); controllers stay thin
+  api/                    Whitelisted endpoints used by the SPA (role-checked, documented in docs/api)
+  templates/print/        Admission letter, invoice, receipt, statement, transcript and certificate
+  tests/                  Integration tests and factories
+  www/mbc.py              Serves the SPA shell with boot data (session, branding, settings)
+  public/app/             Built SPA bundle (committed)
+frontend/                 React 19 + Vite + Tailwind + TanStack Query
+  src/shared/             Design system, layout, API client, session, theming, PWA
+  src/portals/<portal>/   public, auth, applicant, student, lecturer, sponsor, admin/<area>
+```
+
+## Development
+
+You need a Frappe v16 bench (Python 3.14, Node 24, MariaDB, Redis).
 
 ```bash
-npm install
+# backend
+bench get-app <this repo>            # or symlink apps/mahanaim to your checkout
+bench --site campus.localhost install-app mahanaim
+bench --site campus.localhost execute mahanaim.demo.seed.run     # optional demo data (@mahanaim.demo users)
+bench start
+
+# frontend (hot reload on :8080, proxies /api to the bench on :8010)
+cd frontend
+npm ci
 npm run dev
 ```
 
-Build for production:
+| Task | Command |
+| --- | --- |
+| Backend tests | `bench --site <site> run-tests --app mahanaim` |
+| Python lint | `ruff check mahanaim && ruff format --check mahanaim` |
+| Frontend check and build | `cd frontend && npm run check && npm run build`, then commit `mahanaim/public/app` and `mahanaim/www/mbc.html` |
 
-```bash
-npm run build
-npm run preview
-```
+CI (`.github/workflows/ci.yml`) runs ruff, the frontend build, a check that the committed bundle is up to
+date, and the backend test suite.
 
-## Demo routes
+## License
 
-- `#/` — Public website
-- `#/apply` — Online application wizard
-- `#/login` — POC role selector
-- `#/applicant` — Applicant portal
-- `#/student` — Student portal
-- `#/lecturer` — Lecturer portal
-- `#/admin` — Administration console
-- `#/verify` — Public credential verification
-
-## Backend integration direction
-
-The next implementation phase should replace the hardcoded mock layer with:
-
-1. Frappe Framework authentication/session APIs and OTP workflow.
-2. Custom Frappe DocTypes for admissions, student lifecycle, academics, fees, exams, documents and communications.
-3. Frappe LMS as the learning engine, connected through a bridge app for course offering/enrolment synchronization.
-4. Safaricom Daraja for M-Pesa STK Push, callbacks, verification, receipts and reconciliation.
-5. Frappe print formats for admission letters, receipts, transcripts and certificates.
-6. QR/public verification APIs for credentials.
-7. Role and campus permissions enforced server-side.
-8. Frappe reporting / Insights integration for management analytics.
-
-## POC note
-
-The image backgrounds currently use remote Unsplash assets for presentation quality. Production should replace these with Mahanaim-owned photography and approved brand assets.
+GNU General Public License v2. See [`LICENSE`](LICENSE).
