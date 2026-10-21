@@ -128,6 +128,64 @@ def ledger_totals(student: str) -> dict:
 	return {"debit": money(debit), "credit": money(credit), "balance": money(flt(debit) - flt(credit))}
 
 
+# ---------------------------------------------------------------------------------- refunds
+OPEN_REFUND_STATUSES = ("Pending", "Approved")
+
+
+def reserved_refunds(student: str, exclude: str | None = None) -> float:
+	"""Total of the student's refund requests that are still open (Pending / Approved)."""
+	rr = DocType("Refund Request")
+	query = (
+		frappe.qb.from_(rr)
+		.select(Coalesce(Sum(rr.amount), 0))
+		.where(rr.student == student)
+		.where(rr.status.isin(OPEN_REFUND_STATUSES))
+	)
+	if exclude:
+		query = query.where(rr.name != exclude)
+	return money(query.run()[0][0])
+
+
+def refundable_credit(student: str, exclude: str | None = None) -> float:
+	"""Credit balance (−balance) less open refund requests, never below zero."""
+	return money(max(-get_student_balance(student) - reserved_refunds(student, exclude), 0))
+
+
+def student_refunds(student: str, limit: int | None = None) -> list[dict]:
+	"""A student's refund requests, newest first, without staff-only fields."""
+	rows = frappe.get_all(
+		"Refund Request",
+		filters={"student": student},
+		fields=[
+			"name",
+			"amount",
+			"status",
+			"reason",
+			"refund_mode",
+			"creation",
+			"approved_on",
+			"paid_on",
+			"reference_no",
+		],
+		order_by="creation desc, name desc",
+		limit=limit or 0,
+	)
+	return [
+		{
+			"name": r.name,
+			"amount": money(r.amount),
+			"status": r.status,
+			"reason": r.reason,
+			"refund_mode": r.refund_mode,
+			"creation": r.creation,
+			"decided_on": r.approved_on,
+			"paid_on": r.paid_on,
+			"reference_no": r.reference_no if r.status == "Paid" else None,
+		}
+		for r in rows
+	]
+
+
 def statement(student: str, from_date=None, to_date=None) -> dict:
 	"""Ledger statement with opening balance and a running balance per line."""
 	sle = DocType(LEDGER)

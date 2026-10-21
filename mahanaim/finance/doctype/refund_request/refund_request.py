@@ -4,8 +4,7 @@
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.query_builder.functions import Coalesce, Sum
-from frappe.utils import flt, now_datetime, today
+from frappe.utils import now_datetime, today
 
 from mahanaim.services import fees
 from mahanaim.utils import validate_transition
@@ -45,21 +44,10 @@ class RefundRequest(Document):
 				frappe.throw(_("Enter the refund transaction reference"))
 
 	def validate_credit(self):
-		credit = -fees.get_student_balance(self.student)
-		rr = frappe.qb.DocType("Refund Request")
-		reserved = (
-			frappe.qb.from_(rr)
-			.select(Coalesce(Sum(rr.amount), 0))
-			.where(rr.student == self.student)
-			.where(rr.status.isin(["Pending", "Approved"]))
-			.where(rr.name != (self.name or ""))
-		).run()[0][0]
-		available = fees.money(credit - flt(reserved))
+		available = fees.refundable_credit(self.student, exclude=self.name)
 		if self.amount > available:
 			frappe.throw(
-				_("Refund of {0} exceeds the available credit balance of {1}").format(
-					self.amount, max(available, 0)
-				),
+				_("Refund of {0} exceeds the available credit balance of {1}").format(self.amount, available),
 				title=_("Insufficient credit"),
 			)
 

@@ -22,7 +22,7 @@ from mahanaim.api.utils import (
 	require_student,
 )
 from mahanaim.services import documents, fees
-from mahanaim.utils import ROLE_AUDITOR, ROLE_FINANCE, current_term, is_staff, setting
+from mahanaim.utils import ROLE_AUDITOR, ROLE_FINANCE, current_term, fmt_money, is_staff, setting
 
 READ_ROLES = (ROLE_FINANCE, ROLE_AUDITOR)
 FINANCE_DOCS = {
@@ -182,7 +182,8 @@ def _children(child: str, parenttype: str, parents: list[str], fields: list[str]
 
 # ---------------------------------------------------------------------------------- student account payload
 def account_summary(student: str) -> dict:
-	"""Balance, clearance, invoices (+items, installments), payments (+allocations), pending STK requests."""
+	"""Balance, clearance, invoices (+items, installments), payments (+allocations), pending STK requests,
+	latest refund requests and the credit still available for a refund."""
 	info = frappe.db.get_value(
 		"Student",
 		student,
@@ -252,6 +253,8 @@ def account_summary(student: str) -> dict:
 		"payments": payments,
 		"installments": upcoming,
 		"pending_requests": pending,
+		"refunds": fees.student_refunds(student, limit=10),
+		"refund_available": fees.money(max(-totals["balance"] - fees.reserved_refunds(student), 0)),
 		"mpesa": {
 			"enabled": bool(cint(ms.enabled)),
 			"simulation": not cint(ms.enabled) and bool(cint(frappe.conf.get("developer_mode"))),
@@ -373,12 +376,36 @@ def send_document(doctype, name, format="pdf", **opts):
 
 @frappe.whitelist(methods=["POST"])
 def request_refund(amount, reason, refund_mode="M-Pesa", account_details=None):
+	"""Ask for a refund of credit. One open (Pending / Approved) request per student at a time."""
 	student = require_student()
+	# Lock the student row so two simultaneous requests cannot both pass the credit check.
+	frappe.db.get_value("Student", student.name, "name", for_update=True)
+	amount = fees.money(amount)
+	if amount <= 0:
+		frappe.throw(_("Enter a refund amount greater than zero"))
+	open_request = frappe.db.get_value(
+		"Refund Request", {"student": student.name, "status": ["in", fees.OPEN_REFUND_STATUSES]}, "name"
+	)
+	if open_request:
+		frappe.throw(
+			_("Refund request {0} is still being processed. You can ask again once it is decided.").format(
+				open_request
+			),
+			title=_("Refund already requested"),
+		)
+	available = fees.refundable_credit(student.name)
+	if amount > available:
+		frappe.throw(
+			_("You can request at most {0}, your available credit balance.").format(fmt_money(available))
+			if available > 0
+			else _("You have no credit balance to refund."),
+			title=_("Insufficient credit"),
+		)
 	doc = frappe.get_doc(
 		{
 			"doctype": "Refund Request",
 			"student": student.name,
-			"amount": flt(amount, 2),
+			"amount": amount,
 			"reason": reason,
 			"refund_mode": refund_mode,
 			"account_details": account_details or student.phone,
@@ -386,6 +413,13 @@ def request_refund(amount, reason, refund_mode="M-Pesa", account_details=None):
 		}
 	).insert(ignore_permissions=True)
 	return doc.as_dict()
+
+
+@frappe.whitelist()
+def my_refunds():
+	"""The signed-in student's refund requests, newest first."""
+	student = require_student()
+	return fees.student_refunds(student.name)
 
 
 # ---------------------------------------------------------------------------------- applicant

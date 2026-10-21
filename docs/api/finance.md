@@ -54,7 +54,30 @@ Invoice status: `Draft → Unpaid | Partly Paid | Paid | Overdue → Cancelled`.
 | `mahanaim.api.finance.pay_fees` | POST | `amount`, `phone?` (defaults to the student's phone), `invoice?` (must be theirs) | `{request, checkout_request_id, customer_message}` |
 | `mahanaim.api.finance.payment_request_status` | GET | `request` | Request status (below). Guard: owner/staff |
 | `mahanaim.api.finance.download` | GET | `doctype` = `invoice` \| `receipt` \| `statement`, `name` (not needed for the own statement), `format` = `pdf` \| `html`, `from_date?`, `to_date?` | PDF / HTML file. Guard: owner/staff |
-| `mahanaim.api.finance.request_refund` | POST | `amount`, `reason`, `refund_mode` = M-Pesa \| Bank Transfer \| Cheque \| Cash, `account_details?` | Refund Request dict (status Pending). Amount must be ≤ the student's credit |
+| `mahanaim.api.finance.request_refund` | POST | `amount`, `reason`, `refund_mode` = M-Pesa \| Bank Transfer \| Cheque \| Cash, `account_details?` | Refund Request dict (status Pending). See the rules below |
+| `mahanaim.api.finance.my_refunds` | GET | none | The student's own refund requests, newest first (rows below) |
+
+**`request_refund` rules.** Each rule failure raises `ValidationError` with a student-friendly message.
+
+- The amount must be greater than zero.
+- The amount must be no more than the refundable credit: the credit balance (`-get_student_balance`) less
+  any open refund requests.
+- A student can have only one open (Pending or Approved) request at a time; a new one is rejected until the
+  open one is decided.
+- Concurrent requests are serialised with a lock on the student row.
+- The Refund Request controller enforces the same credit check for staff-created requests.
+
+**`my_refunds` row:**
+
+```json
+{"name": "RFD-2026-00003", "amount": 2000.0, "status": "Paid", "reason": "Overpaid", "refund_mode": "M-Pesa",
+ "creation": "2026-10-20 09:12:44", "decided_on": "2026-10-20 15:01:02", "paid_on": "2026-10-21",
+ "reference_no": "SJK81HQ2PA"}
+```
+
+- `decided_on` is the approval or rejection time.
+- `reference_no` is the payout reference and appears only when the status is Paid.
+- Staff remarks are not included.
 
 **`my_fees`**
 
@@ -73,8 +96,13 @@ Invoice status: `Draft → Unpaid | Partly Paid | Paid | Overdue → Cancelled`.
    "allocations": [{"invoice": "INV-2026-00004", "academic_term": "2025/2026 Term 2", "allocated_amount": 18000.0}]}],
  "installments": [{"invoice": "INV-2026-00004", "label": "Second half", "due_date": "2026-03-01", "amount": 15000.0, "paid_amount": 3000.0, "status": "Partly Paid"}],
  "pending_requests": [{"name": "MPR-2026-00031", "amount": 5000.0, "phone_number": "254712345678", "status": "Pending", "creation": "…", "checkout_request_id": "ws_CO_…"}],
+ "refunds": [{"name": "RFD-2026-00003", "amount": 2000.0, "status": "Pending", "…": "…"}],
+ "refund_available": 0.0,
  "mpesa": {"enabled": true, "simulation": false, "paybill": "174379", "till": null, "account": "MBC/DBS/2026/0001"}}
 ```
+
+- `refunds` holds the latest 10 refund requests, in the `my_refunds` row shape.
+- `refund_available` is the credit that can still be requested: credit less open requests, never negative.
 
 **`payment_request_status`** (poll every 3–5 s after `pay_fees` until `done`):
 

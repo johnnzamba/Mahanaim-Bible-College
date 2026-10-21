@@ -292,6 +292,51 @@ class TestFees(IntegrationTestCase):
 		self.assertEqual(ledger("Refund Request", rr.name)[0].debit, 1500)
 		self.assertEqual(fees.get_student_balance(student.name), -500)
 
+	def test_student_refund_requests(self):
+		from mahanaim.api import finance
+
+		student, other = self.student(), self.student()
+		fb.make_invoice(student.name, 1000, term=self.term)
+		fb.make_payment(student.name, 3000)  # 2000 in credit
+		fb.make_payment(other.name, 500)
+		try:
+			frappe.set_user(other.user)
+			other_request = finance.request_refund(200, "Overpaid")["name"]
+			frappe.set_user(student.user)
+			for amount in (0, -5, "abc", 2000.01):
+				with self.assertRaises(frappe.ValidationError):
+					finance.request_refund(amount, "Overpaid")
+			first = finance.request_refund(1200, "Overpaid", account_details="0712345678")
+			self.assertEqual((first["amount"], first["status"]), (1200, "Pending"))
+			with self.assertRaises(frappe.ValidationError):
+				finance.request_refund(100, "Again")  # one open request at a time
+			summary = finance.my_fees()
+			self.assertEqual(summary["refund_available"], 800)
+			self.assertEqual([r["name"] for r in summary["refunds"]], [first["name"]])
+
+			frappe.set_user("Administrator")
+			finance.decide_refund(first["name"], "Rejected", remarks="Carry forward")
+			frappe.set_user(student.user)
+			second = finance.request_refund(2000, "Overpaid")
+			rows = finance.my_refunds()
+			self.assertEqual([r["name"] for r in rows], [second["name"], first["name"]])
+			self.assertNotIn(other_request, [r["name"] for r in rows])
+			self.assertEqual(rows[1]["status"], "Rejected")
+			self.assertTrue(rows[1]["decided_on"])
+			self.assertNotIn("remarks", rows[1])
+
+			frappe.set_user("Administrator")
+			finance.decide_refund(second["name"], "Approved")
+			finance.decide_refund(second["name"], "Paid", reference_no="RFX9")
+			frappe.set_user(student.user)
+			row = finance.my_refunds()[0]
+			self.assertEqual((row["status"], row["reference_no"], row["amount"]), ("Paid", "RFX9", 2000))
+			self.assertEqual(finance.my_fees()["refund_available"], 0)
+			with self.assertRaises(frappe.ValidationError):
+				finance.request_refund(1, "More")  # no credit left
+		finally:
+			frappe.set_user("Administrator")
+
 	# ------------------------------------------------------------------ balance / clearance
 	def test_balance_and_fee_clearance(self):
 		fb.set_settings(
