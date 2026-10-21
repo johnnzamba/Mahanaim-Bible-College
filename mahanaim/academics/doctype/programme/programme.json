@@ -1,0 +1,358 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "field:code",
+ "creation": "2026-05-01 09:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "overview_tab",
+  "programme_name",
+  "code",
+  "level",
+  "department",
+  "column_break_0_1",
+  "status",
+  "is_published",
+  "award_title",
+  "image",
+  "structure_section_1",
+  "duration_years",
+  "terms_per_year",
+  "column_break_1_2",
+  "total_credits",
+  "min_credits_to_graduate",
+  "min_cgpa_to_graduate",
+  "delivery_section_2",
+  "campuses",
+  "column_break_2_3",
+  "study_modes",
+  "fees_admission_section_3",
+  "application_fee",
+  "indicative_fee_per_term",
+  "column_break_3_4",
+  "minimum_entry",
+  "curriculum_tab",
+  "curriculum",
+  "website_content_tab",
+  "overview",
+  "description",
+  "entry_requirements",
+  "career_paths"
+ ],
+ "fields": [
+  {
+   "fieldname": "overview_tab",
+   "fieldtype": "Tab Break",
+   "label": "Overview"
+  },
+  {
+   "bold": 1,
+   "fieldname": "programme_name",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "in_list_view": 1,
+   "label": "Programme Name",
+   "reqd": 1
+  },
+  {
+   "description": "Used in student numbers, e.g. DT",
+   "fieldname": "code",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Code",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "level",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Level",
+   "options": "Certificate\nDiploma\nHigher Diploma\nBachelor\nPostgraduate Diploma\nMasters\nShort Course",
+   "reqd": 1
+  },
+  {
+   "fieldname": "department",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Department",
+   "options": "Department"
+  },
+  {
+   "fieldname": "column_break_0_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Active",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Active\nInactive\nArchived"
+  },
+  {
+   "default": "1",
+   "description": "Show on the public website and Apply page",
+   "fieldname": "is_published",
+   "fieldtype": "Check",
+   "label": "Is Published"
+  },
+  {
+   "description": "Printed on certificates, e.g. Diploma in Theology",
+   "fieldname": "award_title",
+   "fieldtype": "Data",
+   "label": "Award Title"
+  },
+  {
+   "fieldname": "image",
+   "fieldtype": "Attach Image",
+   "label": "Image"
+  },
+  {
+   "fieldname": "structure_section_1",
+   "fieldtype": "Section Break",
+   "label": "Structure"
+  },
+  {
+   "default": "2",
+   "fieldname": "duration_years",
+   "fieldtype": "Float",
+   "label": "Duration Years"
+  },
+  {
+   "default": "2",
+   "fieldname": "terms_per_year",
+   "fieldtype": "Int",
+   "label": "Terms per Year"
+  },
+  {
+   "fieldname": "column_break_1_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "total_credits",
+   "fieldtype": "Float",
+   "label": "Total Credits",
+   "read_only": 1
+  },
+  {
+   "fieldname": "min_credits_to_graduate",
+   "fieldtype": "Float",
+   "label": "Min Credits to Graduate"
+  },
+  {
+   "default": "2.0",
+   "fieldname": "min_cgpa_to_graduate",
+   "fieldtype": "Float",
+   "label": "Min CGPA to Graduate",
+   "precision": "2"
+  },
+  {
+   "fieldname": "delivery_section_2",
+   "fieldtype": "Section Break",
+   "label": "Delivery"
+  },
+  {
+   "fieldname": "campuses",
+   "fieldtype": "Table MultiSelect",
+   "label": "Campuses",
+   "options": "Programme Campus"
+  },
+  {
+   "fieldname": "column_break_2_3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "study_modes",
+   "fieldtype": "Table MultiSelect",
+   "label": "Study Modes",
+   "options": "Programme Study Mode"
+  },
+  {
+   "fieldname": "fees_admission_section_3",
+   "fieldtype": "Section Break",
+   "label": "Fees & Admission"
+  },
+  {
+   "description": "Leave blank to use the default in Mahanaim Settings",
+   "fieldname": "application_fee",
+   "fieldtype": "Currency",
+   "label": "Application Fee"
+  },
+  {
+   "fieldname": "indicative_fee_per_term",
+   "fieldtype": "Currency",
+   "label": "Indicative Fee per Term"
+  },
+  {
+   "fieldname": "column_break_3_4",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "e.g. KCSE C- or equivalent",
+   "fieldname": "minimum_entry",
+   "fieldtype": "Data",
+   "label": "Minimum Entry"
+  },
+  {
+   "fieldname": "curriculum_tab",
+   "fieldtype": "Tab Break",
+   "label": "Curriculum"
+  },
+  {
+   "fieldname": "curriculum",
+   "fieldtype": "Table",
+   "label": "Curriculum",
+   "options": "Programme Course"
+  },
+  {
+   "fieldname": "website_content_tab",
+   "fieldtype": "Tab Break",
+   "label": "Website Content"
+  },
+  {
+   "fieldname": "overview",
+   "fieldtype": "Small Text",
+   "label": "Overview",
+   "translatable": 1
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Text Editor",
+   "label": "Description"
+  },
+  {
+   "fieldname": "entry_requirements",
+   "fieldtype": "Text Editor",
+   "label": "Entry Requirements"
+  },
+  {
+   "fieldname": "career_paths",
+   "fieldtype": "Text Editor",
+   "label": "Career Paths"
+  }
+ ],
+ "image_field": "image",
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-05-01 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Academics",
+ "name": "Programme",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "College Administrator",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Registrar",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Academic Dean",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Admissions Officer",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Finance Officer",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Lecturer",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Communications Officer",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Library Officer",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Auditor",
+   "share": 1
+  }
+ ],
+ "search_fields": "programme_name,level",
+ "show_title_field_in_link": 1,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "programme_name",
+ "track_changes": 1
+}

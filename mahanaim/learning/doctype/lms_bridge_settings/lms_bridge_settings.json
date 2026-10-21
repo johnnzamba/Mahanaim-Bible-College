@@ -1,0 +1,114 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-05-01 09:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "enabled",
+  "auto_create_courses",
+  "auto_enrol_students",
+  "column_break_0_1",
+  "publish_on_create",
+  "remove_enrolment_on_drop",
+  "status_section_1",
+  "lms_installed",
+  "last_full_sync"
+ ],
+ "fields": [
+  {
+   "description": "Mirror course offerings and enrolments into Frappe LMS when it is installed",
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enabled"
+  },
+  {
+   "default": "1",
+   "fieldname": "auto_create_courses",
+   "fieldtype": "Check",
+   "label": "Auto Create Courses"
+  },
+  {
+   "default": "1",
+   "fieldname": "auto_enrol_students",
+   "fieldtype": "Check",
+   "label": "Auto Enrol Students"
+  },
+  {
+   "fieldname": "column_break_0_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "publish_on_create",
+   "fieldtype": "Check",
+   "label": "Publish on Create"
+  },
+  {
+   "default": "1",
+   "fieldname": "remove_enrolment_on_drop",
+   "fieldtype": "Check",
+   "label": "Remove Enrolment on Drop"
+  },
+  {
+   "fieldname": "status_section_1",
+   "fieldtype": "Section Break",
+   "label": "Status"
+  },
+  {
+   "fieldname": "lms_installed",
+   "fieldtype": "Check",
+   "label": "LMS Installed",
+   "read_only": 1
+  },
+  {
+   "fieldname": "last_full_sync",
+   "fieldtype": "Datetime",
+   "label": "Last Full Sync",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-05-01 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Learning",
+ "name": "LMS Bridge Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "College Administrator",
+   "write": 1
+  },
+  {
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "Registrar"
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "Academic Dean",
+   "write": 1
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

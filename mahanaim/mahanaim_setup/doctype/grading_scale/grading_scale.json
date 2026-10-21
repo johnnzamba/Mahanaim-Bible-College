@@ -1,0 +1,165 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:scale_name",
+ "creation": "2026-05-01 09:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "scale_name",
+  "is_default",
+  "pass_mark",
+  "column_break_0_1",
+  "description",
+  "grade_bands_section_1",
+  "bands",
+  "award_classification_section_2",
+  "classifications"
+ ],
+ "fields": [
+  {
+   "bold": 1,
+   "fieldname": "scale_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Scale Name",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "is_default",
+   "fieldtype": "Check",
+   "in_list_view": 1,
+   "label": "Is Default"
+  },
+  {
+   "default": "40",
+   "fieldname": "pass_mark",
+   "fieldtype": "Float",
+   "label": "Pass Mark"
+  },
+  {
+   "fieldname": "column_break_0_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description"
+  },
+  {
+   "fieldname": "grade_bands_section_1",
+   "fieldtype": "Section Break",
+   "label": "Grade Bands"
+  },
+  {
+   "fieldname": "bands",
+   "fieldtype": "Table",
+   "label": "Bands",
+   "options": "Grading Scale Band",
+   "reqd": 1
+  },
+  {
+   "fieldname": "award_classification_section_2",
+   "fieldtype": "Section Break",
+   "label": "Award Classification"
+  },
+  {
+   "fieldname": "classifications",
+   "fieldtype": "Table",
+   "label": "Classifications",
+   "options": "Award Classification Band"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-05-01 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Mahanaim Setup",
+ "name": "Grading Scale",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "College Administrator",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Registrar",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Academic Dean",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Lecturer",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Finance Officer",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Auditor",
+   "share": 1
+  }
+ ],
+ "show_title_field_in_link": 1,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "scale_name",
+ "track_changes": 1
+}

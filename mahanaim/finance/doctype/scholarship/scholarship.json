@@ -1,0 +1,213 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:scholarship_name",
+ "creation": "2026-05-01 09:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "scholarship_name",
+  "scholarship_type",
+  "sponsor",
+  "academic_year",
+  "column_break_0_1",
+  "amount_type",
+  "amount",
+  "percentage",
+  "applies_to_component",
+  "budget_section_1",
+  "total_budget",
+  "utilised_amount",
+  "column_break_1_2",
+  "is_active",
+  "section_section_2",
+  "description",
+  "eligibility"
+ ],
+ "fields": [
+  {
+   "bold": 1,
+   "fieldname": "scholarship_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Scholarship Name",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "default": "Partial",
+   "fieldname": "scholarship_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Scholarship Type",
+   "options": "Full\nPartial\nBursary\nWork Study\nChurch Sponsored\nMerit"
+  },
+  {
+   "fieldname": "sponsor",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Sponsor",
+   "options": "Sponsor"
+  },
+  {
+   "fieldname": "academic_year",
+   "fieldtype": "Link",
+   "label": "Academic Year",
+   "options": "Academic Year"
+  },
+  {
+   "fieldname": "column_break_0_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Fixed Amount",
+   "fieldname": "amount_type",
+   "fieldtype": "Select",
+   "label": "Amount Type",
+   "options": "Fixed Amount\nPercentage"
+  },
+  {
+   "depends_on": "eval:doc.amount_type=='Fixed Amount'",
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "label": "Amount"
+  },
+  {
+   "depends_on": "eval:doc.amount_type=='Percentage'",
+   "fieldname": "percentage",
+   "fieldtype": "Percent",
+   "label": "Percentage"
+  },
+  {
+   "description": "Blank applies to the whole invoice",
+   "fieldname": "applies_to_component",
+   "fieldtype": "Link",
+   "label": "Applies to Component",
+   "options": "Fee Component"
+  },
+  {
+   "fieldname": "budget_section_1",
+   "fieldtype": "Section Break",
+   "label": "Budget"
+  },
+  {
+   "fieldname": "total_budget",
+   "fieldtype": "Currency",
+   "label": "Total Budget"
+  },
+  {
+   "fieldname": "utilised_amount",
+   "fieldtype": "Currency",
+   "label": "Utilised Amount",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_1_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "is_active",
+   "fieldtype": "Check",
+   "in_standard_filter": 1,
+   "label": "Is Active"
+  },
+  {
+   "fieldname": "section_section_2",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Small Text",
+   "label": "Description"
+  },
+  {
+   "fieldname": "eligibility",
+   "fieldtype": "Small Text",
+   "label": "Eligibility"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-05-01 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Finance",
+ "name": "Scholarship",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "College Administrator",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Finance Officer",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Registrar",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Admissions Officer",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Auditor",
+   "share": 1
+  }
+ ],
+ "show_title_field_in_link": 1,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "scholarship_name",
+ "track_changes": 1
+}

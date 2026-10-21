@@ -1,0 +1,212 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "field:trans_id",
+ "creation": "2026-05-01 09:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "trans_id",
+  "source",
+  "trans_time",
+  "amount",
+  "column_break_0_1",
+  "msisdn",
+  "payer_name",
+  "bill_ref_number",
+  "business_shortcode",
+  "matching_section_1",
+  "status",
+  "request",
+  "column_break_1_2",
+  "student",
+  "programme_application",
+  "payment",
+  "section_section_2",
+  "remarks",
+  "raw_payload"
+ ],
+ "fields": [
+  {
+   "bold": 1,
+   "fieldname": "trans_id",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "M-Pesa Receipt",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "default": "STK Push",
+   "fieldname": "source",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Source",
+   "options": "STK Push\nC2B\nManual Import\nPull API"
+  },
+  {
+   "fieldname": "trans_time",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Trans Time"
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Amount",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_0_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "msisdn",
+   "fieldtype": "Data",
+   "label": "MSISDN"
+  },
+  {
+   "fieldname": "payer_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Payer Name"
+  },
+  {
+   "fieldname": "bill_ref_number",
+   "fieldtype": "Data",
+   "in_standard_filter": 1,
+   "label": "Account Number"
+  },
+  {
+   "fieldname": "business_shortcode",
+   "fieldtype": "Data",
+   "label": "Business Shortcode"
+  },
+  {
+   "fieldname": "matching_section_1",
+   "fieldtype": "Section Break",
+   "label": "Matching"
+  },
+  {
+   "default": "Unmatched",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Unmatched\nMatched\nAllocated\nReversed"
+  },
+  {
+   "fieldname": "request",
+   "fieldtype": "Link",
+   "label": "Request",
+   "options": "M-Pesa Request",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_1_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "student",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Student",
+   "options": "Student"
+  },
+  {
+   "fieldname": "programme_application",
+   "fieldtype": "Link",
+   "label": "Programme Application",
+   "options": "Programme Application"
+  },
+  {
+   "fieldname": "payment",
+   "fieldtype": "Link",
+   "label": "Payment",
+   "options": "Student Payment",
+   "read_only": 1
+  },
+  {
+   "fieldname": "section_section_2",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "remarks",
+   "fieldtype": "Small Text",
+   "label": "Remarks"
+  },
+  {
+   "fieldname": "raw_payload",
+   "fieldtype": "Code",
+   "label": "Raw Payload",
+   "options": "JSON",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-05-01 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Finance",
+ "name": "M-Pesa Transaction",
+ "naming_rule": "By fieldname",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "College Administrator",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Finance Officer",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Auditor",
+   "share": 1
+  }
+ ],
+ "search_fields": "msisdn,bill_ref_number",
+ "show_title_field_in_link": 1,
+ "sort_field": "trans_time",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "payer_name",
+ "track_changes": 1
+}

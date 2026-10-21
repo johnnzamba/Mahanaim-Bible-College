@@ -1,0 +1,189 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-05-01 09:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "enabled",
+  "environment",
+  "transaction_type",
+  "column_break_0_1",
+  "business_shortcode",
+  "till_number",
+  "account_reference_prefix",
+  "credentials_section_1",
+  "consumer_key",
+  "consumer_secret",
+  "column_break_1_2",
+  "passkey",
+  "callbacks_section_2",
+  "callback_base_url",
+  "column_break_2_3",
+  "callback_token",
+  "behaviour_section_3",
+  "stk_timeout_seconds",
+  "auto_allocate",
+  "column_break_3_4",
+  "sms_receipt",
+  "email_receipt"
+ ],
+ "fields": [
+  {
+   "fieldname": "enabled",
+   "fieldtype": "Check",
+   "label": "Enabled"
+  },
+  {
+   "default": "Sandbox",
+   "fieldname": "environment",
+   "fieldtype": "Select",
+   "label": "Environment",
+   "options": "Sandbox\nProduction"
+  },
+  {
+   "default": "CustomerPayBillOnline",
+   "fieldname": "transaction_type",
+   "fieldtype": "Select",
+   "label": "Transaction Type",
+   "options": "CustomerPayBillOnline\nCustomerBuyGoodsOnline"
+  },
+  {
+   "fieldname": "column_break_0_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Paybill or Head Office number",
+   "fieldname": "business_shortcode",
+   "fieldtype": "Data",
+   "label": "Business Shortcode"
+  },
+  {
+   "depends_on": "eval:doc.transaction_type=='CustomerBuyGoodsOnline'",
+   "fieldname": "till_number",
+   "fieldtype": "Data",
+   "label": "Till Number"
+  },
+  {
+   "default": "MBC",
+   "fieldname": "account_reference_prefix",
+   "fieldtype": "Data",
+   "label": "Account Reference Prefix"
+  },
+  {
+   "fieldname": "credentials_section_1",
+   "fieldtype": "Section Break",
+   "label": "Credentials"
+  },
+  {
+   "fieldname": "consumer_key",
+   "fieldtype": "Password",
+   "label": "Consumer Key"
+  },
+  {
+   "fieldname": "consumer_secret",
+   "fieldtype": "Password",
+   "label": "Consumer Secret"
+  },
+  {
+   "fieldname": "column_break_1_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "passkey",
+   "fieldtype": "Password",
+   "label": "Passkey"
+  },
+  {
+   "fieldname": "callbacks_section_2",
+   "fieldtype": "Section Break",
+   "label": "Callbacks"
+  },
+  {
+   "description": "Public HTTPS base URL that Safaricom can reach, e.g. https://campus.mahanaim.ac.ke",
+   "fieldname": "callback_base_url",
+   "fieldtype": "Data",
+   "label": "Callback Base URL"
+  },
+  {
+   "fieldname": "column_break_2_3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "description": "Shared secret appended to callback URLs",
+   "fieldname": "callback_token",
+   "fieldtype": "Password",
+   "label": "Callback Token"
+  },
+  {
+   "fieldname": "behaviour_section_3",
+   "fieldtype": "Section Break",
+   "label": "Behaviour"
+  },
+  {
+   "default": "120",
+   "fieldname": "stk_timeout_seconds",
+   "fieldtype": "Int",
+   "label": "STK Timeout Seconds"
+  },
+  {
+   "default": "1",
+   "description": "Allocate confirmed payments to the oldest open invoices",
+   "fieldname": "auto_allocate",
+   "fieldtype": "Check",
+   "label": "Auto Allocate"
+  },
+  {
+   "fieldname": "column_break_3_4",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "1",
+   "fieldname": "sms_receipt",
+   "fieldtype": "Check",
+   "label": "SMS Receipt"
+  },
+  {
+   "default": "1",
+   "fieldname": "email_receipt",
+   "fieldtype": "Check",
+   "label": "Email Receipt"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-05-01 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Finance",
+ "name": "M-Pesa Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "College Administrator",
+   "write": 1
+  },
+  {
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "Finance Officer"
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

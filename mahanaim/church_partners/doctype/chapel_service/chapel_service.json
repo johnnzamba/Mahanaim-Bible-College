@@ -1,0 +1,247 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "CHP-.YYYY.-.#####",
+ "creation": "2026-05-01 09:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "service_date",
+  "service_type",
+  "campus",
+  "status",
+  "column_break_0_1",
+  "theme",
+  "scripture",
+  "preacher",
+  "preacher_staff",
+  "headcount_section_1",
+  "men",
+  "women",
+  "column_break_1_2",
+  "children",
+  "visitors",
+  "column_break_1_3",
+  "total_attendance",
+  "offering_total",
+  "student_register_section_2",
+  "attendance",
+  "section_section_3",
+  "notes",
+  "sermon_media_url"
+ ],
+ "fields": [
+  {
+   "fieldname": "service_date",
+   "fieldtype": "Date",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Service Date",
+   "reqd": 1
+  },
+  {
+   "default": "Chapel",
+   "fieldname": "service_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Service Type",
+   "options": "Chapel\nMorning Devotion\nEvening Prayer\nCommunion\nFellowship\nSpecial Service\nRevival",
+   "reqd": 1
+  },
+  {
+   "fieldname": "campus",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Campus",
+   "options": "Campus"
+  },
+  {
+   "default": "Scheduled",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Scheduled\nHeld\nCancelled"
+  },
+  {
+   "fieldname": "column_break_0_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "theme",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Theme"
+  },
+  {
+   "fieldname": "scripture",
+   "fieldtype": "Data",
+   "label": "Scripture"
+  },
+  {
+   "fieldname": "preacher",
+   "fieldtype": "Data",
+   "label": "Preacher"
+  },
+  {
+   "fieldname": "preacher_staff",
+   "fieldtype": "Link",
+   "label": "Preacher Staff",
+   "options": "Staff Member"
+  },
+  {
+   "fieldname": "headcount_section_1",
+   "fieldtype": "Section Break",
+   "label": "Headcount"
+  },
+  {
+   "fieldname": "men",
+   "fieldtype": "Int",
+   "label": "Men"
+  },
+  {
+   "fieldname": "women",
+   "fieldtype": "Int",
+   "label": "Women"
+  },
+  {
+   "fieldname": "column_break_1_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "children",
+   "fieldtype": "Int",
+   "label": "Children"
+  },
+  {
+   "fieldname": "visitors",
+   "fieldtype": "Int",
+   "label": "Visitors"
+  },
+  {
+   "fieldname": "column_break_1_3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "bold": 1,
+   "fieldname": "total_attendance",
+   "fieldtype": "Int",
+   "label": "Total Attendance",
+   "read_only": 1
+  },
+  {
+   "fieldname": "offering_total",
+   "fieldtype": "Currency",
+   "label": "Offering Total"
+  },
+  {
+   "fieldname": "student_register_section_2",
+   "fieldtype": "Section Break",
+   "label": "Student Register"
+  },
+  {
+   "fieldname": "attendance",
+   "fieldtype": "Table",
+   "label": "Attendance",
+   "options": "Chapel Attendance"
+  },
+  {
+   "fieldname": "section_section_3",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "Notes"
+  },
+  {
+   "fieldname": "sermon_media_url",
+   "fieldtype": "Data",
+   "label": "Sermon Media URL"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-05-01 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Church Partners",
+ "name": "Chapel Service",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "College Administrator",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Chaplain",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Registrar",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Academic Dean",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Auditor",
+   "share": 1
+  }
+ ],
+ "show_title_field_in_link": 1,
+ "sort_field": "service_date",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "theme",
+ "track_changes": 1
+}

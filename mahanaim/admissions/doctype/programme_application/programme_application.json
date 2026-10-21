@@ -1,0 +1,634 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "APP-.YYYY.-.#####",
+ "creation": "2026-05-01 09:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "applicant_tab",
+  "first_name",
+  "middle_name",
+  "last_name",
+  "full_name",
+  "column_break_0_1",
+  "email",
+  "phone",
+  "user",
+  "photo",
+  "personal_details_section_1",
+  "gender",
+  "date_of_birth",
+  "marital_status",
+  "column_break_1_2",
+  "national_id",
+  "nationality",
+  "county",
+  "column_break_1_3",
+  "postal_address",
+  "disability",
+  "next_of_kin_section_2",
+  "nok_name",
+  "nok_relationship",
+  "column_break_2_4",
+  "nok_phone",
+  "programme_tab",
+  "programme",
+  "programme_name",
+  "campus",
+  "column_break_2_5",
+  "study_mode",
+  "intake",
+  "sponsorship_type",
+  "church_ministry_section_3",
+  "home_church",
+  "partner_church",
+  "denomination",
+  "year_born_again",
+  "column_break_3_6",
+  "pastor_name",
+  "pastor_phone",
+  "ministry_role",
+  "section_section_4",
+  "testimony",
+  "ministry_experience",
+  "academic_background_tab",
+  "kcse_mean_grade",
+  "kcse_year",
+  "column_break_4_7",
+  "highest_qualification",
+  "section_section_5",
+  "academic_records",
+  "documents_section_6",
+  "documents",
+  "fee_status_tab",
+  "application_fee",
+  "fee_status",
+  "fee_payment",
+  "column_break_6_8",
+  "status",
+  "submitted_on",
+  "declaration_accepted",
+  "review_section_7",
+  "reviewer",
+  "interview_date",
+  "column_break_7_9",
+  "decision_date",
+  "offer_expiry",
+  "section_section_8",
+  "review_notes",
+  "rejection_reason",
+  "outcome_section_9",
+  "admission_letter_issued",
+  "admission_letter_on",
+  "column_break_9_10",
+  "student",
+  "accepted_on",
+  "activity_section_10",
+  "status_log"
+ ],
+ "fields": [
+  {
+   "fieldname": "applicant_tab",
+   "fieldtype": "Tab Break",
+   "label": "Applicant"
+  },
+  {
+   "fieldname": "first_name",
+   "fieldtype": "Data",
+   "label": "First Name",
+   "reqd": 1
+  },
+  {
+   "fieldname": "middle_name",
+   "fieldtype": "Data",
+   "label": "Middle Name"
+  },
+  {
+   "fieldname": "last_name",
+   "fieldtype": "Data",
+   "label": "Last Name",
+   "reqd": 1
+  },
+  {
+   "bold": 1,
+   "fieldname": "full_name",
+   "fieldtype": "Data",
+   "in_global_search": 1,
+   "in_list_view": 1,
+   "label": "Full Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_0_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "email",
+   "fieldtype": "Data",
+   "in_standard_filter": 1,
+   "label": "Email",
+   "options": "Email",
+   "reqd": 1
+  },
+  {
+   "fieldname": "phone",
+   "fieldtype": "Data",
+   "label": "Phone",
+   "reqd": 1
+  },
+  {
+   "fieldname": "user",
+   "fieldtype": "Link",
+   "label": "User",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "photo",
+   "fieldtype": "Attach Image",
+   "label": "Photo"
+  },
+  {
+   "fieldname": "personal_details_section_1",
+   "fieldtype": "Section Break",
+   "label": "Personal Details"
+  },
+  {
+   "fieldname": "gender",
+   "fieldtype": "Select",
+   "label": "Gender",
+   "options": "\nMale\nFemale"
+  },
+  {
+   "fieldname": "date_of_birth",
+   "fieldtype": "Date",
+   "label": "Date of Birth"
+  },
+  {
+   "fieldname": "marital_status",
+   "fieldtype": "Select",
+   "label": "Marital Status",
+   "options": "\nSingle\nMarried\nWidowed\nDivorced\nSeparated"
+  },
+  {
+   "fieldname": "column_break_1_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "national_id",
+   "fieldtype": "Data",
+   "label": "National ID / Passport No"
+  },
+  {
+   "default": "Kenyan",
+   "fieldname": "nationality",
+   "fieldtype": "Data",
+   "label": "Nationality"
+  },
+  {
+   "fieldname": "county",
+   "fieldtype": "Data",
+   "label": "County"
+  },
+  {
+   "fieldname": "column_break_1_3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "postal_address",
+   "fieldtype": "Small Text",
+   "label": "Postal Address"
+  },
+  {
+   "fieldname": "disability",
+   "fieldtype": "Small Text",
+   "label": "Disability / special needs (optional)"
+  },
+  {
+   "fieldname": "next_of_kin_section_2",
+   "fieldtype": "Section Break",
+   "label": "Next of Kin"
+  },
+  {
+   "fieldname": "nok_name",
+   "fieldtype": "Data",
+   "label": "Next of Kin Name"
+  },
+  {
+   "fieldname": "nok_relationship",
+   "fieldtype": "Data",
+   "label": "Relationship"
+  },
+  {
+   "fieldname": "column_break_2_4",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "nok_phone",
+   "fieldtype": "Data",
+   "label": "Next of Kin Phone"
+  },
+  {
+   "fieldname": "programme_tab",
+   "fieldtype": "Tab Break",
+   "label": "Programme"
+  },
+  {
+   "fieldname": "programme",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Programme",
+   "options": "Programme",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "programme.programme_name",
+   "fieldname": "programme_name",
+   "fieldtype": "Data",
+   "label": "Programme Name",
+   "read_only": 1
+  },
+  {
+   "fieldname": "campus",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Campus",
+   "options": "Campus",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_2_5",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "study_mode",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Study Mode",
+   "options": "Study Mode",
+   "reqd": 1
+  },
+  {
+   "fieldname": "intake",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Intake",
+   "options": "Intake"
+  },
+  {
+   "default": "Self",
+   "fieldname": "sponsorship_type",
+   "fieldtype": "Select",
+   "label": "Sponsorship Type",
+   "options": "Self\nChurch\nSponsor\nScholarship\nEmployer"
+  },
+  {
+   "fieldname": "church_ministry_section_3",
+   "fieldtype": "Section Break",
+   "label": "Church & Ministry"
+  },
+  {
+   "fieldname": "home_church",
+   "fieldtype": "Data",
+   "label": "Home Church"
+  },
+  {
+   "fieldname": "partner_church",
+   "fieldtype": "Link",
+   "label": "Partner Church",
+   "options": "Partner Church"
+  },
+  {
+   "fieldname": "denomination",
+   "fieldtype": "Data",
+   "label": "Denomination"
+  },
+  {
+   "fieldname": "year_born_again",
+   "fieldtype": "Int",
+   "label": "Year of Salvation"
+  },
+  {
+   "fieldname": "column_break_3_6",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "pastor_name",
+   "fieldtype": "Data",
+   "label": "Senior Pastor"
+  },
+  {
+   "fieldname": "pastor_phone",
+   "fieldtype": "Data",
+   "label": "Pastor's Phone"
+  },
+  {
+   "fieldname": "ministry_role",
+   "fieldtype": "Data",
+   "label": "Current Ministry Role"
+  },
+  {
+   "fieldname": "section_section_4",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "testimony",
+   "fieldtype": "Text",
+   "label": "Brief Christian Testimony"
+  },
+  {
+   "fieldname": "ministry_experience",
+   "fieldtype": "Text",
+   "label": "Ministry Experience & Calling"
+  },
+  {
+   "fieldname": "academic_background_tab",
+   "fieldtype": "Tab Break",
+   "label": "Academic Background"
+  },
+  {
+   "fieldname": "kcse_mean_grade",
+   "fieldtype": "Select",
+   "label": "KCSE Mean Grade",
+   "options": "\nA\nA-\nB+\nB\nB-\nC+\nC\nC-\nD+\nD\nD-\nE\nNot Applicable"
+  },
+  {
+   "fieldname": "kcse_year",
+   "fieldtype": "Int",
+   "label": "KCSE Year"
+  },
+  {
+   "fieldname": "column_break_4_7",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "highest_qualification",
+   "fieldtype": "Data",
+   "label": "Highest Qualification"
+  },
+  {
+   "fieldname": "section_section_5",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "academic_records",
+   "fieldtype": "Table",
+   "label": "Academic Records",
+   "options": "Application Academic Record"
+  },
+  {
+   "fieldname": "documents_section_6",
+   "fieldtype": "Section Break",
+   "label": "Documents"
+  },
+  {
+   "fieldname": "documents",
+   "fieldtype": "Table",
+   "label": "Documents",
+   "options": "Application Document"
+  },
+  {
+   "fieldname": "fee_status_tab",
+   "fieldtype": "Tab Break",
+   "label": "Fee & Status"
+  },
+  {
+   "fieldname": "application_fee",
+   "fieldtype": "Currency",
+   "label": "Application Fee",
+   "read_only": 1
+  },
+  {
+   "default": "Unpaid",
+   "fieldname": "fee_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Fee Status",
+   "options": "Unpaid\nPending\nPaid\nWaived",
+   "read_only": 1
+  },
+  {
+   "fieldname": "fee_payment",
+   "fieldtype": "Link",
+   "label": "Fee Payment",
+   "options": "Student Payment",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_6_8",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Draft",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Draft\nSubmitted\nUnder Review\nInterview\nAdmitted\nWaitlisted\nRejected\nAccepted\nDeclined\nWithdrawn"
+  },
+  {
+   "fieldname": "submitted_on",
+   "fieldtype": "Datetime",
+   "label": "Submitted on",
+   "read_only": 1
+  },
+  {
+   "fieldname": "declaration_accepted",
+   "fieldtype": "Check",
+   "label": "Declaration Accepted",
+   "read_only": 1
+  },
+  {
+   "fieldname": "review_section_7",
+   "fieldtype": "Section Break",
+   "label": "Review"
+  },
+  {
+   "fieldname": "reviewer",
+   "fieldtype": "Link",
+   "label": "Reviewer",
+   "options": "User"
+  },
+  {
+   "fieldname": "interview_date",
+   "fieldtype": "Datetime",
+   "label": "Interview Date"
+  },
+  {
+   "fieldname": "column_break_7_9",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "decision_date",
+   "fieldtype": "Date",
+   "label": "Decision Date",
+   "read_only": 1
+  },
+  {
+   "fieldname": "offer_expiry",
+   "fieldtype": "Date",
+   "label": "Offer Expiry"
+  },
+  {
+   "fieldname": "section_section_8",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "review_notes",
+   "fieldtype": "Text",
+   "label": "Review Notes"
+  },
+  {
+   "fieldname": "rejection_reason",
+   "fieldtype": "Small Text",
+   "label": "Rejection Reason"
+  },
+  {
+   "fieldname": "outcome_section_9",
+   "fieldtype": "Section Break",
+   "label": "Outcome"
+  },
+  {
+   "fieldname": "admission_letter_issued",
+   "fieldtype": "Check",
+   "label": "Admission Letter Issued",
+   "read_only": 1
+  },
+  {
+   "fieldname": "admission_letter_on",
+   "fieldtype": "Datetime",
+   "label": "Admission Letter on",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_9_10",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "student",
+   "fieldtype": "Link",
+   "label": "Student",
+   "options": "Student",
+   "read_only": 1
+  },
+  {
+   "fieldname": "accepted_on",
+   "fieldtype": "Datetime",
+   "label": "Accepted on",
+   "read_only": 1
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "activity_section_10",
+   "fieldtype": "Section Break",
+   "label": "Activity"
+  },
+  {
+   "fieldname": "status_log",
+   "fieldtype": "Table",
+   "label": "Status Log",
+   "options": "Mahanaim Status Log",
+   "read_only": 1
+  }
+ ],
+ "image_field": "photo",
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-05-01 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Admissions",
+ "name": "Programme Application",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "College Administrator",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Admissions Officer",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Registrar",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Finance Officer",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Academic Dean",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Auditor",
+   "share": 1
+  }
+ ],
+ "search_fields": "full_name,email,phone,programme",
+ "show_title_field_in_link": 1,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "full_name",
+ "track_changes": 1
+}

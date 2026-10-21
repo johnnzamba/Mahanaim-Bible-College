@@ -1,0 +1,506 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-05-01 09:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "institution_tab",
+  "institution_name",
+  "short_name",
+  "motto",
+  "column_break_0_1",
+  "logo",
+  "country",
+  "currency",
+  "contact_section_1",
+  "email",
+  "phone",
+  "column_break_1_2",
+  "website",
+  "address",
+  "admissions_numbering_tab",
+  "student_number_format",
+  "application_fee",
+  "application_fee_required",
+  "column_break_1_3",
+  "offer_expiry_days",
+  "auto_create_student_on_acceptance",
+  "academics_section_2",
+  "current_academic_year",
+  "current_academic_term",
+  "column_break_2_4",
+  "default_grading_scale",
+  "max_credits_per_term",
+  "finance_tab",
+  "auto_invoice_on_registration",
+  "payment_terms_days",
+  "overdue_reminder_days",
+  "column_break_2_5",
+  "exam_fee_clearance_percent",
+  "lms_fee_clearance_percent",
+  "transcript_requires_fee_clearance",
+  "erpnext_accounting_optional_section_3",
+  "post_to_erpnext",
+  "company",
+  "receivable_account",
+  "column_break_3_6",
+  "income_account",
+  "cash_account",
+  "cost_center",
+  "security_messaging_tab",
+  "otp_length",
+  "otp_expiry_minutes",
+  "otp_max_attempts",
+  "column_break_3_7",
+  "otp_resend_cooldown_seconds",
+  "admin_mfa_required",
+  "sms_gateway_section_4",
+  "sms_enabled",
+  "sms_provider",
+  "sms_sender_id",
+  "column_break_4_8",
+  "sms_username",
+  "sms_api_key",
+  "sms_generic_url",
+  "sms_generic_payload",
+  "documents_tab",
+  "verification_base_url",
+  "registrar_name",
+  "registrar_signature",
+  "column_break_4_9",
+  "principal_name",
+  "principal_signature",
+  "college_seal"
+ ],
+ "fields": [
+  {
+   "fieldname": "institution_tab",
+   "fieldtype": "Tab Break",
+   "label": "Institution"
+  },
+  {
+   "default": "Mahanaim Bible College",
+   "fieldname": "institution_name",
+   "fieldtype": "Data",
+   "label": "Institution Name",
+   "reqd": 1
+  },
+  {
+   "default": "MBC",
+   "fieldname": "short_name",
+   "fieldtype": "Data",
+   "label": "Short Name",
+   "reqd": 1
+  },
+  {
+   "default": "Equipping servants for the harvest",
+   "fieldname": "motto",
+   "fieldtype": "Data",
+   "label": "Motto"
+  },
+  {
+   "fieldname": "column_break_0_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "logo",
+   "fieldtype": "Attach Image",
+   "label": "Logo"
+  },
+  {
+   "default": "Kenya",
+   "fieldname": "country",
+   "fieldtype": "Data",
+   "label": "Country"
+  },
+  {
+   "default": "KES",
+   "fieldname": "currency",
+   "fieldtype": "Link",
+   "label": "Currency",
+   "options": "Currency"
+  },
+  {
+   "fieldname": "contact_section_1",
+   "fieldtype": "Section Break",
+   "label": "Contact"
+  },
+  {
+   "fieldname": "email",
+   "fieldtype": "Data",
+   "label": "Email",
+   "options": "Email"
+  },
+  {
+   "fieldname": "phone",
+   "fieldtype": "Data",
+   "label": "Phone"
+  },
+  {
+   "fieldname": "column_break_1_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "website",
+   "fieldtype": "Data",
+   "label": "Website"
+  },
+  {
+   "fieldname": "address",
+   "fieldtype": "Small Text",
+   "label": "Address"
+  },
+  {
+   "fieldname": "admissions_numbering_tab",
+   "fieldtype": "Tab Break",
+   "label": "Admissions & Numbering"
+  },
+  {
+   "default": "MBC/{programme_code}/{year}/{####}",
+   "description": "Tokens: {programme_code} {campus_code} {year} {yy} and a run of # for the sequence",
+   "fieldname": "student_number_format",
+   "fieldtype": "Data",
+   "label": "Student Number Format",
+   "reqd": 1
+  },
+  {
+   "default": "1000",
+   "fieldname": "application_fee",
+   "fieldtype": "Currency",
+   "label": "Application Fee"
+  },
+  {
+   "default": "1",
+   "fieldname": "application_fee_required",
+   "fieldtype": "Check",
+   "label": "Application Fee Required"
+  },
+  {
+   "fieldname": "column_break_1_3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "30",
+   "fieldname": "offer_expiry_days",
+   "fieldtype": "Int",
+   "label": "Offer Expiry Days"
+  },
+  {
+   "default": "1",
+   "fieldname": "auto_create_student_on_acceptance",
+   "fieldtype": "Check",
+   "label": "Auto Create Student on Acceptance"
+  },
+  {
+   "fieldname": "academics_section_2",
+   "fieldtype": "Section Break",
+   "label": "Academics"
+  },
+  {
+   "fieldname": "current_academic_year",
+   "fieldtype": "Link",
+   "label": "Current Academic Year",
+   "options": "Academic Year"
+  },
+  {
+   "fieldname": "current_academic_term",
+   "fieldtype": "Link",
+   "label": "Current Academic Term",
+   "options": "Academic Term"
+  },
+  {
+   "fieldname": "column_break_2_4",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "default_grading_scale",
+   "fieldtype": "Link",
+   "label": "Default Grading Scale",
+   "options": "Grading Scale"
+  },
+  {
+   "default": "24",
+   "fieldname": "max_credits_per_term",
+   "fieldtype": "Float",
+   "label": "Max Credits per Term"
+  },
+  {
+   "fieldname": "finance_tab",
+   "fieldtype": "Tab Break",
+   "label": "Finance"
+  },
+  {
+   "default": "1",
+   "description": "Raise a fee invoice automatically when a semester registration is approved",
+   "fieldname": "auto_invoice_on_registration",
+   "fieldtype": "Check",
+   "label": "Auto Invoice on Registration"
+  },
+  {
+   "default": "30",
+   "fieldname": "payment_terms_days",
+   "fieldtype": "Int",
+   "label": "Payment Terms Days"
+  },
+  {
+   "default": "7",
+   "fieldname": "overdue_reminder_days",
+   "fieldtype": "Int",
+   "label": "Overdue Reminder Days"
+  },
+  {
+   "fieldname": "column_break_2_5",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "100",
+   "description": "Minimum % of the term invoice paid before a student may sit online exams",
+   "fieldname": "exam_fee_clearance_percent",
+   "fieldtype": "Percent",
+   "label": "Exam Fee Clearance Percent"
+  },
+  {
+   "default": "0",
+   "description": "Minimum % paid before LMS course access is granted (0 = no restriction)",
+   "fieldname": "lms_fee_clearance_percent",
+   "fieldtype": "Percent",
+   "label": "LMS Fee Clearance Percent"
+  },
+  {
+   "default": "1",
+   "fieldname": "transcript_requires_fee_clearance",
+   "fieldtype": "Check",
+   "label": "Transcript Requires Fee Clearance"
+  },
+  {
+   "collapsible": 1,
+   "fieldname": "erpnext_accounting_optional_section_3",
+   "fieldtype": "Section Break",
+   "label": "ERPNext Accounting (optional)"
+  },
+  {
+   "description": "Post invoices and payments to ERPNext as Journal Entries (requires ERPNext)",
+   "fieldname": "post_to_erpnext",
+   "fieldtype": "Check",
+   "label": "Post to ERPNext"
+  },
+  {
+   "depends_on": "post_to_erpnext",
+   "fieldname": "company",
+   "fieldtype": "Data",
+   "label": "Company"
+  },
+  {
+   "depends_on": "post_to_erpnext",
+   "fieldname": "receivable_account",
+   "fieldtype": "Data",
+   "label": "Receivable Account"
+  },
+  {
+   "fieldname": "column_break_3_6",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "post_to_erpnext",
+   "fieldname": "income_account",
+   "fieldtype": "Data",
+   "label": "Income Account"
+  },
+  {
+   "depends_on": "post_to_erpnext",
+   "fieldname": "cash_account",
+   "fieldtype": "Data",
+   "label": "Cash Account"
+  },
+  {
+   "depends_on": "post_to_erpnext",
+   "fieldname": "cost_center",
+   "fieldtype": "Data",
+   "label": "Cost Center"
+  },
+  {
+   "fieldname": "security_messaging_tab",
+   "fieldtype": "Tab Break",
+   "label": "Security & Messaging"
+  },
+  {
+   "default": "6",
+   "fieldname": "otp_length",
+   "fieldtype": "Int",
+   "label": "OTP Length"
+  },
+  {
+   "default": "10",
+   "fieldname": "otp_expiry_minutes",
+   "fieldtype": "Int",
+   "label": "OTP Expiry Minutes"
+  },
+  {
+   "default": "5",
+   "fieldname": "otp_max_attempts",
+   "fieldtype": "Int",
+   "label": "OTP Max Attempts"
+  },
+  {
+   "fieldname": "column_break_3_7",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "60",
+   "fieldname": "otp_resend_cooldown_seconds",
+   "fieldtype": "Int",
+   "label": "OTP Resend Cooldown Seconds"
+  },
+  {
+   "description": "Require an emailed one-time code for staff sign-in on the React admin portal",
+   "fieldname": "admin_mfa_required",
+   "fieldtype": "Check",
+   "label": "Admin MFA Required"
+  },
+  {
+   "fieldname": "sms_gateway_section_4",
+   "fieldtype": "Section Break",
+   "label": "SMS Gateway"
+  },
+  {
+   "fieldname": "sms_enabled",
+   "fieldtype": "Check",
+   "label": "SMS Enabled"
+  },
+  {
+   "default": "None",
+   "fieldname": "sms_provider",
+   "fieldtype": "Select",
+   "label": "SMS Provider",
+   "options": "None\nAfrica's Talking\nGeneric HTTP"
+  },
+  {
+   "fieldname": "sms_sender_id",
+   "fieldtype": "Data",
+   "label": "SMS Sender ID"
+  },
+  {
+   "fieldname": "column_break_4_8",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "eval:doc.sms_provider=='Africa\\'s Talking'",
+   "fieldname": "sms_username",
+   "fieldtype": "Data",
+   "label": "SMS Username"
+  },
+  {
+   "fieldname": "sms_api_key",
+   "fieldtype": "Password",
+   "label": "SMS API Key"
+  },
+  {
+   "depends_on": "eval:doc.sms_provider=='Generic HTTP'",
+   "fieldname": "sms_generic_url",
+   "fieldtype": "Data",
+   "label": "SMS Generic URL"
+  },
+  {
+   "depends_on": "eval:doc.sms_provider=='Generic HTTP'",
+   "description": "JSON body template. Use {to}, {message}, {sender}",
+   "fieldname": "sms_generic_payload",
+   "fieldtype": "Small Text",
+   "label": "SMS Generic Payload"
+  },
+  {
+   "fieldname": "documents_tab",
+   "fieldtype": "Tab Break",
+   "label": "Documents"
+  },
+  {
+   "description": "Public URL used in QR codes, e.g. https://mahanaim.ac.ke/verify",
+   "fieldname": "verification_base_url",
+   "fieldtype": "Data",
+   "label": "Verification Base URL"
+  },
+  {
+   "fieldname": "registrar_name",
+   "fieldtype": "Data",
+   "label": "Registrar Name"
+  },
+  {
+   "fieldname": "registrar_signature",
+   "fieldtype": "Attach Image",
+   "label": "Registrar Signature"
+  },
+  {
+   "fieldname": "column_break_4_9",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "principal_name",
+   "fieldtype": "Data",
+   "label": "Principal Name"
+  },
+  {
+   "fieldname": "principal_signature",
+   "fieldtype": "Attach Image",
+   "label": "Principal Signature"
+  },
+  {
+   "fieldname": "college_seal",
+   "fieldtype": "Attach Image",
+   "label": "College Seal"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "issingle": 1,
+ "links": [],
+ "modified": "2026-05-01 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Mahanaim Setup",
+ "name": "Mahanaim Settings",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "System Manager",
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "College Administrator",
+   "write": 1
+  },
+  {
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "Registrar"
+  },
+  {
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "Finance Officer"
+  },
+  {
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "Admissions Officer"
+  },
+  {
+   "email": 1,
+   "print": 1,
+   "read": 1,
+   "role": "Academic Dean"
+  }
+ ],
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "track_changes": 1
+}

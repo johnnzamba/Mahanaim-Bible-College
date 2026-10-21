@@ -1,0 +1,315 @@
+{
+ "actions": [],
+ "allow_rename": 1,
+ "autoname": "field:church_name",
+ "creation": "2026-05-01 09:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "church_name",
+  "church_code",
+  "denomination",
+  "church_type",
+  "column_break_0_1",
+  "partnership_status",
+  "partnership_since",
+  "sponsor",
+  "leadership_contact_section_1",
+  "senior_pastor",
+  "contact_person",
+  "phone",
+  "column_break_1_2",
+  "email",
+  "website",
+  "location_section_2",
+  "county",
+  "town",
+  "column_break_2_3",
+  "address",
+  "section_section_3",
+  "mou_document",
+  "notes",
+  "is_group",
+  "parent_partner_church",
+  "lft",
+  "rgt",
+  "old_parent"
+ ],
+ "fields": [
+  {
+   "bold": 1,
+   "fieldname": "church_name",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Church Name",
+   "reqd": 1,
+   "unique": 1
+  },
+  {
+   "fieldname": "church_code",
+   "fieldtype": "Data",
+   "label": "Church Code",
+   "unique": 1
+  },
+  {
+   "fieldname": "denomination",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Denomination"
+  },
+  {
+   "default": "Local Church",
+   "fieldname": "church_type",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Church Type",
+   "options": "Headquarters\nRegion\nParish\nLocal Church\nMinistry\nOrganisation"
+  },
+  {
+   "fieldname": "column_break_0_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Active",
+   "fieldname": "partnership_status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Partnership Status",
+   "options": "Prospect\nActive\nInactive"
+  },
+  {
+   "fieldname": "partnership_since",
+   "fieldtype": "Date",
+   "label": "Partnership Since"
+  },
+  {
+   "description": "Sponsor record when the church funds students",
+   "fieldname": "sponsor",
+   "fieldtype": "Link",
+   "label": "Sponsor",
+   "options": "Sponsor"
+  },
+  {
+   "fieldname": "leadership_contact_section_1",
+   "fieldtype": "Section Break",
+   "label": "Leadership & Contact"
+  },
+  {
+   "fieldname": "senior_pastor",
+   "fieldtype": "Data",
+   "label": "Senior Pastor"
+  },
+  {
+   "fieldname": "contact_person",
+   "fieldtype": "Data",
+   "label": "Contact Person"
+  },
+  {
+   "fieldname": "phone",
+   "fieldtype": "Data",
+   "label": "Phone"
+  },
+  {
+   "fieldname": "column_break_1_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "email",
+   "fieldtype": "Data",
+   "label": "Email",
+   "options": "Email"
+  },
+  {
+   "fieldname": "website",
+   "fieldtype": "Data",
+   "label": "Website"
+  },
+  {
+   "fieldname": "location_section_2",
+   "fieldtype": "Section Break",
+   "label": "Location"
+  },
+  {
+   "fieldname": "county",
+   "fieldtype": "Data",
+   "in_standard_filter": 1,
+   "label": "County"
+  },
+  {
+   "fieldname": "town",
+   "fieldtype": "Data",
+   "label": "Town"
+  },
+  {
+   "fieldname": "column_break_2_3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "address",
+   "fieldtype": "Small Text",
+   "label": "Address"
+  },
+  {
+   "fieldname": "section_section_3",
+   "fieldtype": "Section Break"
+  },
+  {
+   "fieldname": "mou_document",
+   "fieldtype": "Attach",
+   "label": "MoU / Agreement"
+  },
+  {
+   "fieldname": "notes",
+   "fieldtype": "Small Text",
+   "label": "Notes"
+  },
+  {
+   "default": "0",
+   "fieldname": "is_group",
+   "fieldtype": "Check",
+   "label": "Is Group"
+  },
+  {
+   "fieldname": "parent_partner_church",
+   "fieldtype": "Link",
+   "ignore_user_permissions": 1,
+   "label": "Parent Partner Church",
+   "options": "Partner Church"
+  },
+  {
+   "fieldname": "lft",
+   "fieldtype": "Int",
+   "hidden": 1,
+   "label": "Left",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "rgt",
+   "fieldtype": "Int",
+   "hidden": 1,
+   "label": "Right",
+   "no_copy": 1,
+   "read_only": 1
+  },
+  {
+   "fieldname": "old_parent",
+   "fieldtype": "Link",
+   "hidden": 1,
+   "label": "Old Parent",
+   "options": "Partner Church"
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "is_tree": 1,
+ "links": [],
+ "modified": "2026-05-01 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Church Partners",
+ "name": "Partner Church",
+ "naming_rule": "By fieldname",
+ "nsm_parent_field": "parent_partner_church",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "College Administrator",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Chaplain",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Admissions Officer",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Finance Officer",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Communications Officer",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Registrar",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Auditor",
+   "share": 1
+  }
+ ],
+ "search_fields": "denomination,town",
+ "show_title_field_in_link": 1,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "church_name",
+ "track_changes": 1
+}

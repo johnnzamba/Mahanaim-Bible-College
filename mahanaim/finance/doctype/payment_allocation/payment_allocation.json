@@ -1,0 +1,61 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "creation": "2026-05-01 09:00:00.000000",
+ "doctype": "DocType",
+ "editable_grid": 1,
+ "engine": "InnoDB",
+ "field_order": [
+  "invoice",
+  "academic_term",
+  "invoice_outstanding",
+  "allocated_amount"
+ ],
+ "fields": [
+  {
+   "columns": 3,
+   "fieldname": "invoice",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Invoice",
+   "options": "Student Invoice",
+   "reqd": 1
+  },
+  {
+   "columns": 2,
+   "fetch_from": "invoice.academic_term",
+   "fieldname": "academic_term",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "label": "Academic Term",
+   "options": "Academic Term",
+   "read_only": 1
+  },
+  {
+   "columns": 2,
+   "fieldname": "invoice_outstanding",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Invoice Outstanding",
+   "read_only": 1
+  },
+  {
+   "columns": 2,
+   "fieldname": "allocated_amount",
+   "fieldtype": "Currency",
+   "in_list_view": 1,
+   "label": "Allocated Amount",
+   "reqd": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "istable": 1,
+ "links": [],
+ "modified": "2026-05-01 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Finance",
+ "name": "Payment Allocation",
+ "owner": "Administrator",
+ "permissions": [],
+ "states": []
+}

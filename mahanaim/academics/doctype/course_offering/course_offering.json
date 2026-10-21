@@ -1,0 +1,362 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "OFF-.YYYY.-.#####",
+ "creation": "2026-05-01 09:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "details_tab",
+  "course",
+  "course_title",
+  "credits",
+  "academic_term",
+  "academic_year",
+  "column_break_0_1",
+  "campus",
+  "study_mode",
+  "section",
+  "status",
+  "capacity",
+  "schedule_section_1",
+  "start_date",
+  "end_date",
+  "column_break_1_2",
+  "grading_scale",
+  "results_status",
+  "lecturers_section_2",
+  "lecturers",
+  "assessment_weights_section_3",
+  "assessment_weights",
+  "learning_tab",
+  "description",
+  "require_fee_clearance",
+  "frappe_lms_bridge_section_4",
+  "lms_course",
+  "lms_sync_status",
+  "column_break_4_3",
+  "lms_last_synced",
+  "lms_sync_error",
+  "stats_section_5",
+  "enrolled_count"
+ ],
+ "fields": [
+  {
+   "fieldname": "details_tab",
+   "fieldtype": "Tab Break",
+   "label": "Details"
+  },
+  {
+   "fieldname": "course",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Course",
+   "options": "Course",
+   "reqd": 1
+  },
+  {
+   "bold": 1,
+   "fetch_from": "course.course_title",
+   "fieldname": "course_title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Course Title",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "course.credits",
+   "fieldname": "credits",
+   "fieldtype": "Float",
+   "label": "Credits",
+   "read_only": 1
+  },
+  {
+   "fieldname": "academic_term",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Academic Term",
+   "options": "Academic Term",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "academic_term.academic_year",
+   "fieldname": "academic_year",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Academic Year",
+   "options": "Academic Year",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_0_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "campus",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Campus",
+   "options": "Campus",
+   "reqd": 1
+  },
+  {
+   "fieldname": "study_mode",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Study Mode",
+   "options": "Study Mode"
+  },
+  {
+   "default": "A",
+   "fieldname": "section",
+   "fieldtype": "Data",
+   "label": "Section"
+  },
+  {
+   "default": "Planned",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Planned\nOpen\nIn Progress\nCompleted\nCancelled"
+  },
+  {
+   "fieldname": "capacity",
+   "fieldtype": "Int",
+   "label": "Capacity"
+  },
+  {
+   "fieldname": "schedule_section_1",
+   "fieldtype": "Section Break",
+   "label": "Schedule"
+  },
+  {
+   "fieldname": "start_date",
+   "fieldtype": "Date",
+   "label": "Start Date"
+  },
+  {
+   "fieldname": "end_date",
+   "fieldtype": "Date",
+   "label": "End Date"
+  },
+  {
+   "fieldname": "column_break_1_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "grading_scale",
+   "fieldtype": "Link",
+   "label": "Grading Scale",
+   "options": "Grading Scale"
+  },
+  {
+   "default": "Not Started",
+   "fieldname": "results_status",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Results Status",
+   "options": "Not Started\nDraft\nSubmitted\nApproved\nPublished\nReturned",
+   "read_only": 1
+  },
+  {
+   "fieldname": "lecturers_section_2",
+   "fieldtype": "Section Break",
+   "label": "Lecturers"
+  },
+  {
+   "fieldname": "lecturers",
+   "fieldtype": "Table",
+   "label": "Lecturers",
+   "options": "Course Offering Lecturer"
+  },
+  {
+   "fieldname": "assessment_weights_section_3",
+   "fieldtype": "Section Break",
+   "label": "Assessment Weights"
+  },
+  {
+   "fieldname": "assessment_weights",
+   "fieldtype": "Table",
+   "label": "Assessment Weights",
+   "options": "Assessment Weight"
+  },
+  {
+   "fieldname": "learning_tab",
+   "fieldtype": "Tab Break",
+   "label": "Learning"
+  },
+  {
+   "fieldname": "description",
+   "fieldtype": "Text Editor",
+   "label": "Description"
+  },
+  {
+   "description": "Apply the LMS fee-clearance threshold from Mahanaim Settings",
+   "fieldname": "require_fee_clearance",
+   "fieldtype": "Check",
+   "label": "Require Fee Clearance"
+  },
+  {
+   "fieldname": "frappe_lms_bridge_section_4",
+   "fieldtype": "Section Break",
+   "label": "Frappe LMS Bridge"
+  },
+  {
+   "description": "Linked Frappe LMS course (when LMS is installed)",
+   "fieldname": "lms_course",
+   "fieldtype": "Data",
+   "label": "LMS Course",
+   "read_only": 1
+  },
+  {
+   "default": "Not Synced",
+   "fieldname": "lms_sync_status",
+   "fieldtype": "Select",
+   "label": "LMS Sync Status",
+   "options": "Not Synced\nSynced\nError",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_4_3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "lms_last_synced",
+   "fieldtype": "Datetime",
+   "label": "LMS Last Synced",
+   "read_only": 1
+  },
+  {
+   "fieldname": "lms_sync_error",
+   "fieldtype": "Small Text",
+   "label": "LMS Sync Error",
+   "read_only": 1
+  },
+  {
+   "fieldname": "stats_section_5",
+   "fieldtype": "Section Break",
+   "label": "Stats"
+  },
+  {
+   "fieldname": "enrolled_count",
+   "fieldtype": "Int",
+   "label": "Enrolled Count",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-05-01 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Academics",
+ "name": "Course Offering",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "College Administrator",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Registrar",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Academic Dean",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Lecturer",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Finance Officer",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Admissions Officer",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Library Officer",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Auditor",
+   "share": 1
+  }
+ ],
+ "search_fields": "course,academic_term,campus",
+ "show_title_field_in_link": 1,
+ "sort_field": "creation",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "course_title",
+ "track_changes": 1
+}

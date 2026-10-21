@@ -1,0 +1,313 @@
+{
+ "actions": [],
+ "allow_rename": 0,
+ "autoname": "ASG-.YYYY.-.#####",
+ "creation": "2026-05-01 09:00:00.000000",
+ "doctype": "DocType",
+ "engine": "InnoDB",
+ "field_order": [
+  "details_tab",
+  "title",
+  "course_offering",
+  "course_title",
+  "academic_term",
+  "column_break_0_1",
+  "assessment_component",
+  "status",
+  "created_by_staff",
+  "instructions_section_1",
+  "instructions",
+  "attachment",
+  "schedule_rules_section_2",
+  "open_date",
+  "due_date",
+  "max_score",
+  "column_break_2_2",
+  "submission_type",
+  "allowed_file_types",
+  "late_submission_section_3",
+  "allow_late",
+  "late_penalty_percent_per_day",
+  "column_break_3_3",
+  "late_cutoff",
+  "max_late_penalty_percent",
+  "stats_tab",
+  "submission_count",
+  "graded_count",
+  "column_break_3_4",
+  "average_score"
+ ],
+ "fields": [
+  {
+   "fieldname": "details_tab",
+   "fieldtype": "Tab Break",
+   "label": "Details"
+  },
+  {
+   "bold": 1,
+   "fieldname": "title",
+   "fieldtype": "Data",
+   "in_list_view": 1,
+   "label": "Title",
+   "reqd": 1
+  },
+  {
+   "fieldname": "course_offering",
+   "fieldtype": "Link",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Course Offering",
+   "options": "Course Offering",
+   "reqd": 1
+  },
+  {
+   "fetch_from": "course_offering.course_title",
+   "fieldname": "course_title",
+   "fieldtype": "Data",
+   "label": "Course Title",
+   "read_only": 1
+  },
+  {
+   "fetch_from": "course_offering.academic_term",
+   "fieldname": "academic_term",
+   "fieldtype": "Link",
+   "in_standard_filter": 1,
+   "label": "Academic Term",
+   "options": "Academic Term",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_0_1",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "Assignment",
+   "fieldname": "assessment_component",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "label": "Assessment Component",
+   "options": "CAT\nAssignment\nProject\nPractical\nParticipation",
+   "reqd": 1
+  },
+  {
+   "default": "Draft",
+   "fieldname": "status",
+   "fieldtype": "Select",
+   "in_list_view": 1,
+   "in_standard_filter": 1,
+   "label": "Status",
+   "options": "Draft\nPublished\nClosed\nGraded"
+  },
+  {
+   "fieldname": "created_by_staff",
+   "fieldtype": "Link",
+   "label": "Created by Staff",
+   "options": "Staff Member"
+  },
+  {
+   "fieldname": "instructions_section_1",
+   "fieldtype": "Section Break",
+   "label": "Instructions"
+  },
+  {
+   "fieldname": "instructions",
+   "fieldtype": "Text Editor",
+   "label": "Instructions"
+  },
+  {
+   "fieldname": "attachment",
+   "fieldtype": "Attach",
+   "label": "Attachment"
+  },
+  {
+   "fieldname": "schedule_rules_section_2",
+   "fieldtype": "Section Break",
+   "label": "Schedule & Rules"
+  },
+  {
+   "fieldname": "open_date",
+   "fieldtype": "Datetime",
+   "label": "Open Date"
+  },
+  {
+   "fieldname": "due_date",
+   "fieldtype": "Datetime",
+   "in_list_view": 1,
+   "label": "Due Date",
+   "reqd": 1
+  },
+  {
+   "default": "100",
+   "fieldname": "max_score",
+   "fieldtype": "Float",
+   "label": "Max Score",
+   "reqd": 1
+  },
+  {
+   "fieldname": "column_break_2_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "default": "File Upload",
+   "fieldname": "submission_type",
+   "fieldtype": "Select",
+   "label": "Submission Type",
+   "options": "File Upload\nText\nFile and Text"
+  },
+  {
+   "default": "pdf,doc,docx,odt,jpg,png",
+   "fieldname": "allowed_file_types",
+   "fieldtype": "Data",
+   "label": "Allowed File Types"
+  },
+  {
+   "fieldname": "late_submission_section_3",
+   "fieldtype": "Section Break",
+   "label": "Late Submission"
+  },
+  {
+   "default": "1",
+   "fieldname": "allow_late",
+   "fieldtype": "Check",
+   "label": "Allow Late"
+  },
+  {
+   "default": "5",
+   "fieldname": "late_penalty_percent_per_day",
+   "fieldtype": "Percent",
+   "label": "Late Penalty Percent per Day"
+  },
+  {
+   "fieldname": "column_break_3_3",
+   "fieldtype": "Column Break"
+  },
+  {
+   "depends_on": "allow_late",
+   "description": "No submissions accepted after this time",
+   "fieldname": "late_cutoff",
+   "fieldtype": "Datetime",
+   "label": "Late Cutoff"
+  },
+  {
+   "default": "50",
+   "depends_on": "allow_late",
+   "fieldname": "max_late_penalty_percent",
+   "fieldtype": "Percent",
+   "label": "Max Late Penalty Percent"
+  },
+  {
+   "fieldname": "stats_tab",
+   "fieldtype": "Tab Break",
+   "label": "Stats"
+  },
+  {
+   "fieldname": "submission_count",
+   "fieldtype": "Int",
+   "label": "Submission Count",
+   "read_only": 1
+  },
+  {
+   "fieldname": "graded_count",
+   "fieldtype": "Int",
+   "label": "Graded Count",
+   "read_only": 1
+  },
+  {
+   "fieldname": "column_break_3_4",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "average_score",
+   "fieldtype": "Float",
+   "label": "Average Score",
+   "read_only": 1
+  }
+ ],
+ "index_web_pages_for_search": 0,
+ "links": [],
+ "modified": "2026-05-01 09:00:00.000000",
+ "modified_by": "Administrator",
+ "module": "Assessments",
+ "name": "Assignment",
+ "naming_rule": "Expression (old style)",
+ "owner": "Administrator",
+ "permissions": [
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "System Manager",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "College Administrator",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Lecturer",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "create": 1,
+   "delete": 1,
+   "email": 1,
+   "export": 1,
+   "import": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Academic Dean",
+   "share": 1,
+   "write": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Registrar",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Auditor",
+   "share": 1
+  }
+ ],
+ "search_fields": "course_offering",
+ "show_title_field_in_link": 1,
+ "sort_field": "due_date",
+ "sort_order": "DESC",
+ "states": [],
+ "title_field": "title",
+ "track_changes": 1
+}
