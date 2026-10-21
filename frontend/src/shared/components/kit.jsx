@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react"
 import { Link } from "react-router-dom"
 import clsx from "clsx"
 import { ArrowDown, ArrowUp, ChevronsUpDown, Check, Circle, Download, Search, X } from "lucide-react"
-import { Badge, Empty, Pagination, SkeletonRows, ErrorState, Card } from "./ui"
+import { Badge, Empty, Pagination, SkeletonRows, ErrorState, Card, BUTTON_VARIANTS } from "./ui"
 
 export function useDebounced(value, ms = 300) {
 	const [v, setV] = useState(value)
@@ -469,7 +469,7 @@ export function ExportButton({ filename, cols, rows, label = "Export" }) {
 
 export function DownloadLink({ href, children = "Download", className, variant = "secondary" }) {
 	return (
-		<a href={href} target="_blank" rel="noreferrer" className={clsx("btn btn-sm", `btn-${variant}`, className)}>
+		<a href={href} target="_blank" rel="noreferrer" className={clsx("btn btn-sm", BUTTON_VARIANTS[variant] || BUTTON_VARIANTS.secondary, className)}>
 			<Download size={14} /> {children}
 		</a>
 	)

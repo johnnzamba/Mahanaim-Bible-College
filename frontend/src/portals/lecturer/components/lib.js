@@ -1,6 +1,6 @@
 import { useApi } from "@/shared/api/hooks"
 import { plainText } from "@/shared/api/frappe"
-import { ago, dateTime } from "@/shared/utils/format"
+import { ago, dateTime, parseServerDate, siteWallClock } from "@/shared/utils/format"
 
 export { plainText }
 
@@ -140,7 +140,7 @@ export function offeringLabel(o) {
 
 export const pad = (n) => String(n).padStart(2, "0")
 
-export function ymd(d = new Date()) {
+export function ymd(d = siteWallClock()) {
 	return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`
 }
 
@@ -155,7 +155,7 @@ export function addDays(d, n) {
 	return x
 }
 
-export function mondayOf(d = new Date()) {
+export function mondayOf(d = siteWallClock()) {
 	const x = new Date(d)
 	x.setHours(0, 0, 0, 0)
 	return addDays(x, -((x.getDay() + 6) % 7))
@@ -184,14 +184,14 @@ export function fromLocalInput(v) {
 
 export function isPast(v) {
 	if (!v) return false
-	return new Date(String(v).replace(" ", "T").slice(0, 19)).getTime() < Date.now()
+	return (parseServerDate(v)?.getTime() ?? Infinity) < Date.now()
 }
 
 export function dayLabel(s) {
 	const d = parseYmd(s)
 	if (s === ymd()) return "Today"
-	if (s === ymd(addDays(new Date(), 1))) return "Tomorrow"
-	if (s === ymd(addDays(new Date(), -1))) return "Yesterday"
+	if (s === ymd(addDays(siteWallClock(), 1))) return "Tomorrow"
+	if (s === ymd(addDays(siteWallClock(), -1))) return "Yesterday"
 	return d.toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "short" })
 }
 
@@ -259,10 +259,9 @@ export const CONFLICT_RETRY = {
 	retryDelay: (n) => 300 + n * 400,
 }
 
-/** Relative time for something that already happened. The site clock runs ahead of campus time
- * (Asia/Kolkata vs EAT), so a just-saved timestamp can look like it's in the future; show the date then. */
+/** Relative time for something that already happened; a timestamp in the future (clock skew) shows the date. */
 export function since(v) {
 	if (!v) return "—"
-	const d = new Date(String(v).replace(" ", "T").slice(0, 19))
-	return !Number.isNaN(d.getTime()) && d.getTime() > Date.now() + 60000 ? dateTime(v) : ago(v)
+	const d = parseServerDate(v)
+	return d && d.getTime() > Date.now() + 60000 ? dateTime(v) : ago(v)
 }

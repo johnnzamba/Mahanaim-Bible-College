@@ -5,7 +5,7 @@ import { AlertTriangle, CalendarClock, CalendarPlus, CheckCircle2, ClipboardChec
 import { Badge, Button, Card, Empty, PageHeader, Panel, ProgressBar, Select, SkeletonRows, StatCard } from "@/shared/components/ui"
 import { Toolbar } from "@/shared/components/kit"
 import { frappe } from "@/shared/api/frappe"
-import { num, pct } from "@/shared/utils/format"
+import { num, pct, siteWallClock } from "@/shared/utils/format"
 import { SessionDialog } from "../components/SessionDialog"
 import { CancelSessionDialog, SessionsTable } from "../components/course/AttendanceTab"
 import { StatusBadge } from "../components/bits"
@@ -54,7 +54,7 @@ export default function Attendance() {
 	const [dialog, setDialog] = useState(null)
 	const [cancel, setCancel] = useState(null)
 	const today = ymd()
-	const weekEnd = ymd(addDays(new Date(), 7))
+	const weekEnd = ymd(addDays(siteWallClock(), 7))
 	const all = useMemo(
 		() => (q.data?.data || []).slice().sort((a, b) => `${a.session_date}${hm(a.start_time)}`.localeCompare(`${b.session_date}${hm(b.start_time)}`)),
 		[q.data]

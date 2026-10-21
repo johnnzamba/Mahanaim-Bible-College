@@ -1,4 +1,4 @@
-import { Suspense, useEffect, useMemo, useRef, useState } from "react"
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Link, NavLink, useLocation, useNavigate } from "react-router-dom"
 import clsx from "clsx"
 import { ChevronDown, ExternalLink, Globe, LogOut, Menu, MoreHorizontal, Repeat, ShieldCheck, UserCircle, X, CalendarRange } from "lucide-react"
@@ -32,25 +32,31 @@ export function PortalShell({ portal, nav, tabs, searchPlaceholder, serverSearch
 	const [open, setOpen] = useState(false)
 	const meta = PORTALS[portal] || {}
 
-	const visibleNav = useMemo(() => {
-		const roles = session.roles || []
-		return nav
-			.map((g) => ({
-				...g,
-				items: g.items.filter((i) => {
-					if (i.roles && !session.hasRole(...i.roles)) return false
-					if (portal === "admin") return canAccess(roles, i.to.replace(/^\/admin/, "") || "/")
-					return true
-				}),
-			}))
-			.filter((g) => g.items.length)
-	}, [nav, session, portal])
+	const allowed = useCallback(
+		(i) => {
+			if (i.roles && !session.hasRole(...i.roles)) return false
+			if (portal === "admin") return canAccess(session.roles || [], i.to.replace(/^\/admin/, "") || "/")
+			return true
+		},
+		[session, portal],
+	)
+	const visibleNav = useMemo(() => nav.map((g) => ({ ...g, items: g.items.filter(allowed) })).filter((g) => g.items.length), [nav, allowed])
+	const visibleTabs = useMemo(() => (tabs ? tabs.filter(allowed) : null), [tabs, allowed])
 
 	const allItems = useMemo(() => visibleNav.flatMap((g) => g.items.map((i) => ({ ...i, section: g.section }))), [visibleNav])
-	const exactPaths = useMemo(() => {
-		const all = allItems.map((i) => i.to)
-		return new Set(all.filter((to) => all.some((o) => o !== to && o.startsWith(`${to}/`))))
-	}, [allItems])
+	// One highlighted item: the longest nav path that prefixes the URL, so detail pages (/admin/students/STU-1)
+	// light up their parent without a sibling (/admin/students/registrations) also matching it. `end` items and the
+	// portal home (/student) match exactly.
+	const activeTo = useMemo(() => {
+		const path = location.pathname.replace(/\/$/, "") || "/"
+		let best = null
+		for (const it of allItems) {
+			const exact = it.end || it.to.split("/").filter(Boolean).length < 2
+			const hit = path === it.to || (!exact && path.startsWith(`${it.to}/`))
+			if (hit && (!best || it.to.length > best.length)) best = it.to
+		}
+		return best
+	}, [allItems, location.pathname])
 
 	const activeSection = useMemo(() => {
 		const path = location.pathname.replace(/\/$/, "") || "/"
@@ -147,25 +153,23 @@ export function PortalShell({ portal, nav, tabs, searchPlaceholder, serverSearch
 								{expanded ? (
 									<div className={clsx(singleSection ? "space-y-0.5" : "ml-[1.7rem] mr-1 space-y-0.5 border-l border-[var(--rail-line)] py-0.5 pl-2.5")}>
 										{g.items.map((it) => (
-											<NavLink
+											<Link
 												key={it.to}
 												to={it.to}
-												end={exactPaths.has(it.to) || it.end}
-												className={({ isActive }) =>
-													clsx(
-														"relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors",
-														isActive
-															? "bg-[var(--rail-active-bg)] text-[var(--rail-active-ink)] shadow-sm"
-															: "hover:bg-[var(--rail-hover)] hover:text-[var(--rail-ink)]"
-													)
-												}
+												aria-current={activeTo === it.to ? "page" : undefined}
+												className={clsx(
+													"relative flex items-center gap-2.5 rounded-lg px-2.5 py-2 text-[13px] font-medium transition-colors",
+													activeTo === it.to
+														? "bg-[var(--rail-active-bg)] text-[var(--rail-active-ink)] shadow-sm"
+														: "hover:bg-[var(--rail-hover)] hover:text-[var(--rail-ink)]"
+												)}
 											>
 												{it.icon ? <it.icon size={15} className="shrink-0" /> : null}
 												<span className="truncate">{it.label}</span>
 												{it.badge ? (
 													<span className="ml-auto rounded-full bg-gold-500 px-1.5 text-[10px] font-bold text-brand-900">{it.badge}</span>
 												) : null}
-											</NavLink>
+											</Link>
 										))}
 									</div>
 								) : null}
@@ -189,7 +193,7 @@ export function PortalShell({ portal, nav, tabs, searchPlaceholder, serverSearch
 
 			{open ? <button type="button" className="fixed inset-0 z-30 bg-brand-900/40 lg:hidden" onClick={() => setOpen(false)} aria-label="Close menu" /> : null}
 
-			<div className={clsx("flex min-h-screen min-w-0 flex-col lg:pl-[264px] print:!pl-0", tabs && "pad-for-tabbar lg:pb-0")}>
+			<div className={clsx("flex min-h-screen min-w-0 flex-col lg:pl-[264px] print:!pl-0", visibleTabs && "pad-for-tabbar lg:pb-0")}>
 				<header
 					className="no-print sticky top-0 z-20 flex h-16 shrink-0 items-center gap-2 border-b border-line px-3 backdrop-blur-md lg:px-6"
 					style={{ background: "var(--header-bg)" }}
@@ -242,7 +246,7 @@ export function PortalShell({ portal, nav, tabs, searchPlaceholder, serverSearch
 				</footer>
 			</div>
 
-			{tabs ? <MobileTabBar tabs={tabs} onMore={() => setOpen(true)} /> : null}
+			{visibleTabs ? <MobileTabBar tabs={visibleTabs} onMore={() => setOpen(true)} /> : null}
 		</div>
 	)
 }

@@ -6,13 +6,14 @@ import { useApi } from "@/shared/api/hooks"
 import { Badge, Empty, PageHeader, QueryState, Skeleton } from "@/shared/components/ui"
 import { API, addDays, hhmm, isoDate, minutesOf, safeUrl, serverNow, startOfWeek, toDate } from "../components/lib"
 import { useTick } from "../components/bits"
+import { siteWallClock } from "@/shared/utils/format"
 
 const MODE_TONE = { Online: "blue", Hybrid: "purple", "In Person": "green" }
 
 export default function Timetable() {
 	const [offset, setOffset] = useState(0)
 	// Session dates are server-local, so "today" follows the server clock (synced in StudentPortal).
-	const today = isoDate(new Date(useTick(60_000)))
+	const today = isoDate(siteWallClock(useTick(60_000)))
 	const weekStart = useMemo(() => addDays(startOfWeek(today), offset * 7), [today, offset])
 	const from = isoDate(weekStart)
 	const to = isoDate(addDays(weekStart, 6))
@@ -132,7 +133,7 @@ function DayList({ items, date: d, today }) {
 function Item({ it, date: d, today, compact }) {
 	useTick(60000)
 	const nowMin = (() => {
-		const n = new Date(serverNow())
+		const n = siteWallClock(serverNow())
 		return n.getHours() * 60 + n.getMinutes()
 	})()
 	if (it.kind === "exam")

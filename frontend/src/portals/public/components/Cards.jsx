@@ -150,10 +150,10 @@ export function DateBlock({ value, className, dark }) {
 			)}
 		>
 			<span className={clsx("text-[10.5px] font-bold uppercase tracking-widest", dark ? "text-gold-300" : "text-gold-700")}>
-				{d.toLocaleDateString("en-GB", { month: "short" })}
+				{date(value, { month: "short" })}
 			</span>
-			<span className="font-serif text-2xl font-bold leading-none">{d.getDate()}</span>
-			<span className="mt-0.5 text-[10px] font-semibold opacity-60">{d.getFullYear()}</span>
+			<span className="font-serif text-2xl font-bold leading-none">{date(value, { day: "numeric" })}</span>
+			<span className="mt-0.5 text-[10px] font-semibold opacity-60">{date(value, { year: "numeric" })}</span>
 		</div>
 	)
 }
@@ -162,7 +162,7 @@ export function eventWhen(e) {
 	const s = toDate(e.start_datetime)
 	const end = toDate(e.end_datetime)
 	if (!s) return ""
-	const sameDay = end && s.toDateString() === end.toDateString()
+	const sameDay = end && date(e.start_datetime) === date(e.end_datetime)
 	if (end && !sameDay) return `${date(e.start_datetime)} – ${date(e.end_datetime)}`
 	return `${date(e.start_datetime, { weekday: "short", day: "numeric", month: "short", year: "numeric" })} · ${time(e.start_datetime)}${end ? `–${time(e.end_datetime)}` : ""}`
 }

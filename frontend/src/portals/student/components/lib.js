@@ -1,6 +1,6 @@
 /** Student portal helpers: API names, server clock, countdown maths, small formatters. */
 import { safeUrl } from "@/shared/utils/sanitize"
-import { ago } from "@/shared/utils/format"
+import { ago, date, parseServerDate, siteWallClock } from "@/shared/utils/format"
 
 export { safeUrl }
 
@@ -84,11 +84,7 @@ export const credentialPrint = (doctype, name) => fileUrl("mahanaim.api.credenti
  * are compared against "server now" = Date.now() + offset, learned from any payload carrying server_time. */
 
 export function toDate(v) {
-	if (!v) return null
-	if (v instanceof Date) return v
-	const s = String(v)
-	const d = new Date(s.includes(" ") ? s.replace(" ", "T").slice(0, 19) : s.length === 10 ? `${s}T00:00:00` : s)
-	return Number.isNaN(d.getTime()) ? null : d
+	return parseServerDate(v)
 }
 
 let offsetMs = 0
@@ -120,10 +116,12 @@ export function onServerClock(fn) {
 
 /** "YYYY-MM-DD" for the server's today (falls back to the device clock until synced). */
 export function serverToday() {
-	return isoDate(new Date(serverNow()))
+	return isoDate(siteWallClock(serverNow()))
 }
 
 export function isoDate(d) {
+	// Server dates and naive datetimes already carry the site calendar day.
+	if (typeof d === "string" && /^\d{4}-\d{2}-\d{2}/.test(d)) return d.slice(0, 10)
 	const x = d instanceof Date ? d : toDate(d)
 	if (!x) return ""
 	const p = (n) => String(n).padStart(2, "0")
@@ -185,13 +183,11 @@ export function dueInfo(due, { done } = {}) {
 }
 
 export function shortDate(v) {
-	const d = toDate(v)
-	return d ? d.toLocaleDateString("en-GB", { day: "numeric", month: "short" }) : "—"
+	return date(v, { day: "numeric", month: "short" })
 }
 
 export function weekday(v, style = "short") {
-	const d = toDate(v)
-	return d ? d.toLocaleDateString("en-GB", { weekday: style }) : ""
+	return toDate(v) ? date(v, { weekday: style }) : ""
 }
 
 export function hhmm(v) {

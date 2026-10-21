@@ -3,6 +3,7 @@ import { useLocation, useSearchParams } from "react-router-dom"
 import { useSiteSettings } from "@/shared/layout/PublicLayout"
 import { BRAND } from "@/shared/brand"
 import { plainText } from "@/shared/api/frappe"
+import { parseServerDate } from "@/shared/utils/format"
 
 export const W = "mahanaim.api.website."
 
@@ -196,8 +197,5 @@ export const sortLevels = (levels = []) =>
 
 /** "2026-01-12 09:00:00" → Date (site-local). */
 export function toDate(v) {
-	if (!v) return null
-	const s = String(v)
-	const d = new Date(s.includes(" ") ? s.replace(" ", "T").slice(0, 19) : s.length === 10 ? `${s}T00:00:00` : s)
-	return Number.isNaN(d.getTime()) ? null : d
+	return parseServerDate(v)
 }

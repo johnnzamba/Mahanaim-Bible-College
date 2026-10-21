@@ -18,10 +18,12 @@ export default function Attendance() {
 	const totals = useMemo(() => {
 		const t = { held: 0, present: 0, late: 0, absent: 0, excused: 0 }
 		for (const r of active) for (const k of Object.keys(t)) t[k] += Number(r[k] || 0)
-		t.percentage = t.held ? ((t.present + t.late + t.excused) / t.held) * 100 : null
+		// Same rule as the server: late counts as attended and excused sessions are left out.
+		const counted = t.held - t.excused
+		t.percentage = counted > 0 ? ((t.present + t.late) / counted) * 100 : null
 		return t
 	}, [active])
-	const risky = active.filter((r) => Number(r.percentage) < AT_RISK)
+	const risky = active.filter((r) => r.percentage != null && Number(r.percentage) < AT_RISK)
 
 	return (
 		<>

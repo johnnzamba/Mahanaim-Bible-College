@@ -1,3 +1,4 @@
+import { siteWallClock } from "@/shared/utils/format"
 import { KeyRound, Laptop, School } from "lucide-react"
 import { Input, Panel, RadioCards, Select, Switch, Textarea } from "@/shared/components/ui"
 import { EXAM_COMPONENTS, EXAM_TYPES, addDays, fromLocalInput, pad, toLocalInput, ymd } from "../lib"
@@ -5,7 +6,7 @@ import { EXAM_COMPONENTS, EXAM_TYPES, addDays, fromLocalInput, pad, toLocalInput
 const FINAL_TYPES = ["Main Exam", "Special", "Supplementary"]
 
 export function defaultExam() {
-	const day = ymd(addDays(new Date(), 1))
+	const day = ymd(addDays(siteWallClock(), 1))
 	return {
 		title: "",
 		exam_type: "CAT",

@@ -481,7 +481,7 @@ export default function EventDetail() {
 						<h2 className="font-serif text-lg text-ink">Event details</h2>
 						<DetailRow icon={CalendarDays} label="Date">
 							{start ? date(ev.start_datetime, { weekday: "long", day: "numeric", month: "long", year: "numeric" }) : "To be announced"}
-							{end && start && end.toDateString() !== start.toDateString() ? ` to ${date(ev.end_datetime, { weekday: "long", day: "numeric", month: "long" })}` : ""}
+							{end && start && date(ev.end_datetime) !== date(ev.start_datetime) ? ` to ${date(ev.end_datetime, { weekday: "long", day: "numeric", month: "long" })}` : ""}
 						</DetailRow>
 						{start ? (
 							<DetailRow icon={Clock} label="Time">

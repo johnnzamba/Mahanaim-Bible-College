@@ -19,7 +19,7 @@ import { Alert, Badge, Button, Empty, PageHeader, Panel, QueryState, Skeleton, S
 import { DataTable } from "@/shared/components/kit"
 import { useApi } from "@/shared/api/hooks"
 import { useSession } from "@/shared/session"
-import { dateTime, greeting, num } from "@/shared/utils/format"
+import { dateTime, greeting, num, siteWallClock } from "@/shared/utils/format"
 import { StatusBadge } from "../components/bits"
 import { SessionDialog } from "../components/SessionDialog"
 import { useAcross } from "../components/useAcross"
@@ -171,7 +171,7 @@ export default function Dashboard() {
 				<div className="space-y-6 lg:col-span-2">
 					<Panel
 						title="Today's classes"
-						subtitle={new Date().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}
+						subtitle={siteWallClock().toLocaleDateString("en-GB", { weekday: "long", day: "numeric", month: "long" })}
 						icon={CalendarClock}
 						bodyClass="p-0"
 						actions={

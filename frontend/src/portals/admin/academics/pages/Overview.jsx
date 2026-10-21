@@ -18,7 +18,7 @@ import {
 import { Badge, Button, Empty, Modal, PageHeader, Panel, ProgressBar, QueryState, Select, SkeletonRows, StatCard, Tile } from "@/shared/components/ui"
 import { BarsChart, DonutChart, Legendary } from "@/shared/components/Charts"
 import { useAction, useApi } from "@/shared/api/hooks"
-import { ago, date, dateTime, daysUntil, num } from "@/shared/utils/format"
+import { ago, date, dateTime, daysUntil, num, parseServerDate } from "@/shared/utils/format"
 import { ACAD, BASE, RESULTS, RESULT_COLORS, SETUP, SHEET_STATUS, rowsOf, termOptions, useAcademicRoles, useLookups, useTermParam } from "../lib"
 import { SheetBadge, TermSelect } from "../components/common"
 import { useTermExams, useTermOfferings } from "../components/useTerm"
@@ -154,7 +154,7 @@ export default function Overview() {
 	const upcoming = useMemo(() => {
 		const now = Date.now()
 		return termExams.exams
-			.filter((e) => ["Open", "Scheduled", "Draft"].includes(e.status) && (e.status === "Open" || !e.end_datetime || new Date(String(e.end_datetime).replace(" ", "T")) >= now))
+			.filter((e) => ["Open", "Scheduled", "Draft"].includes(e.status) && (e.status === "Open" || !e.end_datetime || parseServerDate(e.end_datetime) >= now))
 			.sort((a, b) => String(a.start_datetime || "9").localeCompare(String(b.start_datetime || "9")))
 	}, [termExams.exams])
 	const resultData = ["Not Started", ...SHEET_STATUS].map((s) => ({ label: s, value: rs[s] || 0, color: RESULT_COLORS[s] })).filter((d) => d.value)

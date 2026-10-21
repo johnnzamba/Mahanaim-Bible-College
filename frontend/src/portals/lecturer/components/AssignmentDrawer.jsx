@@ -1,3 +1,4 @@
+import { siteWallClock } from "@/shared/utils/format"
 import { useEffect, useState } from "react"
 import { Button, Checkbox, Drawer, FileDrop, Input, Loading, Select, Switch, Textarea } from "@/shared/components/ui"
 import { useAction, useApi } from "@/shared/api/hooks"
@@ -8,7 +9,7 @@ import { ASSIGNMENT_COMPONENTS, M, P, SUBMISSION_TYPES, fileName, fromHtml, from
 const BUCKET = { CAT: "CAT", Assignment: "Assignment" }
 
 function defaultDue() {
-	const d = new Date()
+	const d = siteWallClock()
 	d.setDate(d.getDate() + 7)
 	d.setHours(23, 59, 0, 0)
 	const p = (n) => String(n).padStart(2, "0")

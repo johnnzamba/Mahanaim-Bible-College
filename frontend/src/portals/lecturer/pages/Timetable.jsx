@@ -2,7 +2,7 @@ import { useMemo, useState } from "react"
 import { Link } from "react-router-dom"
 import { CalendarDays, ChevronLeft, ChevronRight, ClipboardCheck, FileQuestion, MapPin, Video } from "lucide-react"
 import { Button, Card, Empty, ErrorState, IconButton, PageHeader, SkeletonRows } from "@/shared/components/ui"
-import { date } from "@/shared/utils/format"
+import { date, siteWallClock } from "@/shared/utils/format"
 import { SessionDialog } from "../components/SessionDialog"
 import { StatusBadge } from "../components/bits"
 import { useAcross } from "../components/useAcross"
@@ -28,7 +28,7 @@ function useWeek(start) {
 }
 
 export default function Timetable() {
-	const [start, setStart] = useState(() => mondayOf(new Date()))
+	const [start, setStart] = useState(() => mondayOf(siteWallClock()))
 	const { from, to, sessions, exams } = useWeek(start)
 	const [dialog, setDialog] = useState(null)
 	const today = ymd()
@@ -74,7 +74,7 @@ export default function Timetable() {
 			<div className="flex items-center gap-2">
 				<IconButton icon={ChevronLeft} label="Previous week" onClick={() => setStart((d) => addDays(d, -7))} />
 				<IconButton icon={ChevronRight} label="Next week" onClick={() => setStart((d) => addDays(d, 7))} />
-				<Button size="sm" variant="secondary" disabled={from === ymd(mondayOf(new Date()))} onClick={() => setStart(mondayOf(new Date()))}>
+				<Button size="sm" variant="secondary" disabled={from === ymd(mondayOf(siteWallClock()))} onClick={() => setStart(mondayOf(siteWallClock()))}>
 					This week
 				</Button>
 				<span className="ml-1 text-sm font-semibold text-ink">{label}</span>
@@ -212,7 +212,7 @@ export default function Timetable() {
 }
 
 function NowLine({ startHour, endHour }) {
-	const n = new Date()
+	const n = siteWallClock()
 	const m = n.getHours() * 60 + n.getMinutes()
 	if (m < startHour * 60 || m > endHour * 60) return null
 	return (

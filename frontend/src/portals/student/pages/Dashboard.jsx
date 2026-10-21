@@ -23,7 +23,7 @@ import {
 import { useApi } from "@/shared/api/hooks"
 import { useSession } from "@/shared/session"
 import { Alert, Avatar, Badge, Empty, Panel, Skeleton, StatCard, Tile } from "@/shared/components/ui"
-import { date, greeting, money } from "@/shared/utils/format"
+import { date, greeting, money, siteWallClock } from "@/shared/utils/format"
 import { plainText } from "@/shared/api/frappe"
 import { API, hhmm, humanSpan, minutesOf, msUntil, safeUrl, serverNow, since } from "../components/lib"
 import { CourseCard, DueBadge, GOLD_BTN, Hero, IconChip, useServerTime, useTick } from "../components/bits"
@@ -44,10 +44,11 @@ export default function Dashboard() {
 	const first = (st.full_name || session.full_name || "").split(" ")[0]
 
 	const attendance = useMemo(() => {
-		const rows = (att.data?.data || []).filter((r) => Number(r.held) > 0)
-		const held = rows.reduce((a, r) => a + Number(r.held), 0)
-		if (!held) return null
-		return rows.reduce((a, r) => a + Number(r.percentage || 0) * Number(r.held), 0) / held
+		// Same rule as the server: late counts as attended and excused sessions are left out.
+		const rows = att.data?.data || []
+		const sum = (k) => rows.reduce((a, r) => a + Number(r[k] || 0), 0)
+		const counted = sum("held") - sum("excused")
+		return counted > 0 ? ((sum("present") + sum("late")) / counted) * 100 : null
 	}, [att.data])
 
 	const current = useMemo(() => (courses.data?.data || []).filter((c) => c.enrolment_status === "Enrolled"), [courses.data])
@@ -275,7 +276,7 @@ function TodayClasses({ query }) {
 	useTick(60000)
 	const today = query.data?.from_date
 	const rows = (query.data?.sessions || []).filter((s) => s.session_date === today && s.status !== "Cancelled")
-	const now = new Date(serverNow())
+	const now = siteWallClock(serverNow())
 	const nowMin = now.getHours() * 60 + now.getMinutes()
 	return (
 		<Panel

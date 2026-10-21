@@ -10,13 +10,17 @@ import { Hero, HeroStat } from "../components/bits"
 export default function ExamResult() {
 	const { attempt } = useParams()
 	const q = useApi(API.examResult, { attempt }, { retry: false })
-	const notReleased = /not been released/i.test(q.error?.message || "")
+	// Unreleased attempts come back as {released: false, exam, exam_title, message}; older servers threw instead.
+	const pending = q.data?.released === false
+	const notReleased = pending || /not been released/i.test(q.error?.message || "")
+	const exam = pending ? null : q.data?.exam
+	const examName = pending ? q.data.exam : exam?.name
 	return (
 		<>
 			<PageHeader
-				back={{ to: q.data?.exam?.name ? `/student/exams/${encodeURIComponent(q.data.exam.name)}` : "/student/exams", label: "Exams" }}
-				eyebrow={q.data ? [q.data.exam.exam_type, q.data.exam.course_title].filter(Boolean).join(" · ") : "Exam result"}
-				title={q.data?.exam?.title || "Exam result"}
+				back={{ to: examName ? `/student/exams/${encodeURIComponent(examName)}` : "/student/exams", label: "Exams" }}
+				eyebrow={exam ? [exam.exam_type, exam.course_title].filter(Boolean).join(" · ") : "Exam result"}
+				title={exam?.title || (pending && q.data.exam_title) || "Exam result"}
 			/>
 			{notReleased ? (
 				<div className="card">

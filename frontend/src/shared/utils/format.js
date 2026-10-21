@@ -23,25 +23,81 @@ export function pct(value, decimals = 0) {
 	return `${Number(value || 0).toFixed(decimals)}%`
 }
 
-function toDate(v) {
+/** The college's time zone (System Settings). Naive server datetimes are wall-clock times in this zone. */
+export function siteTimeZone() {
+	return boot().session?.settings?.time_zone || "Africa/Nairobi"
+}
+
+const zoneFormatters = {}
+function zoneOffsetMs(utcMs, tz) {
+	zoneFormatters[tz] ||= new Intl.DateTimeFormat("en-US", {
+		timeZone: tz,
+		hourCycle: "h23",
+		year: "numeric",
+		month: "2-digit",
+		day: "2-digit",
+		hour: "2-digit",
+		minute: "2-digit",
+		second: "2-digit",
+	})
+	const p = Object.fromEntries(zoneFormatters[tz].formatToParts(new Date(utcMs)).map((x) => [x.type, x.value]))
+	return Date.UTC(+p.year, +p.month - 1, +p.day, +p.hour, +p.minute, +p.second) - utcMs
+}
+
+const NAIVE_DATETIME = /^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?(?:\.\d+)?$/
+
+/** Frappe datetimes ("YYYY-MM-DD HH:mm:ss(.ffffff)") are site wall-clock times, whatever the browser's zone. */
+export function parseServerDate(v) {
 	if (!v) return null
 	if (v instanceof Date) return v
 	const s = String(v)
-	// Frappe datetimes are "YYYY-MM-DD HH:mm:ss(.ffffff)" in site time; treat as local.
-	const d = new Date(s.includes(" ") ? s.replace(" ", "T").slice(0, 19) : s.length === 10 ? `${s}T00:00:00` : s)
+	const m = NAIVE_DATETIME.exec(s)
+	if (m) {
+		const wall = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5], +(m[6] || 0))
+		try {
+			const tz = siteTimeZone()
+			return new Date(wall - zoneOffsetMs(wall - zoneOffsetMs(wall, tz), tz))
+		} catch {
+			return new Date(s.replace(" ", "T").slice(0, 19))
+		}
+	}
+	// Plain dates stay calendar days in the browser's zone.
+	const d = new Date(s.length === 10 ? `${s}T00:00:00` : s)
 	return Number.isNaN(d.getTime()) ? null : d
 }
 
+/** A Date whose local getters (getDate, getHours, …) read the site wall clock at `instant`. For calendar and
+ * clock-face maths only ("today", the timetable's now-line); never treat it as a real instant. */
+export function siteWallClock(instant = Date.now()) {
+	const ms = instant instanceof Date ? instant.getTime() : Number(instant)
+	try {
+		const w = new Date(ms + zoneOffsetMs(ms, siteTimeZone()))
+		return new Date(w.getUTCFullYear(), w.getUTCMonth(), w.getUTCDate(), w.getUTCHours(), w.getUTCMinutes(), w.getUTCSeconds())
+	} catch {
+		return new Date(ms)
+	}
+}
+
+/** Datetimes are shown in the site zone; plain dates are calendar days and need no zone. */
+function zoneOpt(v) {
+	if (v instanceof Date || !NAIVE_DATETIME.test(String(v))) return {}
+	try {
+		return { timeZone: siteTimeZone() }
+	} catch {
+		return {}
+	}
+}
+
 export function date(v, opts = { day: "numeric", month: "short", year: "numeric" }) {
-	const d = toDate(v)
-	return d ? d.toLocaleDateString("en-GB", opts) : "—"
+	const d = parseServerDate(v)
+	return d ? d.toLocaleDateString("en-GB", { ...opts, ...zoneOpt(v) }) : "—"
 }
 
 export function dateTime(v) {
-	const d = toDate(v)
-	return d
-		? `${d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })}, ${d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}`
-		: "—"
+	const d = parseServerDate(v)
+	if (!d) return "—"
+	const z = zoneOpt(v)
+	return `${d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", ...z })}, ${d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", ...z })}`
 }
 
 export function time(v) {
@@ -53,12 +109,12 @@ export function time(v) {
 		d.setHours(h, m, 0, 0)
 		return d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })
 	}
-	const d = toDate(v)
-	return d ? d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" }) : "—"
+	const d = parseServerDate(v)
+	return d ? d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", ...zoneOpt(v) }) : "—"
 }
 
 export function ago(v) {
-	const d = toDate(v)
+	const d = parseServerDate(v)
 	if (!d) return "—"
 	const s = Math.round((Date.now() - d.getTime()) / 1000)
 	const abs = Math.abs(s)
@@ -72,7 +128,7 @@ export function ago(v) {
 }
 
 export function daysUntil(v) {
-	const d = toDate(v)
+	const d = parseServerDate(v)
 	if (!d) return null
 	const today = new Date()
 	today.setHours(0, 0, 0, 0)

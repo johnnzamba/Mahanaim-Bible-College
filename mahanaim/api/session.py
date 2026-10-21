@@ -35,6 +35,8 @@ def _settings_brief():
 		"current_academic_term": s.current_academic_term,
 		"current_academic_year": s.current_academic_year,
 		"sms_enabled": bool(s.get("sms_enabled")),
+		# Server datetimes are naive wall-clock values in this zone; the SPA parses and shows them in it.
+		"time_zone": frappe.utils.get_system_timezone(),
 	}
 
 

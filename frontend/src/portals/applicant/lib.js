@@ -1,5 +1,5 @@
 import { frappe } from "@/shared/api/frappe"
-import { ago, date, dateTime } from "@/shared/utils/format"
+import { ago, date, dateTime, parseServerDate } from "@/shared/utils/format"
 
 const A = "mahanaim.api.admissions."
 
@@ -209,7 +209,7 @@ export function draftProgress(app, options) {
 
 /** ago() that never says "in N hours": server timestamps can run ahead of the browser clock when time zones differ. */
 export function since(v) {
-	const t = v ? new Date(String(v).replace(" ", "T")).getTime() : NaN
+	const t = parseServerDate(v)?.getTime() ?? NaN
 	if (Number.isFinite(t) && t > Date.now()) return "just now"
 	return ago(v)
 }

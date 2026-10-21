@@ -392,6 +392,16 @@ export function Alert({ tone = "info", title, children, action, className, icon 
 
 /* ────────────────────────────── Buttons ────────────────────────────── */
 
+// Literal class names: Tailwind only keeps component classes it can find verbatim in the source.
+export const BUTTON_VARIANTS = {
+	primary: "btn-primary",
+	gold: "btn-gold",
+	secondary: "btn-secondary",
+	ghost: "btn-ghost",
+	danger: "btn-danger",
+	"danger-soft": "btn-danger-soft",
+}
+
 export const Button = forwardRef(function Button(
 	{ variant = "primary", size, loading, icon: Icon, iconRight: IconRight, children, className, type = "button", disabled, ...props },
 	ref
@@ -401,7 +411,7 @@ export const Button = forwardRef(function Button(
 			ref={ref}
 			type={type}
 			disabled={disabled || loading}
-			className={clsx("btn", `btn-${variant}`, size === "sm" && "btn-sm", size === "lg" && "btn-lg", className)}
+			className={clsx("btn", BUTTON_VARIANTS[variant] || BUTTON_VARIANTS.primary, size === "sm" && "btn-sm", size === "lg" && "btn-lg", className)}
 			{...props}
 		>
 			{loading ? <Spinner size={16} /> : Icon ? <Icon size={size === "sm" ? 14 : 16} /> : null}
