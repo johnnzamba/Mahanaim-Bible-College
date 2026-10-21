@@ -92,5 +92,7 @@ def get_context(context):
 	context.og_type = meta.get("og_type") or "website"
 	context.structured_data = meta.get("structured_data")
 	context.manifest = first if first in PORTAL_PREFIXES else "site"
-	context.app_title = {"student": "MBC Student", "lecturer": "MBC Lecturer", "admin": "MBC Admin"}.get(first, "Mahanaim")
+	context.app_title = {"student": "MBC Student", "lecturer": "MBC Lecturer", "admin": "MBC Admin"}.get(
+		first, "Mahanaim"
+	)
 	return context

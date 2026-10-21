@@ -88,7 +88,10 @@ def require_lecturer():
 def require_lecturer_of(course_offering: str) -> None:
 	"""Allow the offering's lecturers plus academic administrators."""
 	user = require_login()
-	if user_roles(user) & {"System Manager", ROLE_ADMIN, "Registrar", "Academic Dean"} or user == "Administrator":
+	if (
+		user_roles(user) & {"System Manager", ROLE_ADMIN, "Registrar", "Academic Dean"}
+		or user == "Administrator"
+	):
 		return
 	teaches = frappe.db.exists(
 		"Course Offering Lecturer", {"parent": course_offering, "parenttype": "Course Offering", "user": user}

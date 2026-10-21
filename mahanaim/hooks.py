@@ -68,7 +68,11 @@ for _r in _SPA_ROUTES:
 
 website_redirects = [
 	{"source": "/favicon.ico", "target": "/assets/mahanaim/images/favicon.png", "redirect_http_status": 301},
-	{"source": "/apple-touch-icon.png", "target": "/assets/mahanaim/images/icon-192.png", "redirect_http_status": 301},
+	{
+		"source": "/apple-touch-icon.png",
+		"target": "/assets/mahanaim/images/icon-192.png",
+		"redirect_http_status": 301,
+	},
 	{"source": "/portal", "target": "/signin", "redirect_http_status": 302},
 ]
 

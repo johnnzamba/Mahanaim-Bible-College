@@ -31,7 +31,9 @@ def make_department(name="Biblical Studies _T"):
 def make_academic_year(name="2090-2091"):
 	start = getdate("2090-01-01")
 	return _get_or_insert(
-		"Academic Year", name, {"year_name": name, "start_date": start, "end_date": add_days(add_months(start, 12), -1)}
+		"Academic Year",
+		name,
+		{"year_name": name, "start_date": start, "end_date": add_days(add_months(start, 12), -1)},
 	)
 
 
@@ -43,15 +45,24 @@ def make_term(term_name="Term 1", year="2090-2091", start=None, end=None):
 	return _get_or_insert(
 		"Academic Term",
 		name,
-		{"academic_year": year_doc.name, "term_name": term_name, "term_number": 1, "start_date": start,
-		 "end_date": end, "registration_start": add_days(start, -14), "registration_end": add_days(start, 21),
-		 "status": "Registration Open"},
+		{
+			"academic_year": year_doc.name,
+			"term_name": term_name,
+			"term_number": 1,
+			"start_date": start,
+			"end_date": end,
+			"registration_start": add_days(start, -14),
+			"registration_end": add_days(start, 21),
+			"status": "Registration Open",
+		},
 	)
 
 
 def make_course(code="TST101", title="Old Testament Survey _T", credits=3, pass_mark=40):
 	return _get_or_insert(
-		"Course", code, {"course_code": code, "course_title": title, "credits": credits, "pass_mark": pass_mark}
+		"Course",
+		code,
+		{"course_code": code, "course_title": title, "credits": credits, "pass_mark": pass_mark},
 	)
 
 
@@ -68,14 +79,18 @@ def make_programme(code="TDBS", name="Diploma in Biblical Studies _T", courses=(
 			"level": level,
 			"duration_years": 2,
 			"is_published": 1,
-			"curriculum": [{"course": c, "year_of_study": 1, "term_number": 1, "course_type": "Core"} for c in courses],
+			"curriculum": [
+				{"course": c, "year_of_study": 1, "term_number": 1, "course_type": "Core"} for c in courses
+			],
 		}
 	)
 	doc.insert(ignore_permissions=True)
 	return doc
 
 
-def make_staff(first_name="Grace", last_name="Lecturer _T", email=None, campus=None, is_lecturer=1, create_user=True):
+def make_staff(
+	first_name="Grace", last_name="Lecturer _T", email=None, campus=None, is_lecturer=1, create_user=True
+):
 	email = email or f"lecturer.{random_string(6).lower()}@example.com"
 	existing = frappe.db.get_value("Staff Member", {"email": email})
 	if existing:
@@ -102,7 +117,9 @@ def make_offering(course="TST101", term=None, campus=None, lecturer=None, study_
 	course_doc = make_course(course)
 	term = term or make_term().name
 	campus = campus or make_campus().name
-	existing = frappe.db.get_value("Course Offering", {"course": course_doc.name, "academic_term": term, "campus": campus})
+	existing = frappe.db.get_value(
+		"Course Offering", {"course": course_doc.name, "academic_term": term, "campus": campus}
+	)
 	if existing:
 		return frappe.get_doc("Course Offering", existing)
 	doc = frappe.get_doc(
@@ -120,8 +137,16 @@ def make_offering(course="TST101", term=None, campus=None, lecturer=None, study_
 	return doc
 
 
-def make_student(first_name="Joseph", last_name="Student _T", email=None, programme=None, campus=None,
-				 status="Active", create_user=True, phone=None):
+def make_student(
+	first_name="Joseph",
+	last_name="Student _T",
+	email=None,
+	programme=None,
+	campus=None,
+	status="Active",
+	create_user=True,
+	phone=None,
+):
 	programme = programme or make_programme().name
 	campus = campus or make_campus().name
 	email = email or f"student.{random_string(6).lower()}@example.com"
@@ -163,7 +188,13 @@ def make_user(email=None, roles=("Student",), first_name="Test"):
 	if frappe.db.exists("User", email):
 		return frappe.get_doc("User", email)
 	user = frappe.get_doc(
-		{"doctype": "User", "email": email, "first_name": first_name, "send_welcome_email": 0, "user_type": "Website User"}
+		{
+			"doctype": "User",
+			"email": email,
+			"first_name": first_name,
+			"send_welcome_email": 0,
+			"user_type": "Website User",
+		}
 	)
 	user.insert(ignore_permissions=True)
 	user.add_roles(*roles)

@@ -24,25 +24,47 @@ from mahanaim.utils import normalize_phone, setting
 # ---------------------------------------------------------------------------------- recipients
 def recipient_for_user(user: str) -> dict:
 	u = frappe.db.get_value("User", user, ["name", "email", "mobile_no", "full_name"], as_dict=True) or {}
-	return {"user": u.get("name"), "email": u.get("email"), "phone": u.get("mobile_no"), "name": u.get("full_name")}
+	return {
+		"user": u.get("name"),
+		"email": u.get("email"),
+		"phone": u.get("mobile_no"),
+		"name": u.get("full_name"),
+	}
 
 
 def recipient_for_student(student) -> dict:
 	if isinstance(student, str):
-		student = frappe.db.get_value("Student", student, ["user", "email", "phone", "full_name"], as_dict=True)
-	return {"user": student.get("user"), "email": student.get("email"), "phone": student.get("phone"),
-			"name": student.get("full_name")}
+		student = frappe.db.get_value(
+			"Student", student, ["user", "email", "phone", "full_name"], as_dict=True
+		)
+	return {
+		"user": student.get("user"),
+		"email": student.get("email"),
+		"phone": student.get("phone"),
+		"name": student.get("full_name"),
+	}
 
 
 def recipient_for_application(app) -> dict:
-	return {"user": app.get("user"), "email": app.get("email"), "phone": app.get("phone"), "name": app.get("full_name")}
+	return {
+		"user": app.get("user"),
+		"email": app.get("email"),
+		"phone": app.get("phone"),
+		"name": app.get("full_name"),
+	}
 
 
 def recipient_for_sponsor(sponsor) -> dict:
 	if isinstance(sponsor, str):
-		sponsor = frappe.db.get_value("Sponsor", sponsor, ["user", "email", "phone", "sponsor_name"], as_dict=True)
-	return {"user": sponsor.get("user"), "email": sponsor.get("email"), "phone": sponsor.get("phone"),
-			"name": sponsor.get("sponsor_name")}
+		sponsor = frappe.db.get_value(
+			"Sponsor", sponsor, ["user", "email", "phone", "sponsor_name"], as_dict=True
+		)
+	return {
+		"user": sponsor.get("user"),
+		"email": sponsor.get("email"),
+		"phone": sponsor.get("phone"),
+		"name": sponsor.get("sponsor_name"),
+	}
 
 
 # ---------------------------------------------------------------------------------- core
@@ -83,7 +105,16 @@ def notify(
 	templates = frappe.get_all(
 		"Message Template",
 		filters={"event": event, "is_active": 1},
-		fields=["name", "subject", "email_body", "sms_body", "in_app_body", "send_email", "send_sms", "send_in_app"],
+		fields=[
+			"name",
+			"subject",
+			"email_body",
+			"sms_body",
+			"in_app_body",
+			"send_email",
+			"send_sms",
+			"send_in_app",
+		],
 	)
 	if not templates and fallback:
 		templates = [
@@ -104,19 +135,36 @@ def notify(
 			try:
 				subject = _render(tpl.subject, ctx) or event
 				if tpl.send_email and r.get("email") and (not channels or "Email" in channels):
-					send_email(r["email"], subject, _render(tpl.email_body, ctx), doc, tpl.name, event, r.get("user"))
+					send_email(
+						r["email"], subject, _render(tpl.email_body, ctx), doc, tpl.name, event, r.get("user")
+					)
 				if tpl.send_sms and r.get("phone") and (not channels or "SMS" in channels):
 					send_sms(r["phone"], _render(tpl.sms_body, ctx), doc, tpl.name, event, r.get("user"))
 				if tpl.send_in_app and r.get("user") and (not channels or "In-App" in channels):
 					push_portal_notification(
-						r["user"], subject, _render(tpl.in_app_body, ctx) or strip_html(_render(tpl.email_body, ctx))[:300],
-						link=link, category=category, doc=doc,
+						r["user"],
+						subject,
+						_render(tpl.in_app_body, ctx) or strip_html(_render(tpl.email_body, ctx))[:300],
+						link=link,
+						category=category,
+						doc=doc,
 					)
 			except Exception:
 				frappe.log_error(title=f"Mahanaim notify failed: {event}")
 
 
-def _log(channel, recipient, subject, message, status, doc=None, template=None, event=None, user=None, response=None):
+def _log(
+	channel,
+	recipient,
+	subject,
+	message,
+	status,
+	doc=None,
+	template=None,
+	event=None,
+	user=None,
+	response=None,
+):
 	log = frappe.get_doc(
 		{
 			"doctype": "Message Log",
@@ -160,8 +208,12 @@ def send_sms(phone, message, doc=None, template=None, event=None, user=None):
 	if frappe.flags.in_test or frappe.flags.in_install:
 		frappe.db.set_value("Message Log", log.name, {"status": "Sent", "provider_response": "test-mode"})
 		return
-	frappe.enqueue("mahanaim.services.communication.deliver_sms", queue="short", log_name=log.name,
-				   enqueue_after_commit=True)
+	frappe.enqueue(
+		"mahanaim.services.communication.deliver_sms",
+		queue="short",
+		log_name=log.name,
+		enqueue_after_commit=True,
+	)
 
 
 def deliver_sms(log_name: str):
@@ -228,17 +280,22 @@ def push_portal_notification(user, title, message=None, link=None, category="Inf
 			"title": (title or "")[:140],
 			"message": message,
 			"link": link,
-			"category": category if category in (
-				"Info", "Academic", "Finance", "Admissions", "Exam", "Announcement", "Event", "System"
-			) else "Info",
+			"category": category
+			if category
+			in ("Info", "Academic", "Finance", "Admissions", "Exam", "Announcement", "Event", "System")
+			else "Info",
 			"reference_doctype": doc.doctype if doc else None,
 			"reference_name": doc.name if doc else None,
 		}
 	)
 	n.insert(ignore_permissions=True)
 	_log("In-App", user, title, message, "Sent", doc, None, None, user)
-	frappe.publish_realtime("mbc_notification", {"title": n.title, "link": link, "category": n.category}, user=user,
-							after_commit=True)
+	frappe.publish_realtime(
+		"mbc_notification",
+		{"title": n.title, "link": link, "category": n.category},
+		user=user,
+		after_commit=True,
+	)
 	return n.name
 
 
@@ -251,12 +308,16 @@ def announcement_recipients(ann) -> list[dict]:
 	if aud in ("All Students", "Everyone"):
 		rows += frappe.get_all("Student", filters={"status": active}, fields=fields)
 	if aud == "Programme" and ann.programme:
-		rows += frappe.get_all("Student", filters={"status": active, "programme": ann.programme}, fields=fields)
+		rows += frappe.get_all(
+			"Student", filters={"status": active, "programme": ann.programme}, fields=fields
+		)
 	if aud == "Campus" and ann.campus:
 		rows += frappe.get_all("Student", filters={"status": active, "campus": ann.campus}, fields=fields)
 	if aud == "Course Offering" and ann.course_offering:
 		students = frappe.get_all(
-			"Course Enrolment", filters={"course_offering": ann.course_offering, "status": "Enrolled"}, pluck="student"
+			"Course Enrolment",
+			filters={"course_offering": ann.course_offering, "status": "Enrolled"},
+			pluck="student",
 		)
 		if students:
 			rows += frappe.get_all("Student", filters={"name": ["in", students]}, fields=fields)
@@ -277,7 +338,9 @@ def announcement_recipients(ann) -> list[dict]:
 	if aud == "Sponsors":
 		rows += [
 			{"user": s.user, "email": s.email, "phone": s.phone, "full_name": s.sponsor_name}
-			for s in frappe.get_all("Sponsor", filters={"status": "Active"}, fields=["user", "email", "phone", "sponsor_name"])
+			for s in frappe.get_all(
+				"Sponsor", filters={"status": "Active"}, fields=["user", "email", "phone", "sponsor_name"]
+			)
 		]
 	if aud == "Alumni":
 		rows += frappe.get_all("Student", filters={"status": "Alumni"}, fields=fields)
@@ -286,7 +349,14 @@ def announcement_recipients(ann) -> list[dict]:
 		key = r.get("user") or r.get("email") or r.get("phone")
 		if key and key not in seen:
 			seen.add(key)
-			out.append({"user": r.get("user"), "email": r.get("email"), "phone": r.get("phone"), "name": r.get("full_name")})
+			out.append(
+				{
+					"user": r.get("user"),
+					"email": r.get("email"),
+					"phone": r.get("phone"),
+					"name": r.get("full_name"),
+				}
+			)
 	return out
 
 

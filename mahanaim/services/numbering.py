@@ -51,7 +51,9 @@ def next_student_number(programme: str, campus: str | None = None, date=None) ->
 	return number
 
 
-def new_verification_code(length: int = 10, doctype: str | None = None, field: str = "verification_code") -> str:
+def new_verification_code(
+	length: int = 10, doctype: str | None = None, field: str = "verification_code"
+) -> str:
 	"""Random, unambiguous, URL-safe code; unique within `doctype.field` when given."""
 	for _attempt in range(20):
 		code = "".join(secrets.choice(_CODE_ALPHABET) for _ in range(length))

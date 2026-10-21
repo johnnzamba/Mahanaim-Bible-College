@@ -47,7 +47,10 @@ def session_info():
 		return {"user": "Guest", "roles": [], "portals": [], "home": "signin", "settings": settings}
 
 	roles = user_roles(user)
-	u = frappe.db.get_value("User", user, ["full_name", "user_image", "email", "mobile_no"], as_dict=True) or {}
+	u = (
+		frappe.db.get_value("User", user, ["full_name", "user_image", "email", "mobile_no"], as_dict=True)
+		or {}
+	)
 	portals = []
 	if is_staff(user):
 		portals.append("admin")
@@ -56,13 +59,25 @@ def session_info():
 	student = frappe.db.get_value(
 		"Student",
 		{"user": user},
-		["name", "student_number", "full_name", "programme", "programme_name", "campus", "status", "photo",
-		 "year_of_study", "current_term"],
+		[
+			"name",
+			"student_number",
+			"full_name",
+			"programme",
+			"programme_name",
+			"campus",
+			"status",
+			"photo",
+			"year_of_study",
+			"current_term",
+		],
 		as_dict=True,
 	)
 	if student:
 		portals.append("student")
-	sponsor = frappe.db.get_value("Sponsor", {"user": user}, ["name", "sponsor_name", "sponsor_type"], as_dict=True)
+	sponsor = frappe.db.get_value(
+		"Sponsor", {"user": user}, ["name", "sponsor_name", "sponsor_type"], as_dict=True
+	)
 	if sponsor:
 		portals.append("sponsor")
 	if ROLE_APPLICANT in roles or frappe.db.exists("Programme Application", {"user": user}):

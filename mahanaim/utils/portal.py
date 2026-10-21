@@ -35,4 +35,3 @@ def portal_for(user: str | None = None) -> str:
 
 def get_website_user_home_page(user):
 	return portal_for(user)
-
