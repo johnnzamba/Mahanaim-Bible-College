@@ -37,8 +37,8 @@ Roles are created by `mahanaim/install.py` and enforced in three places:
 | `/` dashboard | all staff roles |
 | `/admissions` | Admissions Officer, Registrar, Academic Dean |
 | `/students` | Registrar, Admissions Officer, Academic Dean, Finance Officer, Chaplain, Auditor |
-| `/academics`, `/exams`, `/credentials`, `/staff` | Registrar, Academic Dean |
-| `/results` | Registrar, Academic Dean, Auditor |
+| `/academics` (programmes, offerings, calendar, exams, mark sheets), `/credentials`, `/staff` | Registrar, Academic Dean |
+| `/academics/results` | Registrar, Academic Dean, Auditor (read-only) |
 | `/finance` | Finance Officer, Auditor |
 | `/church` | Finance Officer, Chaplain, Communications Officer |
 | `/communication` | Communications Officer, Registrar, Admissions Officer, Academic Dean |
@@ -55,6 +55,18 @@ admin, then lecturer, student, sponsor, applicant.
 
 ## Sign-in identifiers
 
-Users sign in at `/signin` with their email, **student number** or **staff number**
-(`mahanaim.api.auth.resolve_login` maps the number to the user's email). Applicants register with email and
-phone; both are verified by OTP before an application can be submitted.
+Users sign in at `/signin` with their email, **student number**, **staff number** or (students, applicants,
+sponsors) **phone number**. `mahanaim.api.auth.login` resolves the identifier server-side
+(`services.auth.resolve_login_user`), so the browser never learns which email an identifier belongs to. Every
+answer is generic, so a stranger can't probe which accounts exist. Users can also sign in with a one-time code
+(`request_otp` → `login_with_otp`) and reset a forgotten password with a code or an emailed link.
+
+Applicants register with email and phone; both are verified by OTP before an application can be submitted.
+
+## Staff two-step verification
+
+With **Mahanaim Settings → Admin MFA Required** (`admin_mfa_required`) on, a staff password sign-in returns
+`mfa_required` and the SPA asks for the emailed code (`verify_mfa`, `resend_mfa`). The `on_login` hook
+`services.auth.enforce_staff_mfa` refuses any staff session opened another way: Frappe's stock
+`/api/method/login`, desk `/login`, or the automatic sign-in after a key-based password reset (the new
+password is kept).

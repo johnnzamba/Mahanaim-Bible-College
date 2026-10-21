@@ -90,6 +90,18 @@ export default function StudentPortal() {
   `@/shared/pages/AccountSettings`); the user menu's "Account & security" links to `/<portal>/account`.
 - `serverSearch` (admin only) adds `mahanaim.api.dashboard.global_search` hits to the command palette.
 
+### Admin areas
+
+The admin portal is split into areas: `portals/admin/<area>/` holds `index.jsx` (default export rendering its
+own `<Routes>` relative to `/admin/<area>/`) and `nav.js` (default export `{ section, icon, items }` with
+absolute paths). `AdminPortal.jsx` lazy-mounts each area at `<area>/*` (the dashboard is the index route),
+merges nav sections that share a name and fixes the rail order. Areas never import each other's screens;
+cross-area links use absolute `/admin/...` URLs, and shared pieces belong in `@/shared`.
+
+Areas: dashboard, admissions, students, academics (programmes, offerings, calendar, exams, mark sheets,
+results, grading), credentials, alumni, staff, finance, church, communication, website, library, reports,
+settings, audit. `/admin/exams/*` and `/admin/results/*` redirect to `/admin/academics/...`.
+
 ## Data
 
 ```jsx
@@ -156,8 +168,10 @@ Notifications, search results and emails deep-link to these; keep them stable.
 /lecturer  /lecturer/courses/<offering>  /lecturer/gradebook/<offering>  /lecturer/attendance  /lecturer/exams
 /applicant  /applicant/application/<name>  /applicant/documents  /applicant/payments
 /sponsor  /sponsor/students/<student>  /sponsor/giving
-/admin  /admin/admissions/<name>  /admin/students/<name>  /admin/academics/courses/<code>
-/admin/finance/invoices/<name>  /admin/church/sponsors/<name>  /admin/staff/<name>  /admin/settings
+/admin  /admin/admissions/<name>  /admin/students/<name>  /admin/students/requests/<name>  /admin/staff/<name>
+/admin/academics/{courses/<code>,offerings/<name>,mark-sheets/<name>,exams/<name>,results}
+/admin/finance/{invoices/<name>,payments/<name>,mpesa}  /admin/church/sponsors/<name>
+/admin/website/enquiries/<name>  /admin/library/loans?loan=<name>  /admin/settings
 /apply  /verify/<code>  /give  /programmes/<slug>  /news/<slug>  /events/<slug>
 ```
 
