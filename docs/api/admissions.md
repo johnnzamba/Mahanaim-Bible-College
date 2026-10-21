@@ -13,7 +13,8 @@ Calls go to `/api/method/<dotted path>`; GET for reads, POST for writes.
 **Notifications.** Every status change is logged in `status_log` and notifies the applicant. The events are
 "Application Submitted", "Application Under Review", "Interview Scheduled", "Application Admitted",
 "Application Waitlisted", "Application Rejected", "Offer Accepted", "Application Fee Paid" and "Student Created".
-Applicant links point to `/applicant`; student links point to `/student`.
+A flagged document (see [`verify_application_document`](#verify_application_document)) sends
+"Application Document Flagged". Applicant links point to `/applicant`; student links point to `/student`.
 
 ## Status machine
 
@@ -83,7 +84,9 @@ Returned by most applicant endpoints, abbreviated here:
   "application_fee": 1000.0, "fee_status": "Unpaid", "submitted_on": "2026-03-02 10:11:12", "offer_expiry": null,
   "student": null, "student_number": null,
   "academic_records": [{"name": "r1", "institution": "Alliance High", "qualification": "KCSE", "year_completed": "2015", "grade": "B"}],
-  "documents": [{"name": "d1", "document_type": "National ID", "file": "/private/files/id.pdf", "verified": 0, "remarks": null}],
+  "documents": [{"name": "d1", "document_type": "National ID", "file": "/private/files/id.pdf", "verified": 0, "remarks": null,
+                 "needs_reupload": false}],
+  "documents_total": 3, "documents_verified": 1, "documents_flagged": 0,
   "status_log": [{"timestamp": "2026-03-02 10:11:12", "from_status": "Draft", "to_status": "Submitted"}],
   "awaiting_fee": true, "next_action": "pay_fee", "missing": [], "can_edit": false, "can_withdraw": true,
   "letter_available": false
@@ -92,8 +95,12 @@ Returned by most applicant endpoints, abbreviated here:
 
 Notes:
 - `missing` lists the human labels still required before a Draft can be submitted (fields and documents).
-- Staff views add `note`/`user` to `status_log`, plus `reviewer`, `review_notes`, `duplicates`, `programme_info`,
-  `fee_payment_info`, `reviewer_name` and `allowed_transitions`.
+- `needs_reupload` is true when staff flagged the document (`verified=0` with `remarks`); show the remark and a
+  re-upload button. `documents_flagged` counts those rows.
+- The applicant `status_log` lists status changes only. Same-status rows (staff notes such as document checks,
+  fee waivers and interview reschedules) are left out because their notes are internal.
+- Staff views add `note`/`user` to `status_log` (all rows), plus `reviewer`, `review_notes`, `duplicates`,
+  `programme_info`, `fee_payment_info`, `reviewer_name` and `allowed_transitions`.
 
 ---
 
@@ -127,7 +134,7 @@ All of these use the `require_applicant` guard.
 | `mahanaim.api.admissions.my_applications` | GET | none | `{data: [row], total}`. Each row has the list fields plus `awaiting_fee` and `next_action` |
 | `mahanaim.api.admissions.get_my_application` | GET | `name` | Application object |
 | `mahanaim.api.admissions.save_application` | POST | `data` (JSON), `name?` | Application object |
-| `mahanaim.api.admissions.upload_application_document` | POST | `name`, `document_type`, `file_url` | Application object |
+| `mahanaim.api.admissions.upload_application_document` | POST | `name`, `document_type`, `file_url`, `row?` | Application object |
 | `mahanaim.api.admissions.remove_application_document` | POST | `name`, `row` (child row name) | Application object |
 | `mahanaim.api.admissions.submit_application` | POST | `name`, `declaration_accepted=1` | Application object |
 | `mahanaim.api.admissions.pay_application_fee` | POST | `name`, `phone?` | See below |
@@ -164,6 +171,11 @@ All of these use the `require_applicant` guard.
 2. Pass the returned `file_url` here. The File must belong to you (see [file rules](#file-values)), and it is
    then attached to the application.
 - Single-instance types (for example National ID) replace the existing row unless it is verified.
+- Optional `row`: replace that document row instead (it must have the same `document_type` and must not be
+  verified). Use it to re-upload a flagged multi-instance document (Academic Certificate, Recommendation Letter,
+  Other); without `row` those types add a new row.
+- Replacing a row clears its `remarks`, so `needs_reupload` becomes false. After submission, staff also get a
+  "… re-uploaded by the applicant" note in `status_log`.
 - Allowed while the application is Draft, Submitted, Under Review or Interview.
 
 **`submit_application`** fails with a list of missing items if the draft is incomplete or the intake is closed.
@@ -207,12 +219,15 @@ Args:
 - `start`, `page_length` (default 20).
 - `order_by`: one of `creation desc|asc`, `submitted_on desc`, `full_name asc` or `modified desc`.
 
-The status counts ignore the `status` filter so you can build tabs from them.
+The status counts ignore the `status` filter so you can build tabs from them. Each row also carries
+`documents_total`, `documents_verified` and `documents_flagged` (one extra query per page). `my_applications`
+rows carry the same counts.
 
 ```json
 {"message": {"data": [{"name": "APP-2026-00012", "full_name": "Jane W Doe", "email": "jane@example.com", "programme": "DBS",
   "programme_name": "Diploma in Biblical Studies", "campus": "Main Campus", "intake": "September 2026", "status": "Submitted",
-  "fee_status": "Unpaid", "application_fee": 1000.0, "submitted_on": "2026-03-02 10:11:12", "awaiting_fee": true, "…": "…"}],
+  "fee_status": "Unpaid", "application_fee": 1000.0, "submitted_on": "2026-03-02 10:11:12", "awaiting_fee": true,
+  "documents_total": 3, "documents_verified": 2, "documents_flagged": 1, "…": "…"}],
   "total": 37, "counts_by_status": {"Draft": 9, "Submitted": 14, "Under Review": 6, "Admitted": 8}, "awaiting_fee_count": 5}}
 ```
 
@@ -269,7 +284,8 @@ Returns the staff Application object.
 - **Guard:** staff
 
 Args: `names` (JSON list, at most 200), `decision`, `notes?`, `rejection_reason?`. Each application is decided in
-its own savepoint, so one failure does not undo the others.
+its own savepoint, so one failure does not undo the others. `error` is plain text; when a failure carries several
+messages they are separated by `\n` (render with `white-space: pre-line`).
 
 ```json
 {"message": {"ok": false, "updated": ["APP-2026-00012"], "failed": [{"name": "APP-2026-00013", "error": "Application APP-2026-00013 is Draft and cannot be moved to Admitted."}]}}
@@ -281,6 +297,50 @@ its own savepoint, so one failure does not undo the others.
 - **Guard:** Admissions Officer, Registrar, Finance Officer
 
 Args: `name`, `reason` (required). Sets `fee_status=Waived` and records the reason in `status_log`.
+
+### `verify_application_document`
+- **Path:** `mahanaim.api.admissions.verify_application_document`
+- **Method:** POST
+- **Guard:** Admissions Officer, Registrar (plus System Manager / College Administrator); also needs write
+  permission on the application, so campus User Permissions apply.
+
+Args:
+- `name`: the application.
+- `row`: the document row `name` (from `documents[].name`).
+- `verified`: `1`/`0` (`true`/`false` also accepted).
+- `remarks?`: at most 140 characters.
+
+Effects:
+
+| `verified` | `remarks` | Meaning | Applicant notified |
+| --- | --- | --- | --- |
+| 1 | optional | Verified (the remark is an internal note, e.g. "certified copy") | no |
+| 0 | empty | Verification cleared (unverify) | no |
+| 0 | set | Flagged: needs re-upload (`needs_reupload: true`) | yes, "Application Document Flagged" |
+
+- Only allowed while the application is Submitted, Under Review or Interview; otherwise it fails with
+  "Documents can only be verified while the application is Submitted, Under Review or at Interview."
+- `verified=1` needs an uploaded file.
+- Each change adds a same-status `status_log` row with a note: "National ID verified", "Passport Photo needs
+  re-upload: Blurry scan" or "National ID verification cleared".
+- Repeating the same values is a no-op: no log row and no second notification.
+- The notification uses the Message Template for event **Application Document Flagged** when one is active.
+  Its context adds `document_type`, `remarks` and `application`. Otherwise it falls back to "Please re-upload your
+  {document_type}: {remarks}" (email + in-app, link `/applicant`).
+- Unknown `row`: `DoesNotExistError`. Other roles, including Academic Dean and Finance Officer: `PermissionError`.
+
+Returns the full staff Application object (the same shape as `get_application`), including the
+`documents_total`/`documents_verified`/`documents_flagged` counts.
+
+```json
+{"message": {"name": "APP-2026-00012", "status": "Under Review",
+  "documents": [{"name": "d1", "document_type": "National ID", "file": "/private/files/id.pdf", "verified": 1, "remarks": null, "needs_reupload": false},
+                {"name": "d2", "document_type": "Passport Photo", "file": "/private/files/p.jpg", "verified": 0, "remarks": "Blurry scan", "needs_reupload": true}],
+  "documents_total": 2, "documents_verified": 1, "documents_flagged": 1,
+  "status_log": [{"timestamp": "…", "from_status": "Under Review", "to_status": "Under Review",
+                  "note": "Passport Photo needs re-upload: Blurry scan", "user": "officer@example.com", "name": "…"}],
+  "duplicates": [], "allowed_transitions": ["Interview", "Admitted", "Waitlisted", "Rejected"], "…": "…"}}
+```
 
 ### `convert_to_student`
 - **Path:** `mahanaim.api.admissions.convert_to_student`

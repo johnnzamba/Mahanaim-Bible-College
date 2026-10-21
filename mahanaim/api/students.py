@@ -490,7 +490,7 @@ def _bulk(names, fn) -> dict:
 			updated.append(name)
 		except Exception as e:
 			frappe.db.rollback(save_point=savepoint)
-			failed.append({"name": name, "error": frappe.utils.strip_html(str(e)) or e.__class__.__name__})
+			failed.append({"name": name, "error": svc.error_text(e)})
 			frappe.clear_messages()
 	return {"ok": not failed, "updated": updated, "failed": failed}
 

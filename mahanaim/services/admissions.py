@@ -390,6 +390,35 @@ def after_status_change(app, old_status: str | None):
 			frappe.clear_messages()
 
 
+# ---------------------------------------------------------------------------------- documents
+DOCUMENT_FLAGGED_EVENT = "Application Document Flagged"
+
+
+def notify_document_flagged(app, document_type: str, remarks: str):
+	"""Ask the applicant to re-upload a document staff flagged. Template context: document_type, remarks,
+	application (plus the usual doc/college/site_url); the literal fallback is used until a template exists."""
+	from mahanaim.services.communication import notify, recipient_for_application
+
+	label = _(document_type)
+	message = _("Please re-upload your {0}: {1}").format(label, remarks)
+	esc = frappe.utils.escape_html
+	notify(
+		DOCUMENT_FLAGGED_EVENT,
+		doc=app,
+		recipients=[recipient_for_application(app)],
+		context={"document_type": label, "remarks": remarks, "application": app.name},
+		link="/applicant",
+		category="Admissions",
+		fallback={
+			"subject": _("Please re-upload your {0}").format(label),
+			"message": f"<p>{_('Dear {0},').format(esc(app.first_name or app.full_name or ''))}</p>"
+			f"<p>{esc(message)}</p>"
+			f"<p>{esc(_('Sign in to the applicant portal to upload a new copy for application {0}.').format(app.name))}</p>",
+			"in_app": message,
+		},
+	)
+
+
 # ---------------------------------------------------------------------------------- contract
 def mark_application_fee_paid(application: str, payment: str | None = None):
 	"""CONTRACT (B3 -> B1): the application fee for `application` has been received (idempotent)."""

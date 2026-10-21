@@ -328,6 +328,18 @@ MESSAGE_TEMPLATES = [
 		"",
 	),
 	(
+		"Application Document Flagged",
+		"Application Document Flagged",
+		1,
+		0,
+		"Please re-upload your {{ document_type|e }} — {{ doc.name }}",
+		"<p>Dear {{ doc.first_name|e }},</p><p>We reviewed the documents on application <b>{{ doc.name }}</b>. "
+		"Please upload a new copy of your <b>{{ document_type|e }}</b>:</p>"
+		"<blockquote>{{ remarks|e }}</blockquote>"
+		"<p><a href='{{ site_url }}/applicant'>Open the applicant portal</a> to upload it.</p>" + _SIGN,
+		"",
+	),
+	(
 		"Interview Scheduled",
 		"Interview Scheduled",
 		1,

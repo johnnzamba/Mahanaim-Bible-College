@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import frappe
 from frappe import _
-from frappe.utils import add_days, cint, flt, get_datetime, getdate, now_datetime, today
+from frappe.utils import add_days, cint, cstr, flt, get_datetime, getdate, now_datetime, today
 
 from mahanaim.api.utils import (
 	clean_payload,
@@ -20,7 +20,7 @@ from mahanaim.api.utils import (
 	search_filters,
 )
 from mahanaim.services import admissions as svc
-from mahanaim.services.students import local_file_url
+from mahanaim.services.students import error_text, local_file_url
 from mahanaim.utils import (
 	ROLE_ADMISSIONS,
 	ROLE_DEAN,
@@ -34,6 +34,9 @@ from mahanaim.utils import (
 STAFF = (ROLE_ADMISSIONS, ROLE_REGISTRAR, ROLE_DEAN)
 DOCTYPE = "Programme Application"
 EDITABLE_DOC_STATUSES = ("Draft", "Submitted", "Under Review", "Interview")
+VERIFY_DOC_STATUSES = ("Submitted", "Under Review", "Interview")
+REMARKS_MAX_LENGTH = 140  # Application Document.remarks is a Data field
+MULTI_DOC_TYPES = ("Other", "Recommendation Letter", "Academic Certificate")
 LIST_FIELDS = [
 	"name",
 	"full_name",
@@ -70,13 +73,21 @@ def _as_dict(doc, staff: bool = False) -> dict:
 	data["academic_records"] = child(
 		doc.academic_records, ("institution", "qualification", "year_completed", "grade")
 	)
-	data["documents"] = child(doc.documents, ("document_type", "file", "verified", "remarks"))
+	data["documents"] = [
+		{**d, "needs_reupload": _needs_reupload(d)}
+		for d in child(doc.documents, ("document_type", "file", "verified", "remarks"))
+	]
+	data.update(_document_counts(doc.documents))
 	if staff:
 		data["status_log"] = child(doc.status_log, ("timestamp", "from_status", "to_status", "note", "user"))
 	else:
 		for key in INTERNAL_FIELDS:
 			data.pop(key, None)
-		data["status_log"] = child(doc.status_log, ("timestamp", "from_status", "to_status"))
+		# same-status rows are staff notes (document checks, fee waivers, reschedules) whose text is internal
+		data["status_log"] = child(
+			[r for r in doc.status_log or [] if r.from_status != r.to_status],
+			("timestamp", "from_status", "to_status"),
+		)
 	data["awaiting_fee"] = svc.awaiting_fee(doc)
 	data["next_action"] = svc.next_action(doc)
 	data["missing"] = svc.missing_for_submission(doc) if doc.status == "Draft" else []
@@ -91,13 +102,42 @@ def _as_dict(doc, staff: bool = False) -> dict:
 	return data
 
 
-def _row_dict(row) -> dict:
+def _row_dict(row, counts: dict | None = None) -> dict:
 	row = dict(row)
 	row["awaiting_fee"] = svc.awaiting_fee(row)
+	if counts is not None:
+		row.update(counts)
 	for key in ("submitted_on", "decision_date", "offer_expiry", "creation", "modified"):
 		if row.get(key):
 			row[key] = str(row[key])
 	return row
+
+
+def _needs_reupload(row) -> bool:
+	"""Staff flagged the document: not verified and carrying a remark."""
+	return not cint(row.get("verified")) and bool(cstr(row.get("remarks")).strip())
+
+
+def _document_counts(rows) -> dict:
+	rows = list(rows or ())
+	return {
+		"documents_total": len(rows),
+		"documents_verified": sum(1 for r in rows if cint(r.get("verified"))),
+		"documents_flagged": sum(1 for r in rows if _needs_reupload(r)),
+	}
+
+
+def _document_counts_for(names: list[str]) -> dict[str, dict]:
+	"""Document counts for a page of applications in one query."""
+	grouped: dict[str, list] = {}
+	if names:
+		for r in frappe.get_all(
+			"Application Document",
+			filters={"parenttype": DOCTYPE, "parentfield": "documents", "parent": ["in", names]},
+			fields=["parent", "verified", "remarks"],
+		):
+			grouped.setdefault(r.parent, []).append(r)
+	return {name: _document_counts(grouped.get(name)) for name in names}
 
 
 # ---------------------------------------------------------------------------------- ownership
@@ -281,9 +321,10 @@ def application_options():
 def my_applications():
 	user = require_applicant()
 	rows = frappe.get_all(DOCTYPE, filters={"user": user}, fields=LIST_FIELDS, order_by="creation desc")
+	doc_counts = _document_counts_for([r.name for r in rows])
 	data = []
 	for r in rows:
-		d = _row_dict(r)
+		d = _row_dict(r, doc_counts[r.name])
 		d["next_action"] = svc.next_action(r)
 		data.append(d)
 	return {"data": data, "total": len(data)}
@@ -349,8 +390,11 @@ def save_application(data, name: str | None = None):
 
 
 @frappe.whitelist(methods=["POST"])
-def upload_application_document(name: str, document_type: str, file_url: str):
-	"""Attach a file uploaded via /api/method/upload_file (is_private=1) to the application."""
+def upload_application_document(name: str, document_type: str, file_url: str, row: str | None = None):
+	"""Attach a file uploaded via /api/method/upload_file (is_private=1) to the application.
+
+	`row` replaces that document row (e.g. one staff flagged for re-upload); otherwise single-instance types
+	replace their existing row and multi-instance types add a new one."""
 	user = require_applicant()
 	doc = _my_application(name, for_update=True)
 	if doc.status not in EDITABLE_DOC_STATUSES:
@@ -360,13 +404,21 @@ def upload_application_document(name: str, document_type: str, file_url: str):
 	label = _("The {0} document").format(_(document_type))
 	file_url = local_file_url(file_url, label)
 	_validate_file(file_url, user, doc.name, label)
-	row = None
-	if document_type not in ("Other", "Recommendation Letter", "Academic Certificate"):
-		row = next((r for r in doc.documents if r.document_type == document_type), None)
-	if row and cint(row.verified):
-		frappe.throw(_("This document has already been verified and cannot be replaced."))
+	target = None
 	if row:
-		row.file, row.remarks = file_url, None
+		target = next((r for r in doc.documents if r.name == row), None)
+		if not target or target.document_type != document_type:
+			frappe.throw(_("Document not found."))
+	elif document_type not in MULTI_DOC_TYPES:
+		target = next((r for r in doc.documents if r.document_type == document_type), None)
+	if target and cint(target.verified):
+		frappe.throw(_("This document has already been verified and cannot be replaced."))
+	if target:
+		if _needs_reupload(target) and doc.status != "Draft":
+			log_status(
+				doc, doc.status, _("{0} re-uploaded by the applicant").format(_(document_type)), doc.status
+			)
+		target.file, target.remarks = file_url, None
 	else:
 		doc.append("documents", {"document_type": document_type, "file": file_url})
 	doc.save()
@@ -560,8 +612,9 @@ def list_applications(
 		or_filters=or_filters,
 		fields=[{"COUNT": "*", "as": "total"}],
 	)
+	doc_counts = _document_counts_for([r.name for r in rows])
 	return {
-		"data": [_row_dict(r) for r in rows],
+		"data": [_row_dict(r, doc_counts[r.name]) for r in rows],
 		"total": cint(total[0].total) if total else 0,
 		"counts_by_status": {c.status: cint(c.count) for c in counts},
 		"awaiting_fee_count": cint(awaiting[0].total) if awaiting else 0,
@@ -570,7 +623,10 @@ def list_applications(
 
 @frappe.whitelist()
 def get_application(name: str):
-	doc = _staff_application(name, roles=(*STAFF, ROLE_FINANCE))
+	return _staff_detail(_staff_application(name, roles=(*STAFF, ROLE_FINANCE)))
+
+
+def _staff_detail(doc) -> dict:
 	data = _as_dict(doc, staff=True)
 	data["duplicates"] = svc.duplicate_hints(doc)
 	data["programme_info"] = frappe.db.get_value(
@@ -589,6 +645,55 @@ def get_application(name: str):
 	data["reviewer_name"] = frappe.db.get_value("User", doc.reviewer, "full_name") if doc.reviewer else None
 	data["allowed_transitions"] = list(svc.APPLICATION_TRANSITIONS.get(doc.status, ()))
 	return data
+
+
+def _check_flag(value) -> int:
+	text = cstr(value).strip().lower()
+	if text in ("1", "true", "yes"):
+		return 1
+	if text in ("0", "false", "no"):
+		return 0
+	frappe.throw(_("verified must be 0 or 1."))
+
+
+@frappe.whitelist(methods=["POST"])
+def verify_application_document(name: str, row: str, verified, remarks: str | None = None):
+	"""Staff: verify a document (verified=1), clear verification (verified=0) or flag it for re-upload
+	(verified=0 with remarks; the applicant is notified). Returns the staff application dict."""
+	doc = _staff_application(name, roles=(ROLE_ADMISSIONS, ROLE_REGISTRAR))
+	frappe.has_permission(DOCTYPE, "write", doc, throw=True)
+	if doc.status not in VERIFY_DOC_STATUSES:
+		frappe.throw(
+			_(
+				"Documents can only be verified while the application is Submitted, Under Review or at Interview."
+			)
+		)
+	target = next((r for r in doc.documents if r.name == row), None)
+	if not target:
+		frappe.throw(_("Document not found on application {0}.").format(doc.name), frappe.DoesNotExistError)
+	verified = _check_flag(verified)
+	remarks = cstr(remarks).strip() or None
+	if remarks and len(remarks) > REMARKS_MAX_LENGTH:
+		frappe.throw(_("Keep the remarks to {0} characters or fewer.").format(REMARKS_MAX_LENGTH))
+	if verified and not target.file:
+		frappe.throw(_("No file has been uploaded for this document yet."))
+	if (cint(target.verified), target.remarks or None) == (verified, remarks):
+		return _staff_detail(doc)
+
+	label = _(target.document_type)
+	flagged = not verified and bool(remarks)
+	if verified:
+		note = _("{0} verified").format(label) + (f": {remarks}" if remarks else "")
+	elif flagged:
+		note = _("{0} needs re-upload: {1}").format(label, remarks)
+	else:
+		note = _("{0} verification cleared").format(label)
+	target.verified, target.remarks = verified, remarks
+	log_status(doc, doc.status, note, doc.status)
+	doc.save()
+	if flagged:
+		svc.notify_document_flagged(doc, target.document_type, remarks)
+	return _staff_detail(doc)
 
 
 def _staff_transition(doc, status: str, note: str | None = None, **flags):
@@ -686,7 +791,7 @@ def bulk_decide(names, decision: str, notes: str | None = None, rejection_reason
 			updated.append(name)
 		except Exception as e:
 			frappe.db.rollback(save_point=savepoint)
-			failed.append({"name": name, "error": frappe.utils.strip_html(str(e)) or e.__class__.__name__})
+			failed.append({"name": name, "error": error_text(e)})
 			frappe.clear_messages()
 	return {"ok": not failed, "updated": updated, "failed": failed}
 

@@ -471,7 +471,8 @@ may submit again.
 - **Method:** POST
 - **Guard:** `STAFF_WRITE`
 
-Args: `names` (JSON list, at most 200). Each registration is approved in its own savepoint.
+Args: `names` (JSON list, at most 200). Each registration is approved in its own savepoint. `failed[].error` is
+plain text; when a failure carries several messages they are separated by `\n` (render with `white-space: pre-line`).
 
 ```json
 {"message": {"ok": false, "updated": ["SREG-0004"], "failed": [{"name": "SREG-0005", "error": "Registration SREG-0005 is Draft; only submitted registrations can be approved."}]}}

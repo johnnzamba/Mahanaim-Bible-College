@@ -39,7 +39,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Event",
-   "options": "Account Created\nOTP Code\nApplication Submitted\nApplication Fee Paid\nApplication Under Review\nInterview Scheduled\nApplication Approved\nApplication Rejected\nOffer Accepted\nStudent Created\nRegistration Approved\nInvoice Issued\nPayment Received\nFee Reminder\nAssignment Published\nAssignment Due Reminder\nAssignment Graded\nExam Scheduled\nExam Reminder\nResults Published\nTranscript Ready\nCertificate Ready\nStudent Request Update\nAnnouncement\nEvent Registration\nSponsor Report\nContact Enquiry\nEnquiry Response\nLibrary Loan Overdue\nGiving Receipt\nDirect Message\nEvent Waitlist\nEvent Cancelled\nPassword Reset Link\nRegistration Rejected\nExam Results Released\nApplication Waitlisted\nOffer Declined\nApplication Withdrawn\nCustom",
+   "options": "Account Created\nOTP Code\nApplication Submitted\nApplication Fee Paid\nApplication Under Review\nApplication Document Flagged\nInterview Scheduled\nApplication Approved\nApplication Rejected\nOffer Accepted\nStudent Created\nRegistration Approved\nInvoice Issued\nPayment Received\nFee Reminder\nAssignment Published\nAssignment Due Reminder\nAssignment Graded\nExam Scheduled\nExam Reminder\nResults Published\nTranscript Ready\nCertificate Ready\nStudent Request Update\nAnnouncement\nEvent Registration\nSponsor Report\nContact Enquiry\nEnquiry Response\nLibrary Loan Overdue\nGiving Receipt\nDirect Message\nEvent Waitlist\nEvent Cancelled\nPassword Reset Link\nRegistration Rejected\nExam Results Released\nApplication Waitlisted\nOffer Declined\nApplication Withdrawn\nCustom",
    "reqd": 1
   },
   {

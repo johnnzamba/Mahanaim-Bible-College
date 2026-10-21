@@ -4,11 +4,13 @@
 import frappe
 from frappe import _
 from frappe.model.document import Document
+from frappe.permissions import AUTOMATIC_ROLES
 from frappe.utils import cint
 
 from mahanaim.utils import ROLE_ADMIN, ROLE_LECTURER, normalize_phone, setting
 
 UNSCOPED_ROLES = {"System Manager", ROLE_ADMIN}
+STANDARD_USERS = ("Administrator", "Guest")
 
 
 class StaffMember(Document):
@@ -30,6 +32,7 @@ class StaffMember(Document):
 		if clash:
 			frappe.throw(_("Another staff profile ({0}) already uses {1}.").format(clash, self.email))
 		self.validate_campuses()
+		self.sync_user_email()
 		self.ensure_user()
 
 	def validate_campuses(self):
@@ -38,6 +41,53 @@ class StaffMember(Document):
 			if row.campus == self.campus or row.campus in seen:
 				self.remove(row)
 			seen.add(row.campus)
+
+	def sync_user_email(self):
+		"""Carry an email change over to the linked login. Frappe user ids are the email address, so the User
+		is renamed (links, owners and sessions follow; the person signs in again with the new address)."""
+		if self.is_new() or not self.user or self.flags.sync_user_email is False:
+			return
+		before = self.get_doc_before_save()
+		if before is None or (before.email or "").strip().lower() == self.email:
+			return
+		if (frappe.db.get_value("User", self.user, "email") or "").lower() == self.email:
+			return
+		self.check_can_change_login_email()
+		if self.user in STANDARD_USERS:
+			frappe.db.set_value("User", self.user, "email", self.email)
+			return
+		if frappe.db.exists("User", self.email):
+			frappe.throw(
+				_("Another user account already uses {0}. Choose a different email address.").format(
+					self.email
+				)
+			)
+		from frappe.model.rename_doc import rename_doc
+
+		old = self.user
+		opts = {"ignore_permissions": True, "show_alert": False, "rebuild_search": False}
+		# User.after_rename renames this one without ignore_permissions (fails for non-admin editors), so do it first
+		if frappe.db.exists("Notification Settings", old):
+			rename_doc(doctype="Notification Settings", old=old, new=self.email, force=True, **opts)
+		self.user = rename_doc(doctype="User", old=old, new=self.email, **opts)
+
+	def check_can_change_login_email(self):
+		"""Changing a login email hands the account to whoever owns the new address, so only administrators may
+		do it for accounts holding roles the editor lacks (Lecturer excepted: staff editors grant it anyway)."""
+		editor = frappe.session.user
+		if editor == "Administrator":
+			return
+		editor_roles = set(frappe.get_roles(editor))
+		if editor_roles & UNSCOPED_ROLES:
+			return
+		extra = set(frappe.get_roles(self.user)) - editor_roles - set(AUTOMATIC_ROLES) - {ROLE_LECTURER}
+		if extra:
+			frappe.throw(
+				_(
+					"Only a College Administrator can change the sign-in email of an account with the {0} role(s)."
+				).format(", ".join(sorted(extra))),
+				frappe.PermissionError,
+			)
 
 	def ensure_user(self):
 		if self.user or self.flags.create_user is False or not self.email:

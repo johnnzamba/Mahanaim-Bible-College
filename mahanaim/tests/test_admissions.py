@@ -287,6 +287,84 @@ class TestAdmissions(IntegrationTestCase):
 			adm.get_my_application(app.name)
 
 	# ------------------------------------------------------------------ staff API
+	def test_document_verification(self):
+		user = fb.make_applicant().name
+		app = fb.make_application(user, status="Submitted")
+		national_id, photo = (r.name for r in app.documents[:2])
+		officer = self.officer()
+		fb.as_user(self, officer)
+
+		data = adm.verify_application_document(app.name, national_id, 1)
+		row = next(d for d in data["documents"] if d["name"] == national_id)
+		self.assertEqual((row["verified"], row["needs_reupload"]), (1, False))
+		self.assertEqual((data["documents_total"], data["documents_verified"]), (3, 1))
+		self.assertIn("duplicates", data)  # full staff dict
+		self.assertIn("National ID verified", data["status_log"][-1]["note"])
+		logged = len(data["status_log"])
+		self.assertEqual(
+			len(adm.verify_application_document(app.name, national_id, "true")["status_log"]), logged
+		)
+
+		data = adm.verify_application_document(app.name, photo, 0, remarks=" Blurry scan ")
+		self.assertEqual(data["documents_flagged"], 1)
+		self.assertTrue(next(d for d in data["documents"] if d["name"] == photo)["needs_reupload"])
+		flagged = [c for c in self.notify.call_args_list if c.args[0] == "Application Document Flagged"]
+		self.assertEqual(len(flagged), 1)
+		self.assertEqual(flagged[0].kwargs["context"]["remarks"], "Blurry scan")
+		self.assertIn(
+			"Please re-upload your Passport Photo: Blurry scan", flagged[0].kwargs["fallback"]["in_app"]
+		)
+		self.assertEqual(flagged[0].kwargs["recipients"][0]["user"], user)
+
+		data = adm.verify_application_document(app.name, national_id, "0")
+		self.assertEqual((data["documents_verified"], data["documents_flagged"]), (0, 1))
+		self.assertEqual(self.events().count("Application Document Flagged"), 1)
+		listed = next(r for r in adm.list_applications(search=app.name)["data"] if r["name"] == app.name)
+		self.assertEqual(
+			(listed["documents_total"], listed["documents_verified"], listed["documents_flagged"]), (3, 0, 1)
+		)
+		for bad in (
+			lambda: adm.verify_application_document(app.name, photo, "maybe"),
+			lambda: adm.verify_application_document(app.name, photo, 0, "x" * 141),
+		):
+			with self.assertRaises(frappe.ValidationError):
+				bad()
+		with self.assertRaises(frappe.DoesNotExistError):
+			adm.verify_application_document(app.name, "no-such-row", 1)
+
+		# the applicant re-uploads the flagged document: remark cleared, staff see a note, the applicant does not
+		fb.as_user(self, user)
+		with self.assertRaises(frappe.PermissionError):
+			adm.verify_application_document(app.name, photo, 1)
+		mine = adm.upload_application_document(
+			app.name, "Passport Photo", _upload(user, "again.png").file_url
+		)
+		self.assertEqual(mine["documents_flagged"], 0)
+		self.assertIsNone(next(d for d in mine["documents"] if d["name"] == photo)["remarks"])
+		self.assertTrue(all(r["from_status"] != r["to_status"] for r in mine["status_log"]))
+		cert = adm.upload_application_document(
+			app.name, "Academic Certificate", _upload(user, "c.png").file_url
+		)
+		cert_row = next(d["name"] for d in cert["documents"] if d["document_type"] == "Academic Certificate")
+
+		fb.as_user(self, officer)
+		self.assertIn("re-uploaded", adm.get_application(app.name)["status_log"][-1]["note"])
+		adm.verify_application_document(app.name, cert_row, 0, "Wrong certificate")
+		fb.as_user(self, user)
+		mine = adm.upload_application_document(
+			app.name, "Academic Certificate", _upload(user, "c2.png").file_url, row=cert_row
+		)
+		self.assertEqual((mine["documents_total"], mine["documents_flagged"]), (4, 0))
+
+		for role in ("Academic Dean", "Finance Officer"):
+			fb.as_user(self, f.make_user(f"{random_string(8).lower()}@example.com", roles=(role,)).name)
+			with self.assertRaises(frappe.PermissionError):
+				adm.verify_application_document(app.name, photo, 1)
+		frappe.set_user("Administrator")
+		fb.advance(app.reload(), "Admitted")
+		with self.assertRaisesRegex(frappe.ValidationError, "only be verified"):
+			adm.verify_application_document(app.name, photo, 1)
+
 	def test_staff_review_and_bulk_decisions(self):
 		intake = fb.make_intake().name
 		a1 = fb.make_application(intake=intake, status="Submitted")

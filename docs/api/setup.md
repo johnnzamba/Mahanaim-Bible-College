@@ -172,6 +172,17 @@ Args: `name`.
 
 Returns the `get_staff` shape. Roles other than Lecturer are assigned in desk.
 
+**Changing `email` on a staff member with a login** also changes the login. Frappe user ids are the email address,
+so the linked User is renamed to the new address: links, owners and the user's email follow, and the person's
+sessions end, so they sign in again with the new address. The rule is enforced in the Staff Member controller,
+so desk edits behave the same.
+- The new address must not belong to another user: "Another user account already uses {email}. Choose a different
+  email address."
+- A Registrar may only do this for accounts whose roles they hold themselves (Lecturer excepted). Changing the
+  email of, say, a Finance Officer or System Manager account needs a College Administrator or System Manager.
+  Otherwise the call fails with `PermissionError`: "Only a College Administrator can change the sign-in email of an
+  account with the {roles} role(s)."
+
 ## `set_staff_status`
 - **Path:** `mahanaim.api.setup.set_staff_status`
 - **Method:** POST

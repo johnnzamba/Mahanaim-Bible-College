@@ -254,6 +254,47 @@ class TestStudents(IntegrationTestCase):
 		f.make_user(email)
 		self.assertEqual(frappe.db.get_value("Student", student.name, "user"), email)
 
+	def test_staff_email_change_renames_login(self):
+		from mahanaim.api import setup as setup_api
+
+		addr = lambda p: f"{p}.{random_string(6).lower()}@example.com"  # noqa: E731
+		old = addr("tutor")
+		staff = setup_api.save_staff(
+			{
+				"first_name": "Grace",
+				"last_name": "Tutor _T",
+				"email": old,
+				"campus": f.make_campus().name,
+				"is_lecturer": 1,
+			}
+		)
+		self.assertEqual(staff["user"], old)
+		registrar = self.user_with("Registrar")
+		fb.as_user(self, registrar)
+		new = addr("grace")
+		data = setup_api.save_staff({"email": f" {new.upper()} "}, name=staff["name"])
+		self.assertEqual((data["email"], data["user"]), (new, new))
+		self.assertFalse(frappe.db.exists("User", old))
+		self.assertEqual(frappe.db.get_value("User", new, "email"), new)
+		self.assertIn("Lecturer", frappe.get_roles(new))
+
+		taken = f.make_user(addr("taken")).name
+		with self.assertRaisesRegex(frappe.ValidationError, "user account already uses"):
+			setup_api.save_staff({"email": taken}, name=staff["name"])
+		frappe.set_user("Administrator")
+		frappe.get_doc("User", new).add_roles("Finance Officer")
+		fb.as_user(self, registrar)
+		with self.assertRaises(frappe.PermissionError):
+			setup_api.save_staff({"email": addr("takeover")}, name=staff["name"])
+		self.assertEqual(frappe.db.get_value("Staff Member", staff["name"], "email"), new)
+
+	def test_bulk_errors_keep_line_breaks(self):
+		def fail(name):
+			frappe.throw(f"{name}: first problem<br>Second &amp; last<br/>")
+
+		out = st._bulk(["REG-1"], fail)
+		self.assertEqual(out["failed"], [{"name": "REG-1", "error": "REG-1: first problem\nSecond & last"}])
+
 	# ------------------------------------------------------------------ requests
 	def test_request_effects(self):
 		w = self.world()

@@ -11,9 +11,12 @@ effects and `safe_call` (wraps other domains' contracts so a stub or failure nev
 
 from __future__ import annotations
 
+import re
+from html import unescape
+
 import frappe
 from frappe import _
-from frappe.utils import add_months, cint, cstr, flt, getdate, now_datetime, nowdate
+from frappe.utils import add_months, cint, cstr, flt, getdate, now_datetime, nowdate, strip_html
 
 from mahanaim.utils import (
 	ROLE_ADMIN,
@@ -118,6 +121,14 @@ def local_file_url(value, label: str | None = None) -> str | None:
 			title=_("Invalid file"),
 		)
 	return value
+
+
+def error_text(exc: BaseException) -> str:
+	"""Plain-text message of an exception for bulk-result rows. Frappe joins several messages with `<br>`, so
+	line-break tags become newlines before the HTML is stripped (otherwise the messages run together)."""
+	text = re.sub(r"(?i)<br\s*/?>|</(p|div|li|tr|h[1-6])>", "\n", cstr(exc))
+	lines = (line.strip() for line in unescape(strip_html(text)).splitlines())
+	return "\n".join(line for line in lines if line) or exc.__class__.__name__
 
 
 # ---------------------------------------------------------------------------------- users
