@@ -42,6 +42,34 @@ export const CAN = {
 	review: [ROLES.ADMISSIONS, ROLES.REGISTRAR, ROLES.DEAN],
 	waive: [ROLES.ADMISSIONS, ROLES.REGISTRAR, ROLES.FINANCE],
 	convert: [ROLES.ADMISSIONS, ROLES.REGISTRAR],
+	verify: [ROLES.ADMISSIONS, ROLES.REGISTRAR],
+}
+
+/** "3/5 verified" plus a flagged count, from documents_total / _verified / _flagged on application dicts and list rows. */
+export function DocsChip({ row, size = "xs", onClick }) {
+	const total = Number(row?.documents_total || 0)
+	if (!total) return null
+	const done = Number(row.documents_verified || 0)
+	const flagged = Number(row.documents_flagged || 0)
+	const body = (
+		<>
+			<Badge tone={done >= total ? "green" : "gray"} size={size}>
+				{done}/{total} verified
+			</Badge>
+			{flagged ? (
+				<Badge tone="orange" size={size}>
+					{flagged} flagged
+				</Badge>
+			) : null}
+		</>
+	)
+	return onClick ? (
+		<button type="button" onClick={onClick} title="Open the documents" className="inline-flex items-center gap-1.5 rounded-full">
+			{body}
+		</button>
+	) : (
+		<span className="inline-flex flex-wrap items-center gap-1">{body}</span>
+	)
 }
 
 /** Groups of documents of which at least one must be uploaded (services/admissions.py REQUIRED_DOCUMENTS). */

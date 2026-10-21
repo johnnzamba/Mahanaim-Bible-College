@@ -108,7 +108,7 @@ export default function DecisionModal({ open, onClose, names = [], label, allowe
 						{failed.map((f) => (
 							<li key={f.name} className="px-3 py-2">
 								<div className="font-semibold text-ink">{f.name}</div>
-								<div className="text-xs text-ink-muted">{f.error}</div>
+								<div className="whitespace-pre-line text-xs text-ink-muted">{f.error}</div>
 							</li>
 						))}
 					</ul>

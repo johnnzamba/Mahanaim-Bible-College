@@ -35,14 +35,6 @@ function defaultTerm(L) {
 
 /** /admin/students/registrations, the semester registration approval queue. */
 /** The bulk API strips the <br> between validation lines; split them again on the course titles. */
-function splitError(error, reg) {
-	let text = String(error || "")
-	for (const c of reg?.courses || []) {
-		if (c.course_title) text = text.split(`${c.course_title} requires`).join(`\n${c.course_title} requires`)
-	}
-	return text.split("\n").map((l) => l.trim()).filter(Boolean)
-}
-
 export default function Registrations() {
 	const { hasRole } = useSession()
 	const canApprove = hasRole(...CAN.write)
@@ -190,13 +182,7 @@ export default function Registrations() {
 						{failures.map((f) => (
 							<li key={f.name}>
 								<b>{byName[f.name]?.student_name || f.name}</b>
-								{splitError(f.error, byName[f.name]).length > 1 ? (
-									<ul className="list-[circle] pl-4">
-										{splitError(f.error, byName[f.name]).map((line, i) => <li key={i}>{line}</li>)}
-									</ul>
-								) : (
-									<>: {f.error}</>
-								)}
+								<div className="whitespace-pre-line">{f.error}</div>
 								<div className="text-xs">
 									<Link to={`/admin/students/registrations/${encodeURIComponent(f.name)}`} className="font-semibold underline">Open the registration</Link> to approve it with an override.
 								</div>

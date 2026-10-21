@@ -76,7 +76,7 @@ export function IssueTranscriptDialog({ open, onClose, transcript, onDone }) {
 	const issue = useAction(`${API}issue_transcript`, {
 		invalidate: INVALIDATE,
 		error: false,
-		success: (r) => `Transcript ${r.name} issued`,
+		success: (r) => (r.request ? `Transcript ${r.name} issued and request ${r.request} completed` : `Transcript ${r.name} issued`),
 		onSuccess: (r) => {
 			onClose()
 			onDone?.(r)
@@ -104,7 +104,10 @@ export function IssueTranscriptDialog({ open, onClose, transcript, onDone }) {
 			}
 		>
 			<div className="space-y-3 text-sm text-ink-muted">
-				<p>Issuing takes a final snapshot of published results, gives the transcript a verification code and notifies the student. It cannot be edited afterwards; it can only be revoked.</p>
+				<p>
+					Issuing takes a final snapshot of published results, gives the transcript a verification code and notifies the student
+					{t.request ? `, and completes request ${t.request}` : ""}. It cannot be edited afterwards; it can only be revoked.
+				</p>
 				{feeError ? (
 					<Alert tone="error" title={feeBlocked ? "Fee clearance required" : "Could not issue"}>
 						{feeError}

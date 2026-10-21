@@ -277,7 +277,7 @@ function AlumniStats({ stats, L, onProgramme, onCampus, onYear }) {
 				<Panel title="Graduates by year" subtitle={S?.by_year?.length ? `${num(S.by_year.length)} classes since ${S.by_year[0].year}. Click a year to filter` : "Click a year to filter"} bodyClass="p-5">
 					{byYear.length ? (
 						<>
-							<BarsChart data={byYear} series={[{ key: "value", label: "Graduates" }]} height={170} />
+							<BarsChart data={byYear} series={[{ key: "value", label: "Graduates" }]} height={170} integer />
 							<div className="mt-2 flex flex-wrap gap-1.5">
 								{byYear.map((y) => (
 									<button key={y.label} type="button" className="chip" onClick={() => onYear(y.label)}>

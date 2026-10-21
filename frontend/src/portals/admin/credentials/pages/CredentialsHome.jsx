@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react"
 import { Link } from "react-router-dom"
 import { keepPreviousData } from "@tanstack/react-query"
-import { Award, Ban, BadgeCheck, FileClock, FileText, RefreshCw, ScrollText, ShieldCheck } from "lucide-react"
+import { Award, Ban, BadgeCheck, FileClock, FileText, RefreshCw, ScrollText, Search, ShieldCheck } from "lucide-react"
 import { useApi, useInvalidate } from "@/shared/api/hooks"
 import { useSession } from "@/shared/session"
 import { AvatarCell, Button, PageHeader, Pagination, Select, StatCard, Tabs } from "@/shared/components/ui"
@@ -33,15 +33,13 @@ export default function CredentialsHome() {
 	const invalidate = useInvalidate()
 	const [genOpen, setGenOpen] = useState(false)
 
-	const drafts = useApi(`${API}list_transcripts`, { status: "Draft", page_length: 1 }, { enabled: allowed })
-	const issuedT = useApi(`${API}list_transcripts`, { status: "Issued", page_length: 1 }, { enabled: allowed })
-	const issuedC = useApi(`${API}list_certificates`, { status: "Issued", page_length: 1 }, { enabled: allowed })
+	// page_length 1: only counts_by_status is needed for the KPIs
+	const tAll = useApi(`${API}list_transcripts`, { page_length: 1 }, { enabled: allowed })
+	const cAll = useApi(`${API}list_certificates`, { page_length: 1 }, { enabled: allowed })
 	const logs = useApi(`${API}verification_logs`, { page_length: 1 }, { enabled: allowed })
 	const reqs = useApi(`${STU}list_requests`, { request_type: "Transcript Request", status: ["Pending", "Under Review"], page_length: 1 }, { enabled: allowed && canRequests })
-	const revokedT = useApi(`${API}list_transcripts`, { status: "Revoked", page_length: 1 }, { enabled: allowed && !canRequests })
-	const revokedC = useApi(`${API}list_certificates`, { status: "Revoked", page_length: 1 }, { enabled: allowed && !canRequests })
 
-	if (!allowed || isPermissionError(drafts.error)) {
+	if (!allowed || isPermissionError(tAll.error)) {
 		return (
 			<>
 				<PageHeader eyebrow="Credentials" title="Transcripts & certificates" />
@@ -55,6 +53,9 @@ export default function CredentialsHome() {
 		invalidate(`${STU}list_requests`)
 	}
 	const lastLog = logs.data?.data?.[0]
+	const tc = tAll.data?.counts_by_status || {}
+	const cc = cAll.data?.counts_by_status || {}
+	const plural = (n, word) => `${num(n)} ${word}${n === 1 ? "" : "s"}`
 
 	return (
 		<>
@@ -87,21 +88,21 @@ export default function CredentialsHome() {
 				) : (
 					<StatCard
 						label="Revoked"
-						value={num((revokedT.data?.total || 0) + (revokedC.data?.total || 0))}
-						loading={revokedT.isLoading || revokedC.isLoading}
+						value={num((tc.Revoked || 0) + (cc.Revoked || 0))}
+						loading={tAll.isLoading || cAll.isLoading}
 						icon={Ban}
 						tone="red"
-						hint={`incl. ${num(revokedC.data?.total || 0)} certificate${revokedC.data?.total === 1 ? "" : "s"}`}
+						hint={`incl. ${plural(cc.Revoked || 0, "certificate")}`}
 					/>
 				)}
-				<StatCard label="Draft transcripts" value={num(drafts.data?.total || 0)} loading={drafts.isLoading} icon={ScrollText} tone="gold" hint="Waiting to be issued" />
+				<StatCard label="Draft transcripts" value={num(tc.Draft || 0)} loading={tAll.isLoading} icon={ScrollText} tone="gold" hint="Waiting to be issued" />
 				<StatCard
 					label="Issued"
-					value={num((issuedT.data?.total || 0) + (issuedC.data?.total || 0))}
-					loading={issuedT.isLoading || issuedC.isLoading}
+					value={num((tc.Issued || 0) + (cc.Issued || 0))}
+					loading={tAll.isLoading || cAll.isLoading}
 					icon={BadgeCheck}
 					tone="green"
-					hint={`incl. ${num(issuedC.data?.total || 0)} certificate${issuedC.data?.total === 1 ? "" : "s"}`}
+					hint={`incl. ${plural(cc.Issued || 0, "certificate")}`}
 				/>
 				<StatCard label="Verifications" value={num(logs.data?.total || 0)} loading={logs.isLoading} icon={ShieldCheck} tone="blue" hint={lastLog ? `Last ${ago(lastLog.verified_on)}` : "No checks yet"} />
 			</div>
@@ -134,8 +135,10 @@ function useSearch(get, set) {
 	return [search, setSearch, q]
 }
 
+/** counts_by_status ignores the status filter, so the chips keep their numbers while one is selected. */
 function statusChips(counts) {
-	return [{ id: "", label: "All" }, ...DOC_STATUSES.map((s) => ({ id: s, label: s, count: counts?.[s] }))]
+	const all = counts ? DOC_STATUSES.reduce((n, s) => n + (counts[s] || 0), 0) : undefined
+	return [{ id: "", label: "All", count: all }, ...DOC_STATUSES.map((s) => ({ id: s, label: s, count: counts?.[s] }))]
 }
 
 function TranscriptsTab({ get, set }) {
@@ -225,7 +228,7 @@ function TranscriptsTab({ get, set }) {
 		<div className="space-y-5">
 			{canRequests ? <RequestQueue /> : null}
 			<div>
-				<Toolbar search={search} onSearch={setSearch} placeholder="Search name, number or transcript…" chips={statusChips()} active={get("status")} onChip={(id) => set({ status: id })} />
+				<Toolbar search={search} onSearch={setSearch} placeholder="Search name, number or transcript…" chips={statusChips(list.data?.counts_by_status)} active={get("status")} onChip={(id) => set({ status: id })} />
 				<div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
 					<Select aria-label="Transcript type" value={get("type")} onChange={(e) => set({ type: e.target.value })} placeholder="All types" options={TRANSCRIPT_TYPES} />
 					<div className="flex items-center justify-end gap-3 text-xs text-ink-soft sm:col-span-3">
@@ -307,7 +310,7 @@ function CertificatesTab({ get, set }) {
 
 	return (
 		<div>
-			<Toolbar search={search} onSearch={setSearch} placeholder="Search name, number or serial…" chips={statusChips()} active={get("status")} onChip={(id) => set({ status: id })} />
+			<Toolbar search={search} onSearch={setSearch} placeholder="Search name, number or serial…" chips={statusChips(list.data?.counts_by_status)} active={get("status")} onChip={(id) => set({ status: id })} />
 			<div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
 				<Select
 					aria-label="Programme"
@@ -337,7 +340,7 @@ const DOC_ROUTE = { Transcript: "transcripts", Certificate: "certificates" }
 
 function VerificationsTab({ get, set }) {
 	const page = Number(get("page") || 1)
-	const [code, setCode] = useState(get("q"))
+	const [code, setCode] = useSearch(get, set)
 	const filters = compact({ code: get("q"), document_type: get("doctype"), result: get("result") })
 	const list = useApi(`${API}verification_logs`, { ...filters, start: (page - 1) * LOG_PAGE, page_length: LOG_PAGE }, { placeholderData: keepPreviousData })
 	const data = list.data || {}
@@ -385,23 +388,16 @@ function VerificationsTab({ get, set }) {
 		{ key: "ip_address", label: "IP", hideOnMobile: true, render: (r) => <span className="font-mono text-xs text-ink-soft">{r.ip_address || "—"}</span> },
 	]
 
-	const submit = (e) => {
-		e.preventDefault()
-		set({ q: code.trim().toUpperCase() })
-	}
-
 	return (
 		<div>
-			<form onSubmit={submit} className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-				<div className="col-span-2 flex gap-2">
-					<input className="input font-mono" aria-label="Verification code" placeholder="Exact verification code" value={code} onChange={(e) => setCode(e.target.value)} />
-					<Button type="submit" variant="secondary">
-						Find
-					</Button>
+			<div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+				<div className="relative col-span-2">
+					<Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-ink-soft" />
+					<input className="input pl-9 font-mono" aria-label="Verification code" placeholder="Verification code or part of it" value={code} onChange={(e) => setCode(e.target.value)} />
 				</div>
 				<Select aria-label="Document type" value={get("doctype")} onChange={(e) => set({ doctype: e.target.value })} placeholder="All documents" options={VERIFY_DOCTYPES} />
 				<Select aria-label="Result" value={get("result")} onChange={(e) => set({ result: e.target.value })} placeholder="All results" options={VERIFY_RESULTS} />
-			</form>
+			</div>
 			<div className="mb-2 flex items-center justify-end gap-3 text-xs text-ink-soft">
 				<span>{list.isFetching ? "Loading…" : `${num(data.total || 0)} check${data.total === 1 ? "" : "s"}`}</span>
 				{get("q") || get("doctype") || get("result") ? (

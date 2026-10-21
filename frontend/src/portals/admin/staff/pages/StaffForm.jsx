@@ -107,7 +107,12 @@ function Form({ staff }) {
 
 	const save = useAction(`${API}save_staff`, {
 		invalidate: [`${API}list_staff`, `${API}get_staff`, `${API}lookups`],
-		success: (r) => (editing ? "Staff profile updated" : `${r.full_name} added${r.user && createUser ? ". A sign-in account was created." : ""}`),
+		success: (r, vars) =>
+			editing
+				? vars.data?.email && staff.user
+					? `Staff profile updated. ${r.full_name} now signs in as ${r.user || vars.data.email}.`
+					: "Staff profile updated"
+				: `${r.full_name} added${r.user && createUser ? ". A sign-in account was created." : ""}`,
 		onSuccess: (r) => navigate(`/admin/staff/${encodeURIComponent(r.name)}`, { replace: !editing }),
 	})
 
@@ -203,7 +208,7 @@ function Form({ staff }) {
 							<Select label="Title" placeholder="—" options={SALUTATIONS} className="sm:col-span-2" {...field("salutation")} />
 							<Input label="First name" required className="sm:col-span-2" {...field("first_name")} />
 							<Input label="Last name" required className="sm:col-span-2" {...field("last_name")} />
-							<Input label="Email" type="email" required className="sm:col-span-3" hint={editing && staff.user ? `Signs in as ${staff.user}. Changing the email here does not change the login.` : "Work email, also used to sign in"} {...field("email")} />
+							<Input label="Email" type="email" required className="sm:col-span-3" hint={editing && staff.user ? "Changing the email changes their sign-in address and signs them out." : "Work email, also used to sign in"} {...field("email")} />
 							<Input label="Phone" type="tel" placeholder="07XX XXX XXX" className="sm:col-span-3" {...field("phone")} />
 						</div>
 					</Panel>

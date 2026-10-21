@@ -300,7 +300,7 @@ function LinkedRequest({ transcript: t }) {
 							) : null}
 						</div>
 					) : null}
-					{req.status === "Approved" && t.status === "Draft" ? <p className="text-xs text-ink-soft">Issue the transcript, then mark the request completed so the student knows it is ready.</p> : null}
+					{req.status === "Approved" && t.status === "Draft" ? <p className="text-xs text-ink-soft">Issuing the transcript completes this request and tells the student it is ready.</p> : null}
 				</div>
 			)}
 			<ConfirmDialog

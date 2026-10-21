@@ -1,12 +1,15 @@
 import { useMemo, useState } from "react"
 import { Link, useParams } from "react-router-dom"
+import { useQueryClient } from "@tanstack/react-query"
 import {
 	AlertTriangle,
 	BadgeCheck,
 	CalendarClock,
 	CheckCircle2,
 	Eye,
+	FileCheck2,
 	FileText,
+	FileWarning,
 	Gavel,
 	GraduationCap,
 	HandCoins,
@@ -15,6 +18,7 @@ import {
 	Phone,
 	PlayCircle,
 	ExternalLink,
+	Undo2,
 	UserPlus,
 	Users,
 } from "lucide-react"
@@ -43,10 +47,12 @@ import {
 import { DataTable, DownloadLink, Timeline } from "@/shared/components/kit"
 import { date, dateTime, money } from "@/shared/utils/format"
 import { safeUrl } from "@/shared/utils/sanitize"
-import { API, CAN, FeeBadge, kv, NoAccess, REQUIRED_DOCUMENTS, StatusBadge, fileName, isImage, isPdf, isPermissionError } from "../lib"
+import { API, CAN, DocsChip, FeeBadge, kv, NoAccess, REQUIRED_DOCUMENTS, StatusBadge, fileName, isImage, isPdf, isPermissionError } from "../lib"
 import DecisionModal from "../components/DecisionModal"
 
 const DECISIONS = ["Admitted", "Waitlisted", "Rejected"]
+const VERIFY_STATUSES = ["Submitted", "Under Review", "Interview"]
+const REMARKS_MAX = 140
 const MATCH_LABEL = { email: "email", national_id: "ID number", phone: "phone" }
 
 const NEXT_STEP = {
@@ -100,6 +106,7 @@ function Application({ app }) {
 	const canReview = hasRole(...CAN.review)
 	const canWaive = hasRole(...CAN.waive)
 	const canConvert = hasRole(...CAN.convert)
+	const canVerify = hasRole(...CAN.verify)
 	const canOpenStudent = hasRole(ROLES.REGISTRAR, ROLES.DEAN, ROLES.FINANCE)
 	const [tab, setTab] = useState("personal")
 	const [dialog, setDialog] = useState(null)
@@ -118,7 +125,11 @@ function Application({ app }) {
 	const tabs = [
 		{ id: "personal", label: "Personal" },
 		{ id: "academic", label: "Academic" },
-		{ id: "documents", label: missingDocs.length ? `Documents · ${missingDocs.length} missing` : "Documents", count: (app.documents || []).length },
+		{
+			id: "documents",
+			label: missingDocs.length ? `Documents · ${missingDocs.length} missing` : app.documents_flagged ? `Documents · ${app.documents_flagged} flagged` : "Documents",
+			count: (app.documents || []).length,
+		},
 		{ id: "payments", label: "Payments" },
 		{ id: "review", label: "Review" },
 		{ id: "history", label: "History", count: (app.status_log || []).length },
@@ -173,6 +184,7 @@ function Application({ app }) {
 				<div className="mt-2 flex flex-wrap items-center gap-2 text-sm text-ink-muted">
 					<StatusBadge status={app.status} />
 					<FeeBadge status={app.fee_status} awaiting={app.awaiting_fee} size="sm" />
+					<DocsChip row={app} size="sm" onClick={() => setTab("documents")} />
 					<span className="inline-flex items-center gap-1">
 						<GraduationCap size={14} /> {app.programme_info?.programme_name || app.programme_name || app.programme}
 					</span>
@@ -217,7 +229,7 @@ function Application({ app }) {
 					<Tabs tabs={tabs} active={tab} onChange={setTab} />
 					{tab === "personal" ? <Personal app={app} /> : null}
 					{tab === "academic" ? <Academic app={app} /> : null}
-					{tab === "documents" ? <Documents app={app} missing={missingDocs} /> : null}
+					{tab === "documents" ? <Documents app={app} missing={missingDocs} canVerify={canVerify} /> : null}
 					{tab === "payments" ? <Payments app={app} canWaive={canWaive && feeOpen} onWaive={() => setDialog("waive")} /> : null}
 					{tab === "review" ? <Review app={app} /> : null}
 					{tab === "history" ? <History app={app} /> : null}
@@ -378,10 +390,49 @@ function Academic({ app }) {
 	)
 }
 
-function Documents({ app, missing }) {
+function DocState({ d }) {
+	if (d.verified)
+		return (
+			<Badge tone="green" size="xs">
+				Verified
+			</Badge>
+		)
+	if (d.needs_reupload)
+		return (
+			<Badge tone="orange" size="xs">
+				Needs re-upload
+			</Badge>
+		)
+	return (
+		<Badge tone="gray" size="xs">
+			Unchecked
+		</Badge>
+	)
+}
+
+function Documents({ app, missing, canVerify }) {
+	const qc = useQueryClient()
 	const [preview, setPreview] = useState(null)
+	const [flagging, setFlagging] = useState(null)
+	const [busy, setBusy] = useState(null)
+	const editable = canVerify && VERIFY_STATUSES.includes(app.status)
+	const act = useAction(`${API}verify_application_document`, {
+		invalidate: [`${API}list_applications`],
+		success: (_, v) => (v.verified ? "Document verified" : v.remarks ? "Re-upload requested. The applicant has been notified." : "Verification cleared"),
+		onSuccess: (data) => {
+			qc.setQueryData([`${API}get_application`, { name: app.name }], data)
+			setBusy(null)
+			setFlagging(null)
+		},
+		onError: () => setBusy(null),
+	})
+	const run = (d, verified, remarks, kind) => {
+		setBusy(`${d.name}:${kind}`)
+		act.mutate({ name: app.name, row: d.name, verified: verified ? 1 : 0, remarks: remarks || undefined })
+	}
 	const docs = [...(app.documents || [])]
-	if (app.photo && !docs.some((d) => d.document_type === "Passport Photo")) docs.unshift({ name: "photo", document_type: "Passport Photo", file: app.photo, verified: 0 })
+	// The passport photo lives on the application itself, so it has no row to verify.
+	if (app.photo && !docs.some((d) => d.document_type === "Passport Photo")) docs.unshift({ name: "photo", synthetic: true, document_type: "Passport Photo", file: app.photo })
 	return (
 		<div className="space-y-4">
 			{missing.length ? (
@@ -391,39 +442,75 @@ function Documents({ app, missing }) {
 			) : (
 				<Alert tone="success" title="All required documents are present" />
 			)}
-			<Panel title="Uploaded documents" bodyClass="divide-y divide-line">
+			{canVerify && !editable && app.status !== "Draft" ? (
+				<Alert tone="info" title="Document checks are closed">
+					Documents can be verified or sent back only while the application is Submitted, Under Review or at Interview.
+				</Alert>
+			) : null}
+			<Panel
+				title="Uploaded documents"
+				subtitle={app.documents_total ? `${app.documents_verified || 0} of ${app.documents_total} verified${app.documents_flagged ? ` · ${app.documents_flagged} sent back for re-upload` : ""}` : undefined}
+				bodyClass="divide-y divide-line"
+			>
 				{docs.length ? (
-					docs.map((d) => (
-						<div key={d.name} className="flex flex-wrap items-center gap-3 px-5 py-3">
-							<span className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-cream text-gold-700">
-								<FileText size={18} />
-							</span>
-							<div className="min-w-0 flex-1">
-								<div className="flex flex-wrap items-center gap-2">
-									<span className="font-semibold text-ink">{d.document_type}</span>
-									{d.verified ? (
-										<Badge tone="green" size="xs">
-											Verified
-										</Badge>
+					docs.map((d) => {
+						const href = safeUrl(d.file)
+						const pending = (kind) => act.isPending && busy === `${d.name}:${kind}`
+						return (
+							<div key={d.name} className="flex flex-wrap items-start gap-3 px-5 py-3">
+								<span
+									className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl ${d.verified ? "bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300" : d.needs_reupload ? "bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300" : "bg-cream text-gold-700"}`}
+								>
+									{d.verified ? <FileCheck2 size={18} /> : d.needs_reupload ? <FileWarning size={18} /> : <FileText size={18} />}
+								</span>
+								<div className="min-w-0 flex-1 basis-48">
+									<div className="flex flex-wrap items-center gap-2">
+										<span className="font-semibold text-ink">{d.document_type}</span>
+										{d.synthetic ? null : <DocState d={d} />}
+									</div>
+									<div className="truncate text-xs text-ink-soft">{d.synthetic ? "Profile photo on the application" : d.file ? fileName(d.file) : "No file attached"}</div>
+									{d.needs_reupload ? (
+										<div className="mt-1.5 rounded-lg bg-amber-50 px-2.5 py-1.5 text-xs text-amber-800 dark:bg-amber-950 dark:text-amber-200">
+											<span className="font-semibold">Re-upload requested:</span> {d.remarks}
+										</div>
+									) : d.remarks ? (
+										<div className="mt-0.5 text-xs text-ink-muted">{d.remarks}</div>
 									) : null}
 								</div>
-								<div className="truncate text-xs text-ink-soft">{d.file ? fileName(d.file) : "No file attached"}</div>
-								{d.remarks ? <div className="mt-0.5 text-xs text-ink-muted">{d.remarks}</div> : null}
-							</div>
-							{safeUrl(d.file) ? (
-								<div className="flex gap-2">
-									{isImage(d.file) || isPdf(d.file) ? (
+								<div className="flex flex-wrap items-center gap-1.5">
+									{href && (isImage(d.file) || isPdf(d.file)) ? (
 										<Button size="sm" variant="secondary" icon={Eye} onClick={() => setPreview(d)}>
 											Preview
 										</Button>
 									) : null}
-									<a href={safeUrl(d.file)} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm">
-										<ExternalLink size={14} /> Open
-									</a>
+									{href ? (
+										<a href={href} target="_blank" rel="noreferrer" className="btn btn-ghost btn-sm">
+											<ExternalLink size={14} /> Open
+										</a>
+									) : null}
+									{editable && !d.synthetic ? (
+										<>
+											{!d.verified && d.file ? (
+												<Button size="sm" icon={CheckCircle2} loading={pending("verify")} disabled={act.isPending} onClick={() => run(d, true, null, "verify")}>
+													Verify
+												</Button>
+											) : null}
+											{!d.needs_reupload ? (
+												<Button size="sm" variant="ghost" icon={FileWarning} disabled={act.isPending} onClick={() => setFlagging(d)}>
+													Request re-upload…
+												</Button>
+											) : null}
+											{d.verified || d.needs_reupload ? (
+												<Button size="sm" variant="ghost" icon={Undo2} loading={pending("clear")} disabled={act.isPending} onClick={() => run(d, false, null, "clear")}>
+													Clear
+												</Button>
+											) : null}
+										</>
+									) : null}
 								</div>
-							) : null}
-						</div>
-					))
+							</div>
+						)
+					})
 				) : (
 					<Empty compact icon={FileText} title="No documents uploaded" />
 				)}
@@ -457,7 +544,52 @@ function Documents({ app, missing }) {
 					<iframe src={safeUrl(preview.file)} title={preview.document_type} className="h-[70vh] w-full rounded-xl border border-line bg-white" />
 				) : null}
 			</Modal>
+			<FlagDocument key={flagging?.name || "none"} doc={flagging} applicant={app.full_name} loading={act.isPending} onClose={() => setFlagging(null)} onSubmit={(remarks) => run(flagging, false, remarks, "flag")} />
 		</div>
+	)
+}
+
+function FlagDocument({ doc, applicant, loading, onClose, onSubmit }) {
+	const [remarks, setRemarks] = useState("")
+	const [err, setErr] = useState("")
+	const submit = () => {
+		const text = remarks.trim()
+		if (!text) return setErr("Tell the applicant what is wrong with the document.")
+		if (text.length > REMARKS_MAX) return setErr(`Keep it to ${REMARKS_MAX} characters or fewer.`)
+		setErr("")
+		onSubmit(text)
+	}
+	return (
+		<Modal
+			open={Boolean(doc)}
+			onClose={onClose}
+			size="sm"
+			title="Request re-upload"
+			subtitle={doc ? `${doc.document_type} · ${applicant}` : ""}
+			footer={
+				<>
+					<Button variant="secondary" onClick={onClose} disabled={loading}>
+						Cancel
+					</Button>
+					<Button icon={FileWarning} loading={loading} onClick={submit}>
+						Send to applicant
+					</Button>
+				</>
+			}
+		>
+			<p className="mb-3 text-sm text-ink-muted">The applicant is notified and can upload a replacement from their portal.</p>
+			<Textarea
+				label="What needs fixing"
+				required
+				rows={3}
+				maxLength={REMARKS_MAX}
+				value={remarks}
+				error={err || undefined}
+				hint={`${remarks.trim().length}/${REMARKS_MAX} characters`}
+				placeholder="e.g. The scan is blurred; please upload a clear copy of both sides."
+				onChange={(e) => setRemarks(e.target.value)}
+			/>
+		</Modal>
 	)
 }
 

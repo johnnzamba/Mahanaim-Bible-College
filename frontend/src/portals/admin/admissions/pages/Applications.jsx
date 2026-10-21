@@ -8,7 +8,7 @@ import { AvatarCell, Button, Input, PageHeader, Pagination, Panel, Select, StatC
 import { BarRow, Board, DataTable, ExportButton, SelectionBar, Toolbar, useDebounced } from "@/shared/components/kit"
 import { TrendChart } from "@/shared/components/Charts"
 import { date, num, pct } from "@/shared/utils/format"
-import { API, BOARD_COLUMNS, CAN, FeeBadge, NoAccess, STATUSES, StatusBadge, compact, isPermissionError, useLookups, useUrlFilters } from "../lib"
+import { API, BOARD_COLUMNS, CAN, DocsChip, FeeBadge, NoAccess, STATUSES, StatusBadge, compact, isPermissionError, useLookups, useUrlFilters } from "../lib"
 import DecisionModal from "../components/DecisionModal"
 
 const PAGE = 20
@@ -24,6 +24,9 @@ const EXPORT_COLS = [
 	{ key: "intake", label: "Intake" },
 	{ key: "submitted_on", label: "Submitted on" },
 	{ key: "fee_status", label: "Fee status" },
+	{ key: "documents_total", label: "Documents uploaded" },
+	{ key: "documents_verified", label: "Documents verified" },
+	{ key: "documents_flagged", label: "Documents flagged" },
 	{ key: "status", label: "Status" },
 ]
 const SORTS = [
@@ -108,6 +111,12 @@ export default function Applications() {
 		{ key: "intake", label: "Intake", hideOnMobile: true },
 		{ key: "submitted_on", label: "Submitted", render: (r) => (r.submitted_on ? date(r.submitted_on) : <span className="text-ink-soft">Not yet</span>), sortValue: (r) => r.submitted_on || "" },
 		{ key: "fee_status", label: "Fee", render: (r) => <FeeBadge status={r.fee_status} awaiting={r.awaiting_fee} />, hideOnMobile: true },
+		{
+			key: "documents_verified",
+			label: "Documents",
+			render: (r) => (r.documents_total ? <DocsChip row={r} /> : <span className="text-xs text-ink-soft">None</span>),
+			sortValue: (r) => (r.documents_total ? (r.documents_verified || 0) / r.documents_total - (r.documents_flagged ? 1 : 0) : -2),
+		},
 		{ key: "status", label: "Status", render: (r) => <StatusBadge status={r.status} />, sortValue: (r) => r.status },
 	]
 
@@ -164,7 +173,7 @@ export default function Applications() {
 
 			<div className="mb-5 grid gap-4 lg:grid-cols-3">
 				<Panel title="New applications" subtitle="Last 30 days" className="lg:col-span-2" bodyClass="px-2 pb-3 pt-4">
-					<TrendChart data={(s.by_day || []).map((d) => ({ label: date(d.date, { day: "numeric", month: "short" }), value: d.count }))} series={[{ key: "value", label: "Applications" }]} height={190} />
+					<TrendChart data={(s.by_day || []).map((d) => ({ label: date(d.date, { day: "numeric", month: "short" }), value: d.count }))} series={[{ key: "value", label: "Applications" }]} height={190} integer />
 				</Panel>
 				<Panel title="Funnel" subtitle={get("intake") ? get("intake") : "All intakes"}>
 					<div className="space-y-3">
@@ -262,6 +271,7 @@ export default function Applications() {
 									<FeeBadge status={r.fee_status} awaiting={r.awaiting_fee} />
 								</div>
 								<div className="truncate text-xs text-ink-muted">{r.programme_name}</div>
+								<DocsChip row={r} />
 								<div className="flex items-center justify-between text-[11px] text-ink-soft">
 									<span>{r.intake || r.campus}</span>
 									<span>{r.submitted_on ? date(r.submitted_on, { day: "numeric", month: "short" }) : "Draft"}</span>
