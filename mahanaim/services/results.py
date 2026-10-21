@@ -308,6 +308,7 @@ def refresh_entries(sheet, now=None):
 	sheet.entries.sort(key=lambda r: ((names.get(r.student) or "").casefold(), r.student))
 	for i, e in enumerate(sheet.entries, 1):
 		e.idx = i
+		e.student_name = names.get(e.student) or e.student_name
 	return sheet
 
 
@@ -333,6 +334,55 @@ def get_or_create_mark_sheet(offering: str, refresh: bool = True):
 	refresh_entries(sheet)
 	sheet.insert(ignore_permissions=True)
 	return sheet
+
+
+def sheet_signature(sheet) -> tuple:
+	"""Everything a recompute can change, to tell whether the stored sheet is behind live assessment data."""
+	return (
+		tuple(
+			sorted(
+				(
+					e.student,
+					*(round(flt(e.get(SCORE_FIELD[c])), 2) for c in COMPONENTS),
+					round(flt(e.total), 2),
+					e.grade or None,
+					round(flt(e.grade_points), 2),
+					e.result_status or None,
+					join_set(split_set(e.pending_components)),
+					cint(e.is_absent),
+				)
+				for e in sheet.entries
+			)
+		),
+		cint(sheet.student_count),
+		cint(sheet.pass_count),
+		round(flt(sheet.average_score), 2),
+		round(flt(sheet.highest_score), 2),
+	)
+
+
+def read_mark_sheet(offering: str) -> tuple:
+	"""(sheet, created, stale) for display without saving: an editable sheet is recomputed in memory only, so
+	concurrent reads never write (and never clash on `modified`). The sheet is persisted on creation and
+	through recompute/save/submit; `stale` says whether the stored copy differs from the fresh figures."""
+	name = frappe.db.get_value("Mark Sheet", {"course_offering": offering})
+	if not name:
+		frappe.db.savepoint("create_mark_sheet")
+		try:
+			return get_or_create_mark_sheet(offering), True, False
+		except (frappe.DuplicateEntryError, frappe.UniqueValidationError):
+			# another request created it first: read theirs
+			frappe.db.rollback(save_point="create_mark_sheet")
+			name = frappe.db.get_value("Mark Sheet", {"course_offering": offering}, for_update=True)
+			if not name:
+				raise
+	sheet = frappe.get_doc("Mark Sheet", name)
+	if sheet.status not in EDITABLE_STATUSES:
+		return sheet, False, False
+	stored = sheet_signature(sheet)
+	refresh_entries(sheet)
+	evaluate_sheet_entries(sheet)
+	return sheet, False, sheet_signature(sheet) != stored
 
 
 def apply_entry_overrides(sheet, rows: list[dict]):
@@ -499,13 +549,15 @@ def _refresh_enrolled_count(offering: str):
 		frappe.log_error(title=f"refresh_enrolled_count failed: {offering}")
 
 
-def bulk_publish(term: str) -> dict:
-	offerings = frappe.get_all("Course Offering", filters={"academic_term": term}, pluck="name")
-	sheets = frappe.get_all(
-		"Mark Sheet",
-		filters={"course_offering": ["in", offerings or [""]], "status": "Approved"},
-		pluck="name",
-	)
+def bulk_publish(term: str, sheets: list[str] | None = None) -> dict:
+	"""Publish the term's Approved sheets, or just `sheets` (already checked by the caller)."""
+	if sheets is None:
+		offerings = frappe.get_all("Course Offering", filters={"academic_term": term}, pluck="name")
+		sheets = frappe.get_all(
+			"Mark Sheet",
+			filters={"course_offering": ["in", offerings or [""]], "status": "Approved"},
+			pluck="name",
+		)
 	published, failed = [], []
 	for name in sheets:
 		try:

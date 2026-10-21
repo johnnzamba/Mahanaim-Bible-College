@@ -71,6 +71,7 @@ SUBMIT_GRACE_SECONDS = 30
 MAX_SHORT_ANSWER = 1000
 MAX_ESSAY_ANSWER = 60000
 MAX_EVENTS_PER_ATTEMPT = 1000
+MONITOR_EVENTS_PER_ATTEMPT = 20
 
 _rng = random.SystemRandom()
 
@@ -262,7 +263,11 @@ def fee_clearance_state(student: str, purpose: str = "exam") -> dict:
 
 
 def exam_requires_fee_clearance(exam) -> bool:
-	return bool(cint(exam.get("require_fee_clearance")) or flt(setting("exam_fee_clearance_percent", 0)) > 0)
+	"""The exam's own flag decides (lecturers may waive clearance); Mahanaim Settings
+	`exam_fee_clearance_percent` is only the threshold, and 0 switches the check off everywhere."""
+	if not cint(exam.get("require_fee_clearance")):
+		return False
+	return flt(setting("exam_fee_clearance_percent", 100)) > 0
 
 
 def fee_block_message(state: dict) -> str:
@@ -968,6 +973,7 @@ def my_exams(student: str) -> dict:
 			"pass_mark",
 			"require_fee_clearance",
 			"access_code",
+			"instructions",
 		],
 		order_by="start_datetime asc",
 	)
@@ -1010,6 +1016,7 @@ def my_exams(student: str) -> dict:
 			"duration_minutes": e.duration_minutes,
 			"total_marks": e.total_marks,
 			"max_attempts": e.max_attempts,
+			"instructions": e.instructions,
 			"attempts_used": used,
 			"requires_access_code": bool(e.access_code),
 			"in_progress_attempt": live.name if live else None,
@@ -1196,22 +1203,75 @@ def exam_monitor(exam_name: str) -> dict:
 			group_by="parent",
 		)
 	}
+	events = recent_events([a.name for a in attempts], MONITOR_EVENTS_PER_ATTEMPT)
 	rows = [
 		{
 			**a,
 			"answered": answered.get(a.name, 0),
 			"questions": totals.get(a.name, 0),
 			"time_left": time_remaining(a.deadline, now) if a.status == "In Progress" else 0,
+			"events": events.get(a.name, []),
 		}
 		for a in attempts
 	]
 	started = {a.student for a in attempts}
-	roster = enrolled_students(exam.course_offering, ENROLLED)
+	not_started = [s for s in enrolled_students(exam.course_offering, ENROLLED) if s not in started]
+	students = {
+		r.name: r
+		for r in frappe.get_all(
+			"Student",
+			filters={"name": ["in", not_started or [""]]},
+			fields=["name", "full_name", "student_number"],
+		)
+	}
 	return {
 		"exam": exam,
 		"server_time": now,
 		"attempts": rows,
 		"in_progress": len([a for a in attempts if a.status == "In Progress"]),
 		"submitted": len([a for a in attempts if a.status != "In Progress"]),
-		"not_started": [s for s in roster if s not in started],
+		"not_started": not_started,
+		"not_started_students": sorted(
+			(
+				{
+					"name": s,
+					"full_name": (students.get(s) or {}).get("full_name"),
+					"student_number": (students.get(s) or {}).get("student_number"),
+				}
+				for s in not_started
+			),
+			key=lambda r: ((r["full_name"] or "").casefold(), r["name"]),
+		),
 	}
+
+
+def recent_events(attempts, limit: int) -> dict[str, list[dict]]:
+	"""{attempt: [{type, event, timestamp, detail}, ...]}: the newest `limit` events per attempt, newest first."""
+	attempts = [a for a in attempts or [] if a]
+	if not attempts:
+		return {}
+	rows = frappe.db.sql(
+		"""
+		select parent, event, timestamp, detail from (
+			select parent, event, timestamp, detail, idx,
+				row_number() over (partition by parent order by timestamp desc, idx desc) as rn
+			from `tabExam Attempt Event`
+			where parenttype = 'Exam Attempt' and parent in %(attempts)s
+		) recent
+		where rn <= %(limit)s
+		order by parent, timestamp desc, idx desc
+		""",
+		{"attempts": attempts, "limit": cint(limit)},
+		as_dict=True,
+	)
+	out: dict[str, list[dict]] = {}
+	for r in rows:
+		out.setdefault(r.parent, []).append(
+			{
+				"type": (r.event or "").lower().replace(" ", "_"),
+				"event": r.event,
+				"timestamp": r.timestamp,
+				"detail": r.detail,
+			}
+		)
+	return out

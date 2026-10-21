@@ -100,6 +100,7 @@ class MarkSheet(Document):
 			if not (self.return_reason or "").strip():
 				frappe.throw(_("Give a reason when returning a mark sheet."))
 			self.approved_by = self.approved_on = None
+			self.returned_by, self.returned_on = user, now
 
 	def on_update(self):
 		frappe.db.set_value(

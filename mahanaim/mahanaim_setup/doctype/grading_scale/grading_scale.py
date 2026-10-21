@@ -9,6 +9,7 @@ from frappe.model.document import Document
 from frappe.utils import flt
 
 MAX_GAP = 1.0  # tolerate integer bands (0-39, 40-49) and .99 gaps (0-39.99, 40-49.99)
+MAX_GRADE_POINTS = 5.0  # 4.0 and 5.0 GPA systems
 _EPS = 1e-9
 
 
@@ -26,8 +27,11 @@ def band_errors(bands) -> list[str]:
 		lo, hi = flt(b.get("min_score")), flt(b.get("max_score"))
 		if lo < 0 or hi > 100 or lo > hi:
 			errors.append(_("Band {0}: scores must satisfy 0 ≤ min ≤ max ≤ 100.").format(label))
-		if flt(b.get("grade_points")) < 0:
-			errors.append(_("Band {0}: grade points cannot be negative.").format(label))
+		points = flt(b.get("grade_points"))
+		if points < 0 or points > MAX_GRADE_POINTS:
+			errors.append(
+				_("Band {0}: grade points must be between 0 and {1}.").format(label, MAX_GRADE_POINTS)
+			)
 	ordered = sorted(bands, key=lambda b: flt(b.get("min_score")))
 	if flt(ordered[0].get("min_score")) > _EPS:
 		errors.append(_("The lowest band must start at 0."))
@@ -64,6 +68,12 @@ def classification_errors(rows) -> list[str]:
 			errors.append(
 				_("Classification {0}: min CGPA must be between 0 and max CGPA.").format(
 					r.get("classification")
+				)
+			)
+		if flt(r.get("max_cgpa")) > MAX_GRADE_POINTS:
+			errors.append(
+				_("Classification {0}: max CGPA cannot exceed {1}.").format(
+					r.get("classification"), MAX_GRADE_POINTS
 				)
 			)
 	ordered = sorted(rows, key=lambda r: flt(r.get("min_cgpa")))

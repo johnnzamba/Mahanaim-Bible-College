@@ -6,6 +6,7 @@ from frappe.utils import add_to_date, get_datetime, now_datetime
 
 from mahanaim.api import exams as api
 from mahanaim.services import exams as svc
+from mahanaim.tests import factories as f
 from mahanaim.tests import factories_b2 as fb
 
 OBJECTIVE = {
@@ -159,8 +160,7 @@ class TestExams(IntegrationTestCase):
 		api.save_answer(attempt, mcq.name, option_ids(mcq.name, correct=True)[0])
 		api.save_answer(attempt, essay.name, "<p>The covenant with Abraham...</p>")
 		self.assertEqual(api.submit_attempt(attempt)["status"], "Marking")
-		with self.assertRaises(frappe.ValidationError):
-			api.my_exam_result(attempt)
+		self.assertFalse(api.my_exam_result(attempt)["released"])
 
 		fb.as_user(self, self.w.lecturer.user)
 		queue = api.marking_queue(exam.name)
@@ -203,7 +203,17 @@ class TestExams(IntegrationTestCase):
 		summary = api.submit_attempt(attempt)
 		self.assertNotIn("items", summary)
 		self.assertNotIn("is_correct", json.dumps(api.get_attempt(attempt), default=str))
-		with self.assertRaises(frappe.ValidationError):
+		pending = api.my_exam_result(attempt)
+		self.assertEqual(
+			set(pending), {"released", "attempt", "exam", "exam_title", "status", "submitted_on", "message"}
+		)
+		self.assertEqual(
+			(pending["released"], pending["attempt"], pending["exam"]), (False, attempt, exam.name)
+		)
+		self.assertEqual(pending["exam_title"], exam.title)
+		self.assertTrue(pending["submitted_on"])
+		self.as_student(self.w.students[1])
+		with self.assertRaises(frappe.PermissionError):
 			api.my_exam_result(attempt)
 
 		# released without show_answers_after_release: scores but no correct answers
@@ -212,6 +222,7 @@ class TestExams(IntegrationTestCase):
 		svc.release_results(exam.name)
 		self.as_student()
 		result = api.my_exam_result(attempt)
+		self.assertTrue(result["released"])
 		self.assertFalse(result["show_answers"])
 		self.assertTrue(all("correct_answer" not in i for i in result["items"]))
 
@@ -267,6 +278,7 @@ class TestExams(IntegrationTestCase):
 		self.assertFalse(mine["can_start"])
 
 	def test_fee_clearance_blocks_start(self):
+		fb.use_single(self, "Mahanaim Settings", exam_fee_clearance_percent=100)
 		exam, _qs = self.objective_exam()
 		self.mocks.fee.return_value = {
 			"cleared": False,
@@ -284,6 +296,22 @@ class TestExams(IntegrationTestCase):
 		self.assertIn("Clear KES 5,000 to sit exams.", mine["reasons"])
 		self.mocks.fee.return_value = dict(fb.CLEARED)
 		self.assertEqual(api.start_exam(exam.name)["status"], "In Progress")
+
+	def test_exam_flag_waives_fee_clearance(self):
+		fb.use_single(self, "Mahanaim Settings", exam_fee_clearance_percent=100)
+		self.mocks.fee.return_value = {**fb.CLEARED, "cleared": False, "message": "Pay up."}
+		waived, _qs = self.objective_exam(require_fee_clearance=0)
+		self.as_student()
+		self.assertEqual(api.start_exam(waived.name)["status"], "In Progress")
+		self.mocks.fee.assert_not_called()
+		frappe.set_user("Administrator")
+		required, _qs = self.objective_exam(require_fee_clearance=1)
+		self.assertTrue(svc.exam_requires_fee_clearance(required))
+		fb.use_single(self, "Mahanaim Settings", exam_fee_clearance_percent=0)
+		self.assertFalse(svc.exam_requires_fee_clearance(required))
+		self.as_student(self.w.students[1])
+		self.assertEqual(api.start_exam(required.name)["status"], "In Progress")
+		self.mocks.fee.assert_not_called()
 
 	# ------------------------------------------------------------------ deadlines and cron
 	def test_deadline_is_capped_by_exam_end_and_enforced(self):
@@ -337,10 +365,27 @@ class TestExams(IntegrationTestCase):
 		self.assertEqual(api.log_exam_event(attempt, "focus_lost")["focus_lost_count"], 2)
 		with self.assertRaises(frappe.ValidationError):
 			api.log_exam_event(attempt, "teleport")
+		api.log_exam_event(attempt, "copy", {"text": "Genesis"})
 		fb.as_user(self, self.w.lecturer.user)
 		monitor = api.exam_monitor(exam.name)
 		row = next(r for r in monitor["attempts"] if r["name"] == attempt)
 		self.assertEqual(row["focus_lost_count"], 2)
+		self.assertEqual([e["type"] for e in row["events"]][:3], ["copy", "focus_lost", "focus_lost"])
+		self.assertLessEqual({"type", "event", "timestamp", "detail"}, set(row["events"][0]))
+		self.assertIn("Genesis", json.dumps(row["events"][0]["detail"]))
+		other = self.w.students[1]
+		self.assertEqual(monitor["not_started"], [other.name])
+		self.assertEqual(
+			monitor["not_started_students"][0]["full_name"],
+			frappe.db.get_value("Student", other.name, "full_name"),
+		)
+		self.assertEqual(monitor["not_started_students"][0]["name"], other.name)
+
+	def test_my_exams_includes_instructions(self):
+		exam, _qs = self.objective_exam(instructions="<p>Answer all questions.</p>")
+		self.as_student()
+		mine = next(e for e in api.my_exams()["open"] if e["name"] == exam.name)
+		self.assertEqual(mine["instructions"], "<p>Answer all questions.</p>")
 
 	# ------------------------------------------------------------------ lecturer tools
 	def test_lecturer_scoping(self):
@@ -360,6 +405,53 @@ class TestExams(IntegrationTestCase):
 		self.assertEqual(api.list_exams(self.w.offering.name)["total"], 1)
 		bank = api.question_bank(self.course, {"question_type": "Matching"})
 		self.assertEqual(bank["total"], 1)
+
+	def test_term_wide_exam_list_for_staff(self):
+		term = f.make_term(f"B2 Exams {fb.code()}").name
+		one = fb.make_world(students=0, term=term)
+		two = fb.make_world(students=0, term=term, campus=one.campus)
+		cat = fb.make_exam(one.offering.name, [fb.make_question(one.course.name, "True or False")])
+		final = fb.make_exam(
+			two.offering.name, [fb.make_question(two.course.name, "True or False")], status="Draft"
+		)
+		code = fb.code("P", 4)
+		frappe.get_doc(
+			{
+				"doctype": "Programme",
+				"programme_name": f"Exams {code} _T",
+				"code": code,
+				"level": "Certificate",
+				"duration_years": 1,
+				"curriculum": [{"course": two.course.name, "year_of_study": 1, "term_number": 1}],
+			}
+		).insert()
+
+		fb.as_user(self, f.make_user(roles=("Registrar",)).name)
+		listing = api.list_exams(academic_term=term)
+		self.assertEqual((listing["total"], {r.name for r in listing["rows"]}), (2, {cat.name, final.name}))
+		self.assertEqual(listing["rows"][0]["academic_term"], term)
+		self.assertIn("question_count", listing["rows"][0])
+		page = api.list_exams(academic_term=term, limit=1, start=1)
+		self.assertEqual((len(page["rows"]), page["total"], page["start"]), (1, 2, 1))
+		self.assertEqual(
+			[r.name for r in api.list_exams(academic_term=term, status="Draft")["rows"]], [final.name]
+		)
+		self.assertEqual(
+			[r.name for r in api.list_exams(academic_term=term, programme=code)["rows"]], [final.name]
+		)
+		with self.assertRaises(frappe.ValidationError):
+			api.list_exams()
+
+		fb.as_user(self, f.make_user(roles=("Auditor",)).name)
+		self.assertEqual(api.list_exams(academic_term=term)["total"], 2)
+		per_offering = api.list_exams(one.offering.name)
+		self.assertEqual((per_offering["total"], per_offering["data"][0]["name"]), (1, cat.name))
+		with self.assertRaises(frappe.PermissionError):
+			api.save_exam({"course_offering": one.offering.name, "title": "Nope"})
+		fb.as_user(self, one.lecturer.user)
+		with self.assertRaises(frappe.PermissionError):
+			api.list_exams(academic_term=term)
+		self.assertEqual(api.list_exams(one.offering.name)["total"], 1)
 
 	def test_save_exam_and_import_questions(self):
 		fb.as_user(self, self.w.lecturer.user)

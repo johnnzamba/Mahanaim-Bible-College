@@ -1,6 +1,6 @@
 import frappe
 from frappe.tests import IntegrationTestCase
-from frappe.utils import nowdate
+from frappe.utils import add_days, nowdate
 
 from mahanaim.academics.doctype.course.course import find_prerequisite_cycle
 from mahanaim.api import academics as api
@@ -111,10 +111,23 @@ class TestAcademics(IntegrationTestCase):
 			}
 		).insert()
 		term, campus = f.make_term().name, f.make_campus().name
+		dry = api.generate_offerings(term, campus, programme=code, preview=1)
+		self.assertEqual((dry["preview"], dry["created"], dry["offerings"]), (True, 2, []))
+		self.assertEqual([r["state"] for r in dry["rows"]], ["new", "new"])
+		self.assertEqual(
+			{(r["course"], r["programme"], r["academic_term"]) for r in dry["rows"]},
+			{(courses[0].name, code, term), (courses[1].name, code, term)},
+		)
+		self.assertFalse(
+			frappe.db.exists("Course Offering", {"course": courses[0].name, "academic_term": term})
+		)
 		first = api.generate_offerings(term, campus, programme=code)
 		self.assertEqual((first["created"], first["skipped"]), (2, 0))
 		second = api.generate_offerings(term, campus, programme=code)
 		self.assertEqual((second["created"], second["skipped"]), (0, 2))
+		again = api.generate_offerings(term, campus, programme=code, preview=1)
+		self.assertEqual({r["state"] for r in again["rows"]}, {"existing"})
+		self.assertEqual({r["offering"] for r in again["rows"]}, set(first["offerings"]))
 		offering = frappe.get_doc("Course Offering", first["offerings"][0])
 		self.assertEqual(offering.status, "Planned")
 		self.assertEqual(offering.course_title, "Generated _T")
@@ -233,3 +246,78 @@ class TestAcademics(IntegrationTestCase):
 		self.assertEqual([s["topic"] for s in timetable["sessions"]], ["Torah", "Prophets"])
 		with self.assertRaises(frappe.PermissionError):
 			api.take_attendance(first["name"], [])
+
+	def test_session_edit_reschedules_only_on_real_moves(self):
+		w = fb.make_world(students=0)
+		fb.as_user(self, w.lecturer.user)
+		day = add_days(nowdate(), 3)
+		session = api.create_session(w.offering.name, day, "09:00", "10:00", topic="Ruth")["name"]
+		same = {"session_date": str(day), "start_time": "9:00", "end_time": "10:00:00", "topic": "Esther"}
+		self.assertEqual(api.update_session(session, same)["status"], "Scheduled")
+		self.assertEqual(frappe.db.get_value("Class Session", session, "topic"), "Esther")
+		self.assertEqual(api.update_session(session, {"start_time": "09:30"})["status"], "Rescheduled")
+		doc = frappe.get_doc("Class Session", session)
+		self.assertFalse(api.session_moved(doc, {"start_time": "9:30:00", "session_date": day}))
+		self.assertTrue(api.session_moved(doc, {"session_date": add_days(day, 1)}))
+
+	def test_timetable_is_role_aware(self):
+		w = fb.make_world(students=1)
+		fb.as_user(self, w.lecturer.user)
+		day = add_days(nowdate(), 2)
+		api.create_session(w.offering.name, day, "07:00", "08:00", topic="Psalms", notes="Bring hymnals")
+		fb.as_user(self, w.students[0].user)
+		mine = api.my_timetable(day, day)
+		self.assertEqual(mine["role"], "student")
+		self.assertTrue(mine["server_time"])
+		self.assertEqual([s["topic"] for s in mine["sessions"]], ["Psalms"])
+		self.assertNotIn("notes", mine["sessions"][0])
+
+		fb.as_user(self, w.lecturer.user)
+		taught = api.my_timetable(day, day)
+		self.assertEqual(taught["role"], "lecturer")
+		self.assertTrue(taught["server_time"])
+		self.assertEqual(
+			[(s["topic"], s["notes"]) for s in taught["sessions"]], [("Psalms", "Bring hymnals")]
+		)
+		self.assertLessEqual(set(mine["sessions"][0]), set(taught["sessions"][0]))
+		fb.as_user(self, fb.make_lecturer(w.campus).user)
+		self.assertEqual(api.my_timetable(day, day)["sessions"], [])
+
+	def test_attendance_defaults_to_current_term_and_ignores_excused(self):
+		tag = fb.code("T", 5)
+		now_term = f.make_term(f"B2 Now {tag}").name
+		past_term = f.make_term(
+			f"B2 Past {tag}", start=add_days(nowdate(), -200), end=add_days(nowdate(), -100)
+		).name
+		fb.use_single(self, "Mahanaim Settings", current_academic_term=now_term)
+		w = fb.make_world(students=1, term=now_term)
+		student = w.students[0]
+		past = {}
+		for key in ("held", "quiet"):
+			course = f.make_course(fb.code("P"), f"Past {key} _T")
+			past[key] = f.make_offering(course.name, past_term, w.campus, w.lecturer.name).name
+			f.make_enrolment(student.name, past[key], "Completed")
+		fb.as_user(self, w.lecturer.user)
+		held = api.create_session(past["held"], add_days(nowdate(), -150), "07:00", "08:00")["name"]
+		api.take_attendance(held, [{"student": student.name, "status": "Excused"}])
+
+		fb.as_user(self, student.user)
+		mine = api.my_attendance()
+		self.assertEqual(mine["current_term"], now_term)
+		self.assertEqual([r["course_offering"] for r in mine["data"]], [w.offering.name, past["held"]])
+		self.assertEqual(mine["data"][0]["academic_term"], now_term)
+		excused = mine["data"][1]
+		self.assertEqual((excused["held"], excused["excused"], excused["percentage"]), (1, 1, None))
+		self.assertIsNone(mine["data"][0]["percentage"])  # no sessions yet
+		by_term = api.my_attendance(academic_term=past_term)
+		self.assertEqual({r["course_offering"] for r in by_term["data"]}, set(past.values()))
+		self.assertEqual(by_term["academic_term"], past_term)
+
+		fb.as_user(self, w.lecturer.user)
+		report = api.attendance_report(past["held"])
+		row = next(r for r in report["students"] if r["student"] == student.name)
+		self.assertIsNone(row["percentage"])
+		self.assertIsNone(api.attendance_percent(0, 0, 2, 2))
+		self.assertEqual(
+			api.attendance_percent(1, 1, 3, 1), 100
+		)  # late counts, excused leaves the denominator

@@ -6,6 +6,7 @@ Calls go to `/api/method/<dotted path>`. Reads use GET and writes use POST. JSON
 
 **Guards**
 - **admin**: `require_roles("Academic Dean", "Registrar")`. System Manager and College Administrator always pass.
+- **academic reader**: admin plus the read-only `Auditor` role (used only on read endpoints in exams/results).
 - **lecturer**: the Lecturer role or any staff role.
 - **teaching**: `require_lecturer_of(offering)`. The caller must be one of the offering's lecturers (by `user`) or an
   academic admin. Other lecturers get `PermissionError` with "You are not assigned to teach this course.".
@@ -198,14 +199,23 @@ Args:
 - `term`, `campus`.
 - `programme` (optional): default is every Active programme offered at the campus (and in the study mode, if given).
 - `study_mode` (optional).
+- `preview` (optional, `1` = dry run): returns the same summary and `rows` plan but writes nothing. `created` is then
+  the number that *would* be created and `offerings` is `[]`.
 
 Creates `Planned` offerings (section A) for every curriculum course whose `term_number` equals the term's
 `term_number`. It is idempotent: a course that already has a non-cancelled offering in that term + campus (and study
 mode, if given) is skipped with reason "Already offered". Inactive courses are skipped with "Course is inactive".
 
+`rows` has one entry per curriculum course: `state` is `new` (created, or would be in preview), `existing` (`offering`
+is the existing one) or `inactive`. `programme` is the first programme listing the course; `programmes` lists all.
+
 ```json
-{"message": {"term": "2026-2027 Term 1", "term_number": 1, "programmes": ["DBS"], "created": 1, "skipped": 1,
-  "offerings": ["OFF-2026-00015"], "skipped_courses": [{"course": "OTS101", "reason": "Already offered"}]}}
+{"message": {"term": "2026-2027 Term 1", "term_number": 1, "programmes": ["DBS"], "preview": false, "created": 1,
+  "skipped": 1, "offerings": ["OFF-2026-00015"], "skipped_courses": [{"course": "OTS101", "reason": "Already offered"}],
+  "rows": [{"course": "NTS101", "course_title": "New Testament Survey", "credits": 3, "programme": "DBS",
+            "programmes": ["DBS"], "academic_term": "2026-2027 Term 1", "campus": "Nairobi", "study_mode": null,
+            "state": "new", "offering": "OFF-2026-00015", "reason": null},
+           {"course": "OTS101", "…": "…", "state": "existing", "offering": "OFF-2026-00003", "reason": "Already offered"}]}}
 ```
 
 ### `academics_stats`
@@ -270,7 +280,8 @@ Args:
   `lecturer`.
 
 `meeting_url` is accepted as an alias of `meeting_link`. Moving the date or time of a Scheduled session marks it
-`Rescheduled`; a Held session cannot be moved. Returns the session.
+`Rescheduled`; a Held session cannot be moved. Dates and times are compared normalised (`"9:00"` equals
+`"09:00:00"`), so re-sending the current slot with other edits does not reschedule. Returns the session.
 
 ### `cancel_session`
 - **Path:** `mahanaim.api.academics.cancel_session`
@@ -318,7 +329,9 @@ Students not enrolled in the offering are rejected. The session becomes `Held`, 
 - **Method:** GET
 - **Guard:** offering reader
 
-Args: `offering`. `percentage` = (present + late) / held sessions × 100.
+Args: `offering`. `percentage` = (present + late) / (held − excused) × 100: late counts as attended and excused
+sessions leave the denominator. It is `null` (show "—") when nothing counts (no sessions, or only excused ones);
+`average_percentage` averages the non-null values (`null` if none).
 
 ```json
 {"message": {"offering": "OFF-2026-00014", "held": 1,
@@ -332,14 +345,23 @@ Args: `offering`. `percentage` = (present + late) / held sessions × 100.
 ### `my_timetable`
 - **Path:** `mahanaim.api.academics.my_timetable`
 - **Method:** GET
-- **Guard:** student
+- **Guard:** student or lecturer (role-aware)
 
-Args: `from_date` (default: today), `to_date` (default: `from_date` + 6 days; the range may be at most 120 days).
-Returns the sessions of the offerings the student is enrolled in, including Cancelled ones (their `meeting_link` is
-hidden), and Scheduled/Open/Closed exams overlapping the range.
+Args: `from_date` (default: today), `to_date` (default: `from_date` + 6 days; the range may be at most 120 days),
+`role` (optional `"student"` | `"lecturer"`; by default a user with a Student record gets the student view, anyone
+else must be a lecturer/staff and gets the teaching view).
+
+- `role: "student"`: sessions of the offerings the student is enrolled in, including Cancelled ones (their
+  `meeting_link` is hidden, `notes` are omitted).
+- `role: "lecturer"`: sessions of the non-cancelled offerings the caller is listed on as a lecturer, same row shape plus
+  `notes`.
+
+Both include Scheduled/Open/Closed exams overlapping the range, the resolved `role`, and `server_time` (server clock,
+same format as the exam endpoints).
 
 ```json
-{"message": {"from_date": "2026-10-21", "to_date": "2026-10-28",
+{"message": {"from_date": "2026-10-21", "to_date": "2026-10-28", "role": "student",
+  "server_time": "2026-10-21 07:58:12.123456",
   "sessions": [{"name": "CS-2026-000048", "course_offering": "OFF-2026-00014", "course_title": "Old Testament Survey",
                 "session_date": "2026-10-21", "start_time": "8:00:00", "end_time": "10:00:00", "venue": "Hall B", "mode": "In Person",
                 "meeting_link": null, "status": "Scheduled", "topic": "Torah", "lecturer_name": "Rev. Peter Otieno", "…": "…"}],
@@ -351,11 +373,19 @@ hidden), and Scheduled/Open/Closed exams overlapping the range.
 - **Method:** GET
 - **Guard:** student (enrolled when `offering` is given)
 
-Args: `offering` (optional). With an offering, the per-session statuses are added in `sessions`.
+Args (all optional):
+- `offering`: just that course, with the per-session statuses in `sessions`.
+- `academic_term`: every course of that term.
+- neither: the current term's courses plus earlier courses that had at least one register taken (past courses without
+  any held session are left out).
+
+Rows are ordered current term first, then by term start (newest first), then title. `percentage` follows the
+`attendance_report` rule (late counts, excused excluded, `null` when nothing counts).
 
 ```json
-{"message": {"data": [{"course_offering": "OFF-2026-00014", "course_title": "Old Testament Survey", "held": 1, "present": 1,
-  "late": 0, "absent": 0, "excused": 0, "percentage": 100.0}],
+{"message": {"academic_term": null, "current_term": "2026-2027 Term 1",
+  "data": [{"course_offering": "OFF-2026-00014", "course_title": "Old Testament Survey", "academic_term": "2026-2027 Term 1",
+  "held": 1, "present": 1, "late": 0, "absent": 0, "excused": 0, "percentage": 100.0}],
   "sessions": [{"name": "CS-2026-000048", "session_date": "2026-10-21", "start_time": "8:00:00", "topic": "Torah",
                 "status": "Present", "remarks": null}]}}
 ```

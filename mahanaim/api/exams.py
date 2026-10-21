@@ -14,7 +14,9 @@ from mahanaim.api.academics import (
 	doc_dict,
 	ensure_exists,
 	is_academic_admin,
+	is_academic_reader,
 	persist_writes,
+	require_academic_reader,
 	require_teaching,
 )
 from mahanaim.api.utils import clean_payload, page_args, parse_json, require_lecturer, require_student
@@ -127,12 +129,68 @@ def _question(name: str):
 
 # ---------------------------------------------------------------------------------- exams (lecturer)
 @frappe.whitelist()
-def list_exams(offering, status=None):
-	require_teaching(offering)
+def list_exams(offering=None, status=None, academic_term=None, programme=None, start=0, limit=None):
+	"""Per offering (its lecturers, academic administrators, Auditors): `{data, total}`.
+	Term-wide, without `offering` (Registrar, Academic Dean, Auditor): `academic_term` required, optional
+	`status`/`programme`, paginated with `start`/`limit`, returns `{rows, total, start, limit}`."""
+	if not offering:
+		return _term_exams(academic_term, status, programme, start, limit)
+	if is_academic_reader():
+		ensure_exists("Course Offering", offering)
+	else:
+		require_teaching(offering)
 	filters = {"course_offering": offering}
 	if status:
 		filters["status"] = status
 	data = frappe.get_all("Exam", filters=filters, fields=EXAM_LIST_FIELDS, order_by="start_datetime desc")
+	_add_exam_counts(data)
+	return {"data": data, "total": len(data)}
+
+
+def _term_exams(term, status, programme, start, limit) -> dict:
+	require_academic_reader()
+	if not term:
+		frappe.throw(_("Pass an offering or an academic_term."))
+	ensure_exists("Academic Term", term)
+	offering_filters = {"academic_term": term}
+	if programme:
+		ensure_exists("Programme", programme)
+		courses = frappe.get_all(
+			"Programme Course", filters={"parent": programme, "parenttype": "Programme"}, pluck="course"
+		)
+		offering_filters["course"] = ["in", courses or [""]]
+	offerings = {
+		o.name: o
+		for o in frappe.get_all(
+			"Course Offering", filters=offering_filters, fields=["name", "campus", "academic_term"]
+		)
+	}
+	filters = {"course_offering": ["in", list(offerings) or [""]]}
+	if status:
+		filters["status"] = status
+	args = page_args(start, limit or 50)
+	rows = frappe.get_all(
+		"Exam",
+		filters=filters,
+		fields=EXAM_LIST_FIELDS,
+		order_by="start_datetime desc, name desc",
+		start=args["start"],
+		limit=args["page_length"],
+	)
+	_add_exam_counts(rows)
+	for r in rows:
+		off = offerings.get(r.course_offering) or {}
+		r["campus"], r["academic_term"] = off.get("campus"), off.get("academic_term")
+	return {
+		"rows": rows,
+		"total": frappe.db.count("Exam", filters),
+		"start": args["start"],
+		"limit": args["page_length"],
+	}
+
+
+def _add_exam_counts(data) -> None:
+	"""to_mark (attempts awaiting marking) and question_count per exam row, batched."""
 	pending = {
 		r.exam: cint(r.n)
 		for r in frappe.get_all(
@@ -157,7 +215,6 @@ def list_exams(offering, status=None):
 	for d in data:
 		d["to_mark"] = pending.get(d.name, 0)
 		d["question_count"] = counts.get(d.name, 0)
-	return {"data": data, "total": len(data)}
 
 
 def exam_dict(doc) -> dict:
@@ -650,11 +707,26 @@ def submit_attempt(attempt):
 
 @frappe.whitelist()
 def my_exam_result(attempt):
-	"""Released results only; correct answers only when the exam has show_answers_after_release."""
+	"""My attempt's result. Before release only `{released: False, ...}` with a message (no scores);
+	correct answers only when the exam has show_answers_after_release."""
 	student = require_student()
 	doc = svc.get_owned_attempt(attempt, student.name)
 	if doc.status != "Released":
-		frappe.throw(_("Results for this exam have not been released yet."))
+		if doc.status == "In Progress":
+			message = _("This attempt has not been submitted yet.")
+		elif doc.status == "Void":
+			message = _("This attempt was voided by your lecturer.")
+		else:
+			message = _("Results for this exam have not been released yet.")
+		return {
+			"released": False,
+			"attempt": doc.name,
+			"exam": doc.exam,
+			"exam_title": doc.exam_title or frappe.db.get_value("Exam", doc.exam, "title"),
+			"status": doc.status,
+			"submitted_on": doc.submitted_on,
+			"message": message,
+		}
 	exam = frappe.db.get_value(
 		"Exam",
 		doc.exam,
@@ -674,6 +746,7 @@ def my_exam_result(attempt):
 	grade = grade_for(doc.percentage)
 	show = bool(cint(exam.show_answers_after_release))
 	return {
+		"released": True,
 		"exam": exam,
 		"attempt": {
 			**_attempt_summary(doc),

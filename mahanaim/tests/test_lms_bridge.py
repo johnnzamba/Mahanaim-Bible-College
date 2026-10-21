@@ -232,9 +232,72 @@ class TestLMSBridge(IntegrationTestCase):
 	def test_staff_only_bridge_admin(self):
 		fb.as_user(self, self.w.lecturer.user)
 		for call in (
-			api.bridge_status,
 			api.retry_failed,
 			lambda: api.sync_offering_now(self.w.offering.name),
 		):
 			with self.assertRaises(frappe.PermissionError):
 				call()
+
+	def test_lecturer_reads_bridge_status_for_own_offerings(self):
+		self.bridge_settings()
+		other = fb.make_world(students=0, campus=self.w.campus)
+		for name in (self.w.offering.name, other.offering.name):
+			frappe.db.set_value("Course Offering", name, "lms_sync_status", bridge.ERROR)
+			# the class shares one transaction: don't leave failures behind for retry_failed tests
+			self.addCleanup(frappe.db.set_value, "Course Offering", name, "lms_sync_status", None)
+		fb.as_user(self, self.w.lecturer.user)
+		mine = api.bridge_status()
+		self.assertEqual(mine["scope"], "lecturer")
+		self.assertEqual([o["name"] for o in mine["offerings"]], [self.w.offering.name])
+		self.assertEqual(mine["offerings"][0]["lms_sync_status"], bridge.ERROR)
+		self.assertIsNone(mine["offerings"][0]["lms_url"])
+		self.assertEqual(mine["failed"], 1)
+		self.assertEqual(
+			api.bridge_status(self.w.offering.name)["offerings"][0]["name"], self.w.offering.name
+		)
+		with self.assertRaises(frappe.PermissionError):
+			api.bridge_status(other.offering.name)
+		fb.as_user(self, self.w.students[0].user)
+		with self.assertRaises(frappe.PermissionError):
+			api.bridge_status()
+		frappe.set_user("Administrator")
+		self.assertEqual(api.bridge_status()["scope"], "all")
+
+	def test_file_disposition_rules(self):
+		cases = {
+			("notes.pdf", 1): ("application/pdf", "inline"),
+			("notes.pdf", 0): ("application/pdf", "attachment"),
+			("photo.JPG", "1"): ("image/jpeg", "inline"),
+			("chart.webp", 1): ("image/webp", "inline"),
+			("logo.svg", 1): ("image/svg+xml", "attachment"),
+			("page.html", 1): ("text/html", "attachment"),
+			("feed.xml", 1): ("application/xml", "attachment"),
+			("blob", 1): ("application/octet-stream", "attachment"),
+		}
+		for (name, inline), expected in cases.items():
+			self.assertEqual(api.file_disposition(name, inline), expected, name)
+
+	def test_resource_download_inline_opt_in(self):
+		offering = self.w.offering.name
+		fb.as_user(self, self.w.lecturer.user)
+		module = api.save_module({"course_offering": offering, "module_title": "Week 1", "is_published": 1})
+		url = fb.make_file(self, f"guide-{fb.code()}.pdf")
+		resource = api.save_resource(
+			{
+				"course_module": module["name"],
+				"title": "Guide",
+				"resource_type": "PDF",
+				"file": url,
+				"is_published": 1,
+			}
+		)["name"]
+		fb.as_user(self, self.w.students[0].user)
+		api.download_resource(resource)
+		self.assertEqual(
+			(fb.served()["type"], fb.served()["disposition"], fb.served()["nosniff"]),
+			("download", "attachment", "nosniff"),
+		)
+		api.download_resource(resource, inline=1)
+		self.assertEqual(
+			(fb.served()["content_type"], fb.served()["disposition"]), ("application/pdf", "inline")
+		)

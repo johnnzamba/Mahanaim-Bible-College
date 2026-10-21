@@ -5,6 +5,7 @@ Calls go to `/api/method/<dotted path>`. Reads use GET and writes use POST.
 
 **Guards**
 - **admin**: Academic Dean, Registrar, College Administrator or System Manager.
+- **lecturer**: the Lecturer role or any staff role.
 - **teaching**: a lecturer of the offering (`require_lecturer_of`) or an admin. For an existing module or resource,
   the offering is taken from the record.
 - **enrolled**: the session student has a Course Enrolment in the offering with status Enrolled, Completed or Failed.
@@ -37,15 +38,31 @@ Frappe LMS is a **soft dependency**. Every bridge call checks `has_app("lms")` a
 ### `bridge_status`
 - **Path:** `mahanaim.api.learning.bridge_status`
 - **Method:** GET
-- **Guard:** admin
+- **Guard:** admin (whole bridge) or lecturer (read-only, own offerings)
 
-`counts` groups non-cancelled offerings by `lms_sync_status`.
+Args: `offering` (optional).
+- **Admins** get `scope: "all"`, and `counts` groups every non-cancelled offering by `lms_sync_status`. With
+  `offering`, its sync row is added in `offerings`.
+- **Lecturers** get `scope: "lecturer"`. The counts cover only the offerings they teach (or just `offering`, which
+  they must teach, or `PermissionError`). An `offerings` list of per-offering sync rows is added.
+
+`sync_offering_now`, `full_sync`, `retry_failed` and `save_bridge_settings` stay admin-only.
 
 ```json
 {"message": {"installed": false, "enabled": false, "active": false,
   "settings": {"auto_create_courses": 1, "auto_enrol_students": 1, "publish_on_create": 0, "remove_enrolment_on_drop": 1},
   "lms_fee_clearance_percent": 0.0, "last_full_sync": null, "counts": {"Not Synced": 15},
-  "synced": 0, "failed": 0, "not_synced": 15, "not_installed": 0, "enrolments_synced": 0}}
+  "synced": 0, "failed": 0, "not_synced": 15, "not_installed": 0, "enrolments_synced": 0, "scope": "all"}}
+```
+
+Lecturer view (also returned to admins who pass `offering`):
+
+```json
+{"message": {"installed": false, "enabled": false, "active": false, "…": "…", "counts": {"Not Installed": 2},
+  "synced": 0, "failed": 0, "not_synced": 0, "not_installed": 2, "enrolments_synced": 0, "scope": "lecturer",
+  "offerings": [{"name": "OFF-2026-00014", "course": "OTS101", "course_title": "Old Testament Survey",
+                 "academic_term": "2026-2027 Term 1", "lms_course": null, "lms_sync_status": "Not Installed",
+                 "lms_last_synced": null, "lms_sync_error": null, "lms_url": null}]}}
 ```
 
 ### `save_bridge_settings`
@@ -269,5 +286,13 @@ Args: `resource`, `progress` (0–100; default 100). Upserts **Learning Progress
 - **Method:** GET
 - **Guard:** enrolled (visible resource) or teaching
 
-Args: `resource`. Public files are answered with a redirect, and private files are streamed. Use it as an `href` or
-`src`. A resource that is neither downloadable nor viewable raises `PermissionError`.
+Args: `resource`, `inline` (optional, `1` = preview in the browser; default is a download).
+- The response is `Content-Disposition: inline` only when `inline=1` **and** the file is `application/pdf` or a
+  raster image (png, jpeg, gif, webp). Everything else, including SVG, HTML and XML, is always an attachment.
+- Every response carries `X-Content-Type-Options: nosniff`.
+- Private files are streamed.
+- Public files are streamed as attachments. Public inline previews (and audio/video) redirect to the static URL so
+  range requests work.
+
+Use `?inline=1` for `<iframe>`/`<img>` previews and the plain URL for download links. A resource that is neither
+downloadable nor viewable raises `PermissionError`.

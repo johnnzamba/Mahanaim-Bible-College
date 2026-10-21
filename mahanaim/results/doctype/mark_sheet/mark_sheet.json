@@ -33,6 +33,9 @@
   "published_on",
   "section_section_3",
   "return_reason",
+  "column_break_returned",
+  "returned_by",
+  "returned_on",
   "statistics_section_4",
   "student_count",
   "pass_count",
@@ -207,6 +210,23 @@
    "label": "Return Reason"
   },
   {
+   "fieldname": "column_break_returned",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "returned_by",
+   "fieldtype": "Link",
+   "label": "Returned by",
+   "options": "User",
+   "read_only": 1
+  },
+  {
+   "fieldname": "returned_on",
+   "fieldtype": "Datetime",
+   "label": "Returned on",
+   "read_only": 1
+  },
+  {
    "fieldname": "statistics_section_4",
    "fieldtype": "Section Break",
    "label": "Statistics"
@@ -242,7 +262,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-05-01 09:00:00.000000",
+ "modified": "2026-10-21 23:05:00.000000",
  "modified_by": "Administrator",
  "module": "Results",
  "name": "Mark Sheet",

@@ -71,7 +71,8 @@ Args: `offering`. The class page:
 - `roster`: Enrolled, Completed and Failed students with per-student metrics:
   - `assignment_average`: the average % of graded assignments, released or not.
   - `cat_average`: the average best % of Marked or Released CAT/Quiz attempts.
-  - `attendance_percentage` and `sessions_held`.
+  - `attendance_percentage` and `sessions_held`. The percentage is (present + late) / (held − excused) × 100, or
+    `null` (show "—") when nothing counts.
   - `fee_cleared` and `fee_message`, from Finance's `fee_clearance(student, "exam")`. If the check raises an
     error, the student is shown as not cleared with a message. Until Finance implements the contract, every
     student shows as cleared.

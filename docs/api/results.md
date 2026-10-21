@@ -9,6 +9,7 @@ Calls go to `/api/method/<dotted path>`. Reads use GET and writes use POST.
 - **admin**: Academic Dean, Registrar, College Administrator or System Manager.
 - **dean**: Academic Dean, College Administrator or System Manager.
 - **registrar**: Registrar, College Administrator or System Manager.
+- **academic reader**: admin plus the read-only Auditor role.
 - **offering reader**: teaching, or staff with read access to the offering.
 - **student**: the signed-in student (their own data only).
 
@@ -93,6 +94,8 @@ All mark-sheet endpoints return the following shape.
   "academic_term": "2026-2027 Term 1", "campus": "Main Campus", "grading_scale": null, "status": "Draft",
   "cat_weight": 20.0, "assignment_weight": 10.0, "exam_weight": 70.0, "other_weight": 0.0,
   "submitted_by": null, "submitted_on": null, "approved_by": null, "approved_on": null, "published_by": null, "published_on": null,
+  "returned_by": null, "returned_on": null,
+  "submitted_by_name": null, "approved_by_name": null, "returned_by_name": null, "published_by_name": null,
   "return_reason": null, "student_count": 2, "pass_count": 1, "average_score": 39.19, "highest_score": 55.0,
   "entries": [
     {"student": "STU-2026-00012", "student_name": "Jane Doe", "student_number": "MBC/DBS/2026/0001", "cat_score": 15.38,
@@ -109,6 +112,12 @@ All mark-sheet endpoints return the following shape.
   "creation": "…", "modified": "…", "idx": 0}}
 ```
 
+Workflow stamps:
+- `submitted_by`/`approved_by`/`returned_by`/`published_by` are user ids. Each has a `*_by_name` companion with the
+  user's full name (`null` when unset).
+- `returned_by`/`returned_on` are stamped when a sheet is returned. They are kept as history after resubmission;
+  `return_reason` is cleared.
+
 ## Lecturer
 
 ### `get_mark_sheet`
@@ -116,8 +125,10 @@ All mark-sheet endpoints return the following shape.
 - **Method:** GET
 - **Guard:** teaching
 
-Args: `offering`. Creates the sheet on first access. While it is Draft or Returned, it is recomputed from live
-assessment data on every call. Returns the mark sheet shape.
+Args: `offering`. Creates the sheet on first access. While it is Draft or Returned, the figures in the response are
+recomputed from live assessment data **in memory only**. Reads never save the sheet, so concurrent reads are safe.
+Returns the mark sheet shape plus `stale`: `true` when the stored sheet is behind the live data. The UI should then
+call `recompute_mark_sheet`; saving entries or submitting also persists the fresh figures.
 
 ### `recompute_mark_sheet`
 - **Path:** `mahanaim.api.results.recompute_mark_sheet`
@@ -164,16 +175,19 @@ Args: `name`. Recomputes the sheet, then moves it from Draft or Returned to `Sub
 ### `pending_mark_sheets`
 - **Path:** `mahanaim.api.results.pending_mark_sheets`
 - **Method:** GET
-- **Guard:** admin
+- **Guard:** academic reader
 
 Args: `term` (optional), `status` (optional). Without `status`, it returns the sheets awaiting the caller: `Submitted`
-for deans and `Approved` for the registrar (both for admins). The oldest submission comes first.
+for deans and `Approved` for the registrar (both for admins and read-only auditors). The oldest submission comes
+first. Rows include `published_by`, `returned_by`, `returned_on` and the four `*_by_name` fields.
 
 ```json
 {"message": {"data": [{"name": "MS-2026-00006", "course_offering": "OFF-2026-00014", "course_title": "Old Testament Survey",
   "academic_term": "2026-2027 Term 1", "campus": "Main Campus", "status": "Submitted", "student_count": 2, "pass_count": 1,
   "average_score": 43.04, "highest_score": 55.0, "submitted_by": "p.otieno@mbc.ac.ke", "submitted_on": "…", "approved_by": null,
-  "approved_on": null, "published_on": null, "return_reason": null, "lecturers": ["Rev. Peter Otieno"]}], "total": 1}}
+  "approved_on": null, "published_by": null, "published_on": null, "returned_by": null, "returned_on": null,
+  "return_reason": null, "lecturers": ["Rev. Peter Otieno"], "submitted_by_name": "Rev. Peter Otieno",
+  "approved_by_name": null, "returned_by_name": null, "published_by_name": null}], "total": 1}}
 ```
 
 ### `get_mark_sheet_by_name`
@@ -212,8 +226,10 @@ cannot be deleted.
 - **Method:** POST
 - **Guard:** registrar
 
-Args: `term`. Publishes every Approved sheet of the term, each in its own transaction. Failures are reported and do
-not stop the batch.
+Args: `term`, `mark_sheets` (optional list or JSON list of names). Without `mark_sheets`, it publishes every
+Approved sheet of the term. With it, only those sheets are published. The list is checked up front: unknown names
+raise `DoesNotExistError`; sheets outside the term or not Approved raise `ValidationError`, and nothing is
+published. Each sheet is published in its own transaction; failures are reported and do not stop the batch.
 
 ```json
 {"message": {"term": "2026-2027 Term 1", "published": ["MS-2026-00006"], "failed": [{"mark_sheet": "MS-2026-00009", "error": "…"}],
@@ -268,7 +284,7 @@ on or before that term.
 ### `results_overview`
 - **Path:** `mahanaim.api.results.results_overview`
 - **Method:** GET
-- **Guard:** admin
+- **Guard:** academic reader
 
 Args: `term`. Gives mark-sheet status counts for the term's non-cancelled offerings, overall and per programme
 (from curriculum rows), plus one row per offering.
@@ -285,7 +301,7 @@ Args: `term`. Gives mark-sheet status counts for the term's non-cancelled offeri
 ### `grade_distribution`
 - **Path:** `mahanaim.api.results.grade_distribution`
 - **Method:** GET
-- **Guard:** offering reader (for `offering`), admin (for `term`)
+- **Guard:** offering reader (for `offering`), academic reader (for `term`)
 
 Args: `offering` (uses its mark sheet entries), or `term` (uses the published Course Results of the term).
 
@@ -314,3 +330,51 @@ A UI helper that says which mark-sheet actions the session user may perform.
 ```json
 {"message": {"academic_admin": true, "approve": true, "publish": false}}
 ```
+
+## Grading scales
+
+### `get_grading_scales`
+- **Path:** `mahanaim.api.results.get_grading_scales`
+- **Method:** GET
+- **Guard:** staff or lecturer (read)
+
+Returns every scale, default first. Bands are ordered highest first and classifications by `min_cgpa` descending.
+`default` is the effective default scale, which `grade_for` uses when an offering has no `grading_scale`.
+`offering_count` is how many offerings use the scale explicitly.
+
+```json
+{"message": {"default": "MBC Standard",
+  "data": [{"name": "MBC Standard", "scale_name": "MBC Standard", "is_default": 1, "is_effective_default": true,
+            "pass_mark": 40.0, "description": null, "modified": "…", "offering_count": 0,
+            "bands": [{"grade": "A", "min_score": 80.0, "max_score": 100.0, "grade_points": 4.0, "description": "Excellent", "is_pass": 1},
+                      {"grade": "F", "min_score": 0.0, "max_score": 39.99, "grade_points": 0.0, "description": "Fail", "is_pass": 0}],
+            "classifications": [{"classification": "Distinction", "min_cgpa": 3.6, "max_cgpa": 4.0},
+                                {"classification": "Fail", "min_cgpa": 0.0, "max_cgpa": 1.99}]}]}}
+```
+
+### `save_grading_scale`
+- **Path:** `mahanaim.api.results.save_grading_scale`
+- **Method:** POST
+- **Guard:** `require_roles("Registrar", "Academic Dean")` (System Manager and College Administrator always pass)
+
+Args: `doc` (object or JSON):
+`{name?, scale_name, is_default?, pass_mark?, description?, bands?: [{grade, min_score, max_score, grade_points, description?, is_pass?}], classifications?: [{classification, min_cgpa, max_cgpa}]}`.
+
+How the save works:
+- It upserts by `name` (or `scale_name`) and creates the scale if it is missing.
+- Renaming is not supported: a `scale_name` that differs from the stored one throws.
+- Only the listed fields are read. Client `creation`/`modified` and child-row metadata are ignored, so a stale copy
+  never raises a timestamp mismatch.
+- `bands`/`classifications`, when sent, replace the existing rows. When omitted, the existing rows are kept.
+
+Validation (`ValidationError`):
+- Bands must not overlap and must cover 0–100 contiguously. Gaps of up to 1 are tolerated, so both integer bands
+  (0–39, 40–49) and .99 bands (0–39.99, 40–49.99) work.
+- Grade points must be within 0–5.
+- Classification bands must not overlap and `max_cgpa` must be ≤ 5.
+
+Setting `is_default` does not modify other scales. The effective default is resolved in this order:
+1. `Mahanaim Settings.default_grading_scale`.
+2. A scale with `is_default`.
+3. Any scale.
+Returns the saved scale in the `get_grading_scales` row shape.

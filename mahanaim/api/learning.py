@@ -5,6 +5,8 @@ See docs/api/learning.md.
 
 from __future__ import annotations
 
+import mimetypes
+
 import frappe
 from frappe import _
 from frappe.utils import cint, flt, now_datetime, nowdate
@@ -12,12 +14,14 @@ from frappe.utils import cint, flt, now_datetime, nowdate
 from mahanaim.api.academics import (
 	doc_dict,
 	ensure_exists,
+	is_academic_admin,
 	offering_lecturers,
 	require_academic_admin,
 	require_enrolled,
 	require_teaching,
+	taught_offering_names,
 )
-from mahanaim.api.utils import clean_payload, parse_json, require_login, require_student
+from mahanaim.api.utils import clean_payload, parse_json, require_lecturer, require_login, require_student
 from mahanaim.services import lms_bridge
 from mahanaim.services.assessments import _validate_attachment, student_offerings
 
@@ -62,9 +66,23 @@ BRIDGE_SETTINGS = (
 
 # ---------------------------------------------------------------------------------- bridge (staff)
 @frappe.whitelist()
-def bridge_status():
-	require_academic_admin()
-	return lms_bridge.bridge_status()
+def bridge_status(offering=None):
+	"""Academic admins: the whole bridge (`scope` "all"). Lecturers: read-only, limited to the offerings they
+	teach, or just `offering` (`scope` "lecturer", with an `offerings` list)."""
+	if offering:
+		ensure_exists("Course Offering", offering)
+	if is_academic_admin():
+		out = lms_bridge.bridge_status()
+		if offering:
+			out["offerings"] = lms_bridge.offering_sync_rows([offering])
+		return {**out, "scope": "all"}
+	require_lecturer()
+	if offering:
+		require_teaching(offering)
+	return {
+		**lms_bridge.bridge_status([offering] if offering else taught_offering_names()),
+		"scope": "lecturer",
+	}
 
 
 @frappe.whitelist(methods=["POST"])
@@ -534,24 +552,42 @@ def mark_resource_complete(resource, progress=100):
 	return {"ok": True, "resource": resource, "status": doc.status, "progress": flt(doc.progress)}
 
 
-def serve_file(file_url: str):
-	"""Respond with a stored file: redirect for public files, stream private ones (caller checks access)."""
+# Types a browser may render in place without running script; everything else (SVG, HTML, XML, ...) is
+# always sent as an attachment.
+INLINE_MIME_TYPES = frozenset({"application/pdf", "image/png", "image/jpeg", "image/gif", "image/webp"})
+
+
+def file_disposition(file_name: str | None, inline=False) -> tuple[str, str]:
+	"""(content type, "inline" | "attachment") for a stored file (pure). Inline only on request and only for
+	PDFs and raster images."""
+	mime = mimetypes.guess_type(file_name or "")[0] or "application/octet-stream"
+	return mime, "inline" if cint(inline) and mime in INLINE_MIME_TYPES else "attachment"
+
+
+def serve_file(file_url: str, inline=False):
+	"""Respond with a stored file (the caller checks access). `inline` asks for an in-browser preview, which is
+	honoured for PDFs and raster images only. Public audio/video, and public files previewed inline, redirect to
+	the static URL (range requests); everything else is streamed with an explicit disposition."""
 	file_name = frappe.db.get_value("File", {"file_url": file_url}, "name", order_by="creation desc")
 	if not file_name:
 		frappe.throw(_("The file could not be found."), frappe.DoesNotExistError)
 	f = frappe.get_doc("File", file_name)
-	if not cint(f.is_private):
+	mime, disposition = file_disposition(f.file_name or f.file_url, inline)
+	frappe.local.response_headers["X-Content-Type-Options"] = "nosniff"
+	if not cint(f.is_private) and (disposition == "inline" or mime.split("/")[0] in ("audio", "video")):
 		frappe.local.response["type"] = "redirect"
 		frappe.local.response["location"] = f.file_url
 		return
 	frappe.local.response["filename"] = f.file_name
 	frappe.local.response["filecontent"] = f.get_content()
+	frappe.local.response["content_type"] = mime
+	frappe.local.response["display_content_as"] = disposition
 	frappe.local.response["type"] = "download"
 
 
 @frappe.whitelist()
-def download_resource(resource):
-	"""Serve a resource file to an enrolled student or the offering's teaching staff."""
+def download_resource(resource, inline=None):
+	"""Serve a resource file to an enrolled student or the offering's teaching staff (`inline=1` to preview)."""
 	require_login()
 	if frappe.db.exists("Student", {"user": frappe.session.user}):
 		_, r = _visible_resource(resource)
@@ -565,4 +601,4 @@ def download_resource(resource):
 		require_teaching(r.course_offering)
 	if not r.file:
 		frappe.throw(_("This resource has no file."))
-	serve_file(r.file)
+	serve_file(r.file, inline)

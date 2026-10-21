@@ -187,8 +187,16 @@ submission still reports `Submitted` (or `Late`).
 - **Method:** GET
 - **Guard:** student (enrolled, when `offering` is given)
 
-Args: `status` (`pending`, `submitted`, `graded` or `overdue`; optional), `offering` (optional). Each row has:
-- `state`: `pending`, `submitted`, `graded` (released) or `overdue`.
+Args: `status` (`pending`, `late_open`, `submitted`, `graded` or `overdue`; optional), `offering` (optional). Each
+row has:
+- `state`, one of:
+  - `pending`: not submitted, not yet due.
+  - `late_open`: past due and not submitted, but late work is still accepted (`allow_late`, before any
+    `late_cutoff`). A submission now is late and penalised.
+  - `overdue`: past due, not submitted, and the window is closed.
+  - `submitted`.
+  - `graded`: released.
+- `is_late` (bool): now is past `due_date`. Use it with `state` to show "late" badges.
 - `can_submit`.
 - `reason`: why the student cannot submit.
 
@@ -196,7 +204,7 @@ Args: `status` (`pending`, `submitted`, `graded` or `overdue`; optional), `offer
 {"message": {"data": [{"name": "ASG-2026-00007", "title": "Exegesis paper", "course_offering": "OFF-2026-00014",
   "course_title": "Old Testament Survey", "academic_term": "…", "assessment_component": "Assignment", "status": "Published",
   "open_date": "…", "due_date": "2026-10-26 23:55:46", "late_cutoff": null, "allow_late": 1, "max_score": 20.0,
-  "submission_type": "Text", "state": "submitted", "can_submit": true, "reason": null,
+  "submission_type": "Text", "state": "submitted", "is_late": false, "can_submit": true, "reason": null,
   "submission": {"name": "SUB-2026-000007", "status": "Submitted", "submitted_on": "…", "is_late": 0, "days_late": 0,
                  "answer_text": "My answer", "attachment": null, "released": 0}}], "total": 1}}
 ```
@@ -233,20 +241,4 @@ not accepted, already graded, and so on).
 
 ```json
 {"message": {"ok": true, "submission": {"name": "SUB-2026-000007", "status": "Submitted", "submitted_on": "…", "is_late": 0,
-  "days_late": 0, "answer_text": "My answer", "attachment": null, "released": 0}}}
-```
-
-## Files
-
-### `download_assignment_file`
-- **Path:** `mahanaim.api.assessments.download_assignment_file`
-- **Method:** GET
-- **Guard:** see below
-
-Args: `name`, `kind`:
-- `kind=brief` (default): `name` is the assignment. The file is the assignment attachment, available to enrolled
-  students (not for Drafts) and teaching staff.
-- `kind=feedback`: `name` is a submission. The file is the feedback attachment, available to the owning student
-  after release, and to teaching staff.
-
-Public files redirect and private files are streamed.
+  "days_late": 0, "answe

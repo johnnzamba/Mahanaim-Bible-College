@@ -116,6 +116,25 @@ class TestAssessments(IntegrationTestCase):
 			{r["name"] for r in api.my_assignments("overdue")["data"]}, {closed.name, strict.name}
 		)
 
+	def test_late_open_state(self):
+		now = now_datetime()
+		late = fb.make_assignment(
+			self.w.offering.name,
+			due=add_to_date(now, hours=-3),
+			allow_late=1,
+			late_cutoff=add_to_date(now, days=2),
+		)
+		ontime = fb.make_assignment(self.w.offering.name)
+		self.as_student()
+		mine = {r["name"]: r for r in api.my_assignments()["data"]}
+		self.assertEqual((mine[late.name]["state"], mine[late.name]["is_late"]), ("late_open", True))
+		self.assertEqual((mine[ontime.name]["state"], mine[ontime.name]["is_late"]), ("pending", False))
+		self.assertEqual([r["name"] for r in api.my_assignments("late_open")["data"]], [late.name])
+		self.assertNotIn(late.name, {r["name"] for r in api.my_assignments("overdue")["data"]})
+		view = api.get_my_assignment(late.name)
+		self.assertEqual((view["state"], view["assignment"]["is_late"]), ("late_open", True))
+		self.assertTrue(api.submit_assignment(late.name, "Late but done")["submission"]["is_late"])
+
 	def test_resubmit_until_graded_and_unique_submission(self):
 		a = fb.make_assignment(self.w.offering.name)
 		self.as_student()
@@ -230,3 +249,34 @@ class TestAssessments(IntegrationTestCase):
 
 		svc.send_due_reminders()
 		self.assertEqual(len(reminders()), 1)
+
+	def test_submission_attachment_download(self):
+		a = fb.make_assignment(self.w.offering.name)
+		self.as_student()
+		sub = api.submit_assignment(a.name, "See file")["submission"]["name"]
+		frappe.set_user("Administrator")
+		url = fb.make_file(self, f"essay-{fb.code()}.pdf")
+		frappe.db.set_value("Assignment Submission", sub, "attachment", url)
+
+		self.as_student()
+		api.download_assignment_file(sub, kind="submission")
+		got = fb.served()
+		self.assertEqual((got["type"], got["disposition"]), ("download", "attachment"))
+		self.assertEqual((got["content_type"], got["nosniff"]), ("application/pdf", "nosniff"))
+		api.download_assignment_file(sub, kind="submission", inline=1)
+		self.assertEqual(fb.served()["disposition"], "inline")
+		self.as_lecturer()
+		api.download_assignment_file(sub, kind="submission", inline="1")
+		self.assertEqual(fb.served()["disposition"], "inline")
+		for user in (self.w.students[1].user, fb.make_lecturer(self.w.campus).user):
+			fb.as_user(self, user)
+			with self.assertRaises(frappe.PermissionError):
+				api.download_assignment_file(sub, kind="submission")
+
+		frappe.set_user("Administrator")
+		for ext, mime in (("svg", "image/svg+xml"), ("html", "text/html")):
+			risky = fb.make_file(self, f"page-{fb.code()}.{ext}", b"<svg onload=alert(1)>")
+			frappe.db.set_value("Assignment Submission", sub, "attachment", risky)
+			self.as_student()
+			api.download_assignment_file(sub, kind="submission", inline=1)
+			self.assertEqual((fb.served()["content_type"], fb.served()["disposition"]), (mime, "attachment"))

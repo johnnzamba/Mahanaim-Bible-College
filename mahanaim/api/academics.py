@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import frappe
 from frappe import _
-from frappe.utils import add_days, cint, flt, getdate, nowdate
+from frappe.utils import add_days, cint, flt, get_time, getdate, now_datetime, nowdate
 
 from mahanaim.api.utils import (
 	clean_payload,
@@ -28,9 +28,20 @@ from mahanaim.services.assessments import (
 	is_enrolled,
 	student_offerings,
 )
-from mahanaim.utils import ROLE_ADMIN, ROLE_DEAN, ROLE_REGISTRAR, current_term, is_staff, pct, user_roles
+from mahanaim.utils import (
+	ROLE_ADMIN,
+	ROLE_AUDITOR,
+	ROLE_DEAN,
+	ROLE_REGISTRAR,
+	ROLE_STUDENT,
+	current_term,
+	is_staff,
+	pct,
+	user_roles,
+)
 
 ACADEMIC_ADMIN_ROLES = (ROLE_DEAN, ROLE_REGISTRAR)
+ACADEMIC_READER_ROLES = (*ACADEMIC_ADMIN_ROLES, ROLE_AUDITOR)
 MAX_REPEAT_WEEKS = 20
 
 PROGRAMME_FIELDS = (
@@ -136,6 +147,27 @@ def is_academic_admin(user: str | None = None) -> bool:
 
 def require_academic_admin() -> str:
 	return require_roles(*ACADEMIC_ADMIN_ROLES)
+
+
+def is_academic_reader(user: str | None = None) -> bool:
+	"""Academic administrators plus the read-only Auditor."""
+	user = user or frappe.session.user
+	return is_academic_admin(user) or ROLE_AUDITOR in user_roles(user)
+
+
+def require_academic_reader() -> str:
+	"""Read-only gate: academic administrators and Auditors. Never use it for writes."""
+	return require_roles(*ACADEMIC_READER_ROLES)
+
+
+def user_full_names(users) -> dict:
+	"""{user id: full name} for a batch of users (missing users are left out)."""
+	users = list({u for u in users or [] if u})
+	if not users:
+		return {}
+	return dict(
+		frappe.get_all("User", filters={"name": ["in", users]}, fields=["name", "full_name"], as_list=True)
+	)
 
 
 def ensure_exists(doctype: str, name: str | None, label: str | None = None):
@@ -620,9 +652,11 @@ def _programmes_for(campus: str, programme: str | None, study_mode: str | None) 
 
 
 @frappe.whitelist(methods=["POST"])
-def generate_offerings(term, campus, programme=None, study_mode=None):
-	"""Create Planned offerings for every curriculum course taught in `term`'s term_number (idempotent)."""
+def generate_offerings(term, campus, programme=None, study_mode=None, preview=0):
+	"""Create Planned offerings for every curriculum course taught in `term`'s term_number (idempotent).
+	`preview=1` is a dry run: the same summary and `rows` plan, nothing written."""
 	require_academic_admin()
+	preview = bool(cint(preview))
 	ensure_exists("Academic Term", term)
 	ensure_exists("Campus", campus)
 	if study_mode:
@@ -636,9 +670,19 @@ def generate_offerings(term, campus, programme=None, study_mode=None):
 		order_by="year_of_study asc, idx asc",
 	)
 	courses = list(dict.fromkeys(r.course for r in rows))
-	active = set(
-		frappe.get_all("Course", filters={"name": ["in", courses or [""]], "is_active": 1}, pluck="name")
-	)
+	course_programmes: dict[str, list[str]] = {}
+	for r in rows:
+		if r.parent not in course_programmes.setdefault(r.course, []):
+			course_programmes[r.course].append(r.parent)
+	course_info = {
+		c.name: c
+		for c in frappe.get_all(
+			"Course",
+			filters={"name": ["in", courses or [""]]},
+			fields=["name", "course_title", "credits", "is_active"],
+		)
+	}
+	active = {c for c, info in course_info.items() if cint(info.is_active)}
 	existing_filters = {
 		"course": ["in", courses or [""]],
 		"academic_term": term,
@@ -648,14 +692,37 @@ def generate_offerings(term, campus, programme=None, study_mode=None):
 	existing = frappe.get_all(
 		"Course Offering", filters=existing_filters, fields=["name", "course", "study_mode"]
 	)
-	covered = {e.course for e in existing if not study_mode or not e.study_mode or e.study_mode == study_mode}
-	created, skipped = [], []
+	covered: dict[str, str] = {}
+	for e in existing:
+		if not study_mode or not e.study_mode or e.study_mode == study_mode:
+			covered.setdefault(e.course, e.name)
+	created, skipped, plan = [], [], []
 	for course in courses:
+		info = course_info.get(course) or {}
+		row = {
+			"course": course,
+			"course_title": info.get("course_title"),
+			"credits": info.get("credits"),
+			"programme": course_programmes[course][0],
+			"programmes": course_programmes[course],
+			"academic_term": term,
+			"campus": campus,
+			"study_mode": study_mode or None,
+			"state": "new",
+			"offering": None,
+			"reason": None,
+		}
+		plan.append(row)
 		if course in covered:
-			skipped.append({"course": course, "reason": _("Already offered")})
+			row.update(state="existing", offering=covered[course], reason=_("Already offered"))
+			skipped.append({"course": course, "reason": row["reason"]})
 			continue
 		if course not in active:
-			skipped.append({"course": course, "reason": _("Course is inactive")})
+			row.update(state="inactive", reason=_("Course is inactive"))
+			skipped.append({"course": course, "reason": row["reason"]})
+			continue
+		if preview:
+			created.append(None)
 			continue
 		doc = frappe.get_doc(
 			{
@@ -670,14 +737,17 @@ def generate_offerings(term, campus, programme=None, study_mode=None):
 		)
 		doc.insert()
 		created.append(doc.name)
+		row["offering"] = doc.name
 	return {
 		"term": term,
 		"term_number": term_number,
 		"programmes": programmes,
+		"preview": preview,
 		"created": len(created),
 		"skipped": len(skipped),
-		"offerings": created,
+		"offerings": [] if preview else created,
 		"skipped_courses": skipped,
+		"rows": plan,
 	}
 
 
@@ -854,10 +924,7 @@ def update_session(session, data):
 		values["meeting_link"] = data.get("meeting_url")
 	if "lecturer" in values:
 		values["lecturer"] = _session_lecturer(doc.course_offering, values["lecturer"])
-	moved = any(
-		k in values and str(values[k] or "") != str(doc.get(k) or "")
-		for k in ("session_date", "start_time", "end_time")
-	)
+	moved = session_moved(doc, values)
 	if moved and doc.status == "Held":
 		frappe.throw(_("This session has already been held."))
 	doc.update(values)
@@ -865,6 +932,25 @@ def update_session(session, data):
 		doc.status = "Rescheduled"
 	doc.save(ignore_permissions=True)
 	return session_dict(doc.name)
+
+
+def session_moved(current, values: dict) -> bool:
+	"""True only when `values` really changes the date or a time (compared normalised, so "9:00" equals
+	"09:00:00" and the stored timedelta)."""
+	for key, parse in (("session_date", getdate), ("start_time", get_time), ("end_time", get_time)):
+		if key not in values:
+			continue
+		new, old = values.get(key), current.get(key)
+		if new in (None, "") or old in (None, ""):
+			if (new in (None, "")) != (old in (None, "")):
+				return True
+			continue
+		try:
+			if parse(new) != parse(old):
+				return True
+		except (TypeError, ValueError):
+			return True  # unparseable input: let the document validation report it
+	return False
 
 
 @frappe.whitelist(methods=["POST"])
@@ -949,11 +1035,15 @@ def take_attendance(session, rows):
 
 
 # ---------------------------------------------------------------------------------- attendance maths
-def attendance_percent(present: int, late: int, held: int, excused: int) -> float:
-	"""(present + late) / (held - excused) * 100 (pure)."""
-	return (
-		pct(cint(present) + cint(late), cint(held) - cint(excused)) if cint(held) - cint(excused) > 0 else 0.0
-	)
+def attendance_percent(present: int, late: int, held: int, excused: int) -> float | None:
+	"""(present + late) / (held - excused) * 100 (pure). Late counts as attended; excused sessions are left
+	out of the denominator, so None when nothing counts (no sessions, or only excused ones)."""
+	counted = cint(held) - cint(excused)
+	return pct(cint(present) + cint(late), counted) if counted > 0 else None
+
+
+def empty_attendance() -> dict:
+	return {"held": 0, "present": 0, "late": 0, "absent": 0, "excused": 0, "percentage": None}
 
 
 def attendance_summary(offerings, students=None) -> dict:
@@ -990,16 +1080,50 @@ def attendance_summary(offerings, students=None) -> dict:
 	return out
 
 
+def _timetable_role(role: str | None) -> tuple[str, list[str]]:
+	"""("student" | "lecturer", offerings). Without `role`, a user with a student record gets the student view."""
+	role = (role or "").strip().lower() or None
+	if role not in (None, "student", "lecturer"):
+		frappe.throw(_("Unknown timetable role {0}.").format(role))
+	if role is None:
+		user = frappe.session.user
+		has_student = ROLE_STUDENT in user_roles(user) and frappe.db.exists("Student", {"user": user})
+		role = "student" if has_student else "lecturer"
+	if role == "student":
+		student = require_student()
+		return role, student_offerings(student.name, ENROLLED)
+	require_lecturer()
+	return role, taught_offering_names()
+
+
+def taught_offering_names(user: str | None = None) -> list[str]:
+	"""Non-cancelled offerings the user is listed on as a lecturer."""
+	parents = frappe.get_all(
+		"Course Offering Lecturer",
+		filters={"user": user or frappe.session.user, "parenttype": "Course Offering"},
+		pluck="parent",
+		distinct=True,
+	)
+	if not parents:
+		return []
+	return frappe.get_all(
+		"Course Offering", filters={"name": ["in", parents], "status": ["!=", "Cancelled"]}, pluck="name"
+	)
+
+
 @frappe.whitelist()
-def my_timetable(from_date=None, to_date=None):
-	student = require_student()
+def my_timetable(from_date=None, to_date=None, role=None):
+	"""Class sessions and exams in a date range for a student's enrolled courses or a lecturer's teaching load.
+
+	`role` ("student" | "lecturer") is optional; without it, users with a student record see their student
+	timetable and lecturers/staff see the offerings they teach."""
+	role, offerings = _timetable_role(role)
 	start = getdate(from_date) if from_date else getdate(nowdate())
 	end = getdate(to_date) if to_date else add_days(start, 6)
 	if end < start:
 		frappe.throw(_("The end date must be after the start date."))
 	if (end - start).days > 120:
 		frappe.throw(_("Choose a range of at most 120 days."))
-	offerings = student_offerings(student.name, ENROLLED)
 	sessions = frappe.get_all(
 		"Class Session",
 		filters={"course_offering": ["in", offerings or [""]], "session_date": ["between", [start, end]]},
@@ -1016,9 +1140,10 @@ def my_timetable(from_date=None, to_date=None):
 	)
 	for s in sessions:
 		s["lecturer_name"] = lecturer_names.get(s.lecturer)
-		s.pop("notes", None)
-		if s.status == "Cancelled":
-			s["meeting_link"] = None
+		if role == "student":
+			s.pop("notes", None)
+			if s.status == "Cancelled":
+				s["meeting_link"] = None
 	exams = frappe.get_all(
 		"Exam",
 		filters={
@@ -1041,38 +1166,78 @@ def my_timetable(from_date=None, to_date=None):
 		],
 		order_by="start_datetime asc",
 	)
-	return {"from_date": start, "to_date": end, "sessions": sessions, "exams": exams}
+	return {
+		"from_date": start,
+		"to_date": end,
+		"sessions": sessions,
+		"exams": exams,
+		"role": role,
+		"server_time": str(now_datetime()),
+	}
 
 
 @frappe.whitelist()
-def my_attendance(offering=None):
+def my_attendance(offering=None, academic_term=None):
+	"""My attendance per course. `offering`: one course (plus its session list). `academic_term`: that term's
+	courses. Default: the current term's courses plus earlier ones that had at least one register taken."""
 	student = require_student()
+	cur = current_term()
 	if offering:
 		require_enrolled(offering)
 		offerings = [offering]
+	elif academic_term:
+		ensure_exists("Academic Term", academic_term)
+		offerings = student_offerings(student.name, term=academic_term)
 	else:
-		offerings = student_offerings(student.name)
+		current = student_offerings(student.name, term=cur) if cur else []
+		others = [o for o in student_offerings(student.name) if o not in set(current)]
+		with_sessions = set(
+			frappe.get_all(
+				"Class Session",
+				filters={"course_offering": ["in", others or [""]], "status": "Held", "attendance_taken": 1},
+				pluck="course_offering",
+				distinct=True,
+			)
+		)
+		offerings = current + [o for o in others if o in with_sessions]
 	summary = attendance_summary(offerings, [student.name])
-	titles = dict(
-		frappe.get_all(
+	info = {
+		r.name: r
+		for r in frappe.get_all(
 			"Course Offering",
 			filters={"name": ["in", offerings or [""]]},
-			fields=["name", "course_title"],
+			fields=["name", "course_title", "academic_term"],
+		)
+	}
+	starts = dict(
+		frappe.get_all(
+			"Academic Term",
+			filters={
+				"name": ["in", list({i.academic_term for i in info.values() if i.academic_term}) or [""]]
+			},
+			fields=["name", "start_date"],
 			as_list=True,
 		)
 	)
+
+	def order(o):
+		term = (info.get(o) or {}).get("academic_term")
+		begins = getdate(starts.get(term) or "1900-01-01")
+		return (term != cur, -begins.toordinal(), ((info.get(o) or {}).get("course_title") or "").casefold())
+
 	data = []
-	for o in offerings:
-		stats = summary.get(o, {}).get(student.name) or {
-			"held": 0,
-			"present": 0,
-			"late": 0,
-			"absent": 0,
-			"excused": 0,
-			"percentage": 0.0,
-		}
-		data.append({"course_offering": o, "course_title": titles.get(o), **stats})
-	out = {"data": data}
+	for o in sorted(offerings, key=order):
+		stats = summary.get(o, {}).get(student.name) or empty_attendance()
+		row = info.get(o) or {}
+		data.append(
+			{
+				"course_offering": o,
+				"course_title": row.get("course_title"),
+				"academic_term": row.get("academic_term"),
+				**stats,
+			}
+		)
+	out = {"data": data, "academic_term": academic_term or None, "current_term": cur}
 	if offering:
 		sessions = frappe.get_all(
 			"Class Session",
@@ -1130,14 +1295,7 @@ def attendance_report(offering):
 	}
 	students = []
 	for s in list(dict.fromkeys(roster + list(stats))):
-		row = stats.get(s) or {
-			"held": 0,
-			"present": 0,
-			"late": 0,
-			"absent": 0,
-			"excused": 0,
-			"percentage": 0.0,
-		}
+		row = stats.get(s) or empty_attendance()
 		info = names.get(s) or {}
 		students.append(
 			{
@@ -1149,12 +1307,11 @@ def attendance_report(offering):
 		)
 	students.sort(key=lambda r: ((r["student_name"] or "").casefold(), r["student"]))
 	held = [s for s in sessions if s.status == "Held" and cint(s.attendance_taken)]
+	counted = [r["percentage"] for r in students if r["percentage"] is not None]
 	return {
 		"offering": offering,
 		"sessions": sessions,
 		"held": len(held),
 		"students": students,
-		"average_percentage": round(sum(r["percentage"] for r in students) / len(students), 2)
-		if students
-		else 0.0,
+		"average_percentage": round(sum(counted) / len(counted), 2) if counted else None,
 	}

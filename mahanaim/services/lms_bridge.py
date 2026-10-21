@@ -314,21 +314,28 @@ def retry_failed() -> dict:
 	return {"retried": len(names), "synced": synced, "failed": len(names) - synced}
 
 
-def bridge_status() -> dict:
+def bridge_status(offerings: list[str] | None = None) -> dict:
+	"""Bridge health. With `offerings` (a lecturer's scope) the counts cover only those offerings and an
+	`offerings` list of their sync rows is added."""
 	settings = bridge_settings()
 	installed = lms_available()
 	if cint(settings.get("lms_installed")) != int(installed):
 		frappe.db.set_single_value(SETTINGS, "lms_installed", int(installed))
+	filters = {"status": ["!=", "Cancelled"]}
+	enrolment_filters = {"lms_enrollment": ["is", "set"]}
+	if offerings is not None:
+		filters["name"] = ["in", list(offerings) or [""]]
+		enrolment_filters["course_offering"] = ["in", list(offerings) or [""]]
 	counts = {
 		r.lms_sync_status or "Not Synced": r.n
 		for r in frappe.get_all(
 			"Course Offering",
-			filters={"status": ["!=", "Cancelled"]},
+			filters=filters,
 			fields=["lms_sync_status", {"COUNT": "*", "as": "n"}],
 			group_by="lms_sync_status",
 		)
 	}
-	return {
+	out = {
 		"installed": installed,
 		"enabled": bool(cint(settings.get("enabled"))),
 		"active": installed and bool(cint(settings.get("enabled"))),
@@ -348,5 +355,35 @@ def bridge_status() -> dict:
 		"failed": counts.get(ERROR, 0),
 		"not_synced": counts.get("Not Synced", 0),
 		"not_installed": counts.get(NOT_INSTALLED, 0),
-		"enrolments_synced": frappe.db.count("Course Enrolment", {"lms_enrollment": ["is", "set"]}),
+		"enrolments_synced": frappe.db.count("Course Enrolment", enrolment_filters),
 	}
+	if offerings is not None:
+		out["offerings"] = offering_sync_rows(offerings, installed)
+	return out
+
+
+def offering_sync_rows(offerings, installed: bool | None = None) -> list[dict]:
+	"""Per-offering LMS sync state (batched)."""
+	installed = lms_available() if installed is None else installed
+	rows = frappe.get_all(
+		"Course Offering",
+		filters={"name": ["in", list(offerings or []) or [""]], "status": ["!=", "Cancelled"]},
+		fields=[
+			"name",
+			"course",
+			"course_title",
+			"academic_term",
+			"lms_course",
+			"lms_sync_status",
+			"lms_last_synced",
+			"lms_sync_error",
+		],
+		order_by="course asc",
+	)
+	for r in rows:
+		r["lms_url"] = (
+			f"/lms/courses/{r.lms_course}"
+			if installed and r.lms_course and r.lms_sync_status == SYNCED
+			else None
+		)
+	return rows

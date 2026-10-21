@@ -1,3 +1,5 @@
+import json
+
 import frappe
 from frappe.tests import IntegrationTestCase
 from frappe.utils import add_days, nowdate
@@ -196,14 +198,34 @@ class TestResults(IntegrationTestCase):
 		sheet = api.recompute_mark_sheet(sheet["name"])  # overrides survive a recompute
 		self.assertEqual(next(e for e in sheet["entries"] if e["student"] == s3.name)["exam_score"], 30.5)
 
-		self.assertEqual(api.submit_mark_sheet(sheet["name"])["status"], "Submitted")
+		submitted = api.submit_mark_sheet(sheet["name"])
+		self.assertEqual(submitted["status"], "Submitted")
+		lecturer_name = frappe.db.get_value("User", w.lecturer.user, "full_name")
+		self.assertEqual(
+			(submitted["submitted_by"], submitted["submitted_by_name"]), (w.lecturer.user, lecturer_name)
+		)
 		with self.assertRaises(frappe.ValidationError):
 			api.save_mark_sheet_entries(sheet["name"], [{"student": s3.name, "exam_score": 40}])
 		with self.assertRaises(frappe.PermissionError):
 			api.approve_mark_sheet(sheet["name"])
 
-		dean = f.make_user(roles=("Academic Dean",))
-		registrar = f.make_user(roles=("Registrar",))
+		dean = f.make_user(roles=("Academic Dean",), first_name="Dean")
+		registrar = f.make_user(roles=("Registrar",), first_name="Registrar")
+		auditor = f.make_user(roles=("Auditor",))
+		fb.as_user(self, auditor.name)
+		pending = {d.name: d for d in api.pending_mark_sheets(w.term)["data"]}
+		self.assertEqual(pending[sheet["name"]]["submitted_by_name"], lecturer_name)
+		self.assertIn(w.offering.name, json.dumps(api.results_overview(w.term), default=str))
+		self.assertEqual(api.grade_distribution(term=w.term)["term"], w.term)
+		self.assertEqual(api.get_mark_sheet_by_name(sheet["name"])["submitted_by_name"], lecturer_name)
+		for call in (
+			lambda: api.approve_mark_sheet(sheet["name"]),
+			lambda: api.return_mark_sheet(sheet["name"], "No"),
+			lambda: api.publish_mark_sheet(sheet["name"]),
+			lambda: api.bulk_publish(w.term),
+		):
+			with self.assertRaises(frappe.PermissionError):
+				call()
 		fb.as_user(self, registrar.name)
 		with self.assertRaises(frappe.PermissionError):
 			api.approve_mark_sheet(sheet["name"])
@@ -211,6 +233,7 @@ class TestResults(IntegrationTestCase):
 		self.assertIn(sheet["name"], [s.name for s in api.pending_mark_sheets()["data"]])
 		returned = api.return_mark_sheet(sheet["name"], "Check the CAT for s2")
 		self.assertEqual(returned["status"], "Returned")
+		self.assertEqual((returned["returned_by"], returned["returned_by_name"]), (dean.name, dean.full_name))
 		fb.as_user(self, w.lecturer.user)
 		api.submit_mark_sheet(sheet["name"])
 		fb.as_user(self, dean.name)
@@ -220,7 +243,12 @@ class TestResults(IntegrationTestCase):
 		self.assertFalse(frappe.db.exists("Course Result", {"course_offering": w.offering.name}))
 
 		fb.as_user(self, registrar.name)
-		self.assertEqual(api.publish_mark_sheet(sheet["name"])["status"], "Published")
+		published = api.publish_mark_sheet(sheet["name"])
+		self.assertEqual(published["status"], "Published")
+		self.assertEqual(
+			(published["published_by_name"], published["approved_by_name"]),
+			(registrar.full_name, dean.full_name),
+		)
 		results = {
 			r.student: r
 			for r in frappe.get_all(
@@ -310,3 +338,90 @@ class TestResults(IntegrationTestCase):
 		):
 			with self.assertRaises(frappe.PermissionError):
 				call()
+
+	def test_mark_sheet_reads_are_side_effect_free(self):
+		w = fb.make_world(students=1)
+		student = w.students[0]
+		assignment = fb.make_assignment(w.offering.name, max_score=10)
+		fb.as_user(self, w.lecturer.user)
+		first = api.get_mark_sheet(w.offering.name)
+		name = first["name"]
+		modified = frappe.db.get_value("Mark Sheet", name, "modified")
+		again = api.get_mark_sheet(w.offering.name)
+		self.assertFalse(again["stale"])
+		self.assertEqual(frappe.db.get_value("Mark Sheet", name, "modified"), modified)
+
+		frappe.set_user("Administrator")
+		assessments_svc.submit(assignment.name, student.name, "Answer")
+		frappe.db.set_value("Assignment", assignment.name, "status", "Closed")
+		sub = frappe.db.get_value("Assignment Submission", {"assignment": assignment.name}, "name")
+		assessments_svc.grade(sub, 8)
+		assessments_svc.release_grades(assignment.name)
+		fb.as_user(self, w.lecturer.user)
+		fresh = api.get_mark_sheet(w.offering.name)
+		self.assertTrue(fresh["stale"])
+		self.assertEqual(fresh["entries"][0]["assignment_score"], 8)
+		self.assertEqual(frappe.db.get_value("Mark Sheet", name, "modified"), modified)
+		stored = frappe.db.get_value("Mark Sheet Entry", {"parent": name}, "assignment_score")
+		self.assertFalse(stored)
+		self.assertEqual(api.recompute_mark_sheet(name)["entries"][0]["assignment_score"], 8)
+		self.assertEqual(frappe.db.get_value("Mark Sheet Entry", {"parent": name}, "assignment_score"), 8)
+		self.assertFalse(api.get_mark_sheet(w.offering.name)["stale"])
+
+	def approved_sheet(self, term):
+		w = fb.make_world(students=1, term=term)
+		frappe.set_user("Administrator")
+		sheet = svc.get_or_create_mark_sheet(w.offering.name)
+		svc.transition(sheet, "Submitted")
+		svc.transition(sheet, "Approved")
+		return sheet.name
+
+	def test_bulk_publish_selected_sheets(self):
+		term = f.make_term(f"B2 Pub {fb.code()}").name
+		chosen, left = self.approved_sheet(term), self.approved_sheet(term)
+		draft = svc.get_or_create_mark_sheet(fb.make_world(students=1, term=term).offering.name).name
+		elsewhere = self.approved_sheet(f.make_term(f"B2 Other {fb.code()}").name)
+		fb.as_user(self, f.make_user(roles=("Registrar",)).name)
+		for bad in ([draft], [elsewhere], ["MS-NOPE"], []):
+			with self.assertRaises((frappe.ValidationError, frappe.DoesNotExistError)):
+				api.bulk_publish(term, json.dumps(bad))
+		result = api.bulk_publish(term, json.dumps([chosen]))
+		self.assertEqual((result["published"], result["failed"]), ([chosen], []))
+		self.assertEqual(frappe.db.get_value("Mark Sheet", chosen, "status"), "Published")
+		self.assertEqual(frappe.db.get_value("Mark Sheet", left, "status"), "Approved")
+		self.assertEqual(api.bulk_publish(term)["published"], [left])
+
+	def test_grading_scale_api(self):
+		bands = [
+			{"grade": "A", "min_score": 70, "max_score": 100, "grade_points": 4, "is_pass": 1},
+			{"grade": "B", "min_score": 50, "max_score": 69.99, "grade_points": 3, "is_pass": 1},
+			{"grade": "F", "min_score": 0, "max_score": 49.99, "grade_points": 0},
+		]
+		name = f"B2 Scale {fb.code()}"
+		fb.as_user(self, fb.make_lecturer(f.make_campus().name).user)
+		with self.assertRaises(frappe.PermissionError):
+			api.save_grading_scale({"scale_name": name, "bands": bands})
+		fb.as_user(self, f.make_user(roles=("Academic Dean",)).name)
+		saved = api.save_grading_scale(json.dumps({"scale_name": name, "pass_mark": 50, "bands": bands}))
+		self.assertEqual([b["grade"] for b in saved["bands"]], ["A", "B", "F"])
+		self.assertEqual((saved["name"], saved["pass_mark"], saved["is_default"]), (name, 50, 0))
+		stale = {**saved, "modified": "2000-01-01 00:00:00", "creation": "2000-01-01 00:00:00"}
+		stale["bands"] = [{**b, "grade_points": 3.5} if b["grade"] == "B" else b for b in saved["bands"]]
+		updated = api.save_grading_scale(stale)  # old client timestamps are ignored, not compared
+		self.assertEqual(next(b for b in updated["bands"] if b["grade"] == "B")["grade_points"], 3.5)
+		invalid = (
+			[{**bands[0], "min_score": 60}, bands[1], bands[2]],  # overlap
+			[bands[0], bands[2]],  # gap 50-69.99
+			[{**bands[0], "grade_points": 6}, bands[1], bands[2]],  # grade points out of range
+			[{**b, "max_score": 90} if b["grade"] == "A" else b for b in bands],  # doesn't reach 100
+		)
+		for rows in invalid:
+			with self.assertRaises(frappe.ValidationError):
+				api.save_grading_scale({"name": name, "bands": rows})
+		with self.assertRaises(frappe.ValidationError):
+			api.save_grading_scale({"name": name, "scale_name": "Renamed"})
+		fb.as_user(self, f.make_user(roles=("Auditor",)).name)
+		scales = {s["name"]: s for s in api.get_grading_scales()["data"]}
+		self.assertEqual(len(scales[name]["bands"]), 3)
+		with self.assertRaises(frappe.PermissionError):
+			api.save_grading_scale({"name": name, "bands": bands})

@@ -6,6 +6,7 @@ Calls go to `/api/method/<dotted path>`. Reads use GET and writes use POST.
 **Guards**
 - **teaching**: a lecturer of the exam's offering (`require_lecturer_of`). Academic Dean, Registrar, College
   Administrator and System Manager also pass. Other lecturers get `PermissionError`.
+- **academic reader**: Academic Dean, Registrar, College Administrator, System Manager or the read-only Auditor.
 - **course**: for the question bank, academic admins, or a lecturer who teaches any offering of the course.
 - **student**: a signed-in student. Every attempt call checks that the attempt belongs to the caller; otherwise it
   raises `PermissionError` with "Exam attempt not found.".
@@ -150,9 +151,23 @@ Valid rows are created and invalid rows are reported (row numbers are 1-based).
 ### `list_exams`
 - **Path:** `mahanaim.api.exams.list_exams`
 - **Method:** GET
-- **Guard:** teaching
+- **Guard:** teaching or academic reader (per offering); academic reader (term-wide)
 
-Args: `offering`, `status` (optional). `to_mark` counts the attempts awaiting marking.
+There are two modes.
+
+**Per offering** (unchanged): Args `offering`, `status` (optional). `to_mark` counts the attempts awaiting marking.
+Returns `{data, total}` (below).
+
+**Term-wide** (no `offering`): Args `academic_term` (required), `status`, `programme` (optional; offerings of
+courses in the programme's curriculum), `start` (default 0), `limit` (default 50). The response is paginated, newest
+first, and each row also has `campus` and `academic_term`. `total` counts all matching exams.
+
+```json
+{"message": {"rows": [{"name": "EXM-2026-00007", "title": "CAT 1", "…": "…", "campus": "Main Campus",
+  "academic_term": "2026-2027 Term 1", "to_mark": 0, "question_count": 3}], "total": 12, "start": 0, "limit": 50}}
+```
+
+Per-offering response:
 
 ```json
 {"message": {"data": [{"name": "EXM-2026-00007", "title": "CAT 1", "exam_type": "CAT", "assessment_component": "CAT",
@@ -311,14 +326,21 @@ Args: `exam`. Covers the marked and released attempts.
 - **Guard:** teaching
 
 Args: `exam`. A live invigilation view: poll it every 15–30 s. `time_left` is in seconds.
+- `attempts[].events`: the attempt's last 20 events, newest first, as `{type, event, timestamp, detail}`. `event` is
+  the stored label (for example "Focus Lost") and `type` its snake_case form (`focus_lost`).
+- `not_started_students`: `[{name, full_name, student_number}]` sorted by name. `not_started` (bare ids) is kept for
+  compatibility.
 
 ```json
 {"message": {"exam": {"name": "EXM-2026-00007", "title": "CAT 1", "status": "Open", "course_offering": "OFF-2026-00014",
   "start_datetime": "…", "end_datetime": "…"}, "server_time": "…",
   "attempts": [{"name": "ATT-2026-000005", "student": "STU-2026-00012", "student_name": "Jane Doe", "status": "In Progress",
                 "attempt_number": 1, "started_on": "…", "deadline": "…", "submitted_on": null, "focus_lost_count": 1, "percentage": 0.0,
-                "ip_address": "41.90.1.2", "answered": 3, "questions": 3, "time_left": 2699}],
-  "in_progress": 1, "submitted": 0, "not_started": ["STU-2026-00013"]}}
+                "ip_address": "41.90.1.2", "answered": 3, "questions": 3, "time_left": 2699,
+                "events": [{"type": "focus_lost", "event": "Focus Lost", "timestamp": "…", "detail": "tab hidden"},
+                           {"type": "started", "event": "Started", "timestamp": "…", "detail": "41.90.1.2"}]}],
+  "in_progress": 1, "submitted": 0, "not_started": ["STU-2026-00013"],
+  "not_started_students": [{"name": "STU-2026-00013", "full_name": "John Mwangi", "student_number": "MBC/DBS/2026/0002"}]}}
 ```
 
 ## Student exam room
@@ -338,12 +360,14 @@ Past exams are listed newest first. Drafts and Cancelled exams are hidden.
   - the fee-clearance message from Finance
   - "This exam is sat in person (venue)."
 - When there is a live attempt, `in_progress_attempt` and `time_remaining` let the UI resume it.
+- `instructions` is the exam's HTML instructions (`null` if none); sanitise it before rendering.
 
 ```json
 {"message": {"upcoming": [], "past": [], "server_time": "2026-10-21 23:55:46",
   "open": [{"name": "EXM-2026-00007", "title": "CAT 1", "exam_type": "CAT", "course_offering": "OFF-2026-00014",
             "course_title": "Old Testament Survey", "status": "Open", "delivery_mode": "Online", "venue": null, "start_datetime": "…",
             "end_datetime": "…", "duration_minutes": 45, "total_marks": 13.0, "max_attempts": 1, "attempts_used": 0,
+            "instructions": "<p>Answer all questions.</p>",
             "requires_access_code": false, "in_progress_attempt": null, "time_remaining": null, "can_start": true, "reasons": [],
             "attempts": [], "best_percentage": null}]}}
 ```
@@ -362,7 +386,9 @@ raised:
 2. The exam is `Open` and now is within the window.
 3. The access code matches.
 4. Fewer than `max_attempts` attempts have been used (Void ones excluded).
-5. Fee clearance, when `require_fee_clearance` is set or Settings `exam_fee_clearance_percent > 0`. This uses
+5. Fee clearance, only when the exam's `require_fee_clearance` is set **and** Settings
+   `exam_fee_clearance_percent > 0`. The exam flag is authoritative, so a lecturer can waive clearance per exam; the
+   percent is only the threshold, and 0 switches the check off everywhere. This uses
    `fees.fee_clearance(student, "exam")` and shows its `message` (title "Fee clearance required").
 6. `delivery_mode` is Online.
 
@@ -447,12 +473,21 @@ Args: `attempt`. Auto-marks the objective answers and returns a summary **withou
 - **Method:** GET
 - **Guard:** student (owner)
 
-Args: `attempt`. Only for Released attempts; otherwise it raises "Results for this exam have not been released yet."
-`items` always include my answer, marks and feedback. `correct_answer` and `explanation` are added only when
+Args: `attempt`. Another student's attempt still raises `PermissionError`. For an attempt that is not Released it
+returns a small placeholder (no scores, no answers) instead of an error:
+
+```json
+{"message": {"released": false, "attempt": "ATT-2026-000005", "exam": "EXM-2026-00007", "exam_title": "CAT 1",
+  "status": "Marking", "submitted_on": "…", "message": "Results for this exam have not been released yet."}}
+```
+
+Released results carry `"released": true` plus the full shape below. `items` always include my answer, marks and
+feedback. `correct_answer` and `explanation` are added only when
 `show_answers` is true.
 
 ```json
-{"message": {"exam": {"name": "EXM-2026-00007", "title": "CAT 1", "exam_type": "CAT", "course_title": "Old Testament Survey",
+{"message": {"released": true,
+  "exam": {"name": "EXM-2026-00007", "title": "CAT 1", "exam_type": "CAT", "course_title": "Old Testament Survey",
   "pass_mark": 40.0, "show_answers_after_release": 0, "total_marks": 13.0},
   "attempt": {"attempt": "ATT-2026-000005", "exam": "EXM-2026-00007", "status": "Released", "attempt_number": 1, "started_on": "…",
               "submitted_on": "…", "submission_mode": "Submitted", "answered": 3, "questions": 3, "result_available": true,

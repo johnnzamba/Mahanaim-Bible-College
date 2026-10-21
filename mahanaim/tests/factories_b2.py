@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import random
 from unittest.mock import patch
 
@@ -37,6 +38,46 @@ def no_commit(test):
 def as_user(test, user: str):
 	frappe.set_user(user)
 	test.addCleanup(frappe.set_user, "Administrator")
+
+
+def pdf_bytes() -> bytes:
+	"""A valid one-page PDF with a random title (Frappe validates PDFs on upload)."""
+	from io import BytesIO
+
+	from pypdf import PdfWriter
+
+	writer = PdfWriter()
+	writer.add_blank_page(width=72, height=72)
+	writer.add_metadata({"/Title": random_string(16)})
+	buf = BytesIO()
+	writer.write(buf)
+	return buf.getvalue()
+
+
+def make_file(test, file_name: str, content: bytes | None = None, is_private=1) -> str:
+	"""A File on disk (unique content, so never deduplicated onto an existing file), removed after the test."""
+	if file_name.lower().endswith(".pdf"):
+		content = pdf_bytes()
+	else:
+		content = (content or b"B2 test file") + b" " + random_string(16).encode()
+	doc = frappe.get_doc(
+		{"doctype": "File", "file_name": file_name, "is_private": is_private, "content": content}
+	).insert(ignore_permissions=True)
+	path = doc.get_full_path()
+	test.addCleanup(lambda: os.path.exists(path) and os.remove(path))
+	return doc.file_url
+
+
+def served() -> dict:
+	"""What the last serve_file call put on the response."""
+	r = frappe.local.response
+	return {
+		"type": r.get("type"),
+		"content_type": r.get("content_type"),
+		"disposition": r.get("display_content_as"),
+		"filename": r.get("filename"),
+		"nosniff": frappe.local.response_headers.get("X-Content-Type-Options"),
+	}
 
 
 def setup_mocks(test) -> frappe._dict:

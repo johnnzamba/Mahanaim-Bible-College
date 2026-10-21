@@ -67,7 +67,7 @@ SUBMISSION_FIELDS = [
 	"graded_on",
 	"released",
 ]
-STUDENT_FILTERS = ("pending", "submitted", "graded", "overdue")
+STUDENT_FILTERS = ("pending", "late_open", "submitted", "graded", "overdue")
 
 
 def _assignment(name: str):
@@ -319,18 +319,19 @@ def _student_submission_view(sub) -> dict | None:
 
 
 def _student_state(a, sub, now) -> str:
+	"""graded | submitted | late_open (past due, late work still accepted) | overdue (window closed) | pending."""
 	if sub and cint(sub.get("released")):
 		return "graded"
 	if sub and sub.get("status") in svc.SUBMITTED_STATUSES:
 		return "submitted"
-	if now > get_datetime(a.due_date) and not svc.submission_window(a, sub, now)["can_submit"]:
-		return "overdue"
+	if now > get_datetime(a.due_date):
+		return "late_open" if svc.submission_window(a, sub, now)["can_submit"] else "overdue"
 	return "pending"
 
 
 @frappe.whitelist()
 def my_assignments(status=None, offering=None):
-	"""status: pending | submitted | graded | overdue (optional)."""
+	"""status: pending | late_open | submitted | graded | overdue (optional)."""
 	student = require_student()
 	if status and status not in STUDENT_FILTERS:
 		frappe.throw(_("Unknown status filter {0}.").format(status))
@@ -361,6 +362,7 @@ def my_assignments(status=None, offering=None):
 		sub = subs.get(d.name)
 		window = svc.submission_window(d, sub, now)
 		d["state"] = _student_state(d, sub, now)
+		d["is_late"] = bool(window["is_late"])
 		d["can_submit"] = window["can_submit"]
 		d["reason"] = window["reason"]
 		d["submission"] = _student_submission_view(sub)
@@ -413,6 +415,7 @@ def get_my_assignment(name):
 				)
 			},
 			"has_attachment": bool(a.attachment),
+			"is_late": bool(window["is_late"]),
 		},
 		"submission": _student_submission_view(sub),
 		"state": _student_state(a, sub, now),
@@ -431,9 +434,12 @@ def submit_assignment(assignment, answer_text=None, attachment=None):
 
 
 @frappe.whitelist()
-def download_assignment_file(name, kind="brief"):
+def download_assignment_file(name, kind="brief", inline=None):
 	"""kind=brief: the assignment's attachment (enrolled students / teaching staff).
-	kind=feedback: a submission's feedback file (`name` = submission; owner after release, or teaching staff)."""
+	kind=feedback: a submission's feedback file (`name` = submission; owner after release, or teaching staff).
+	kind=submission: a submission's own attachment (`name` = submission; the submitting student, or staff whose
+	Assignment Submission read permission, including the lecturer row scoping, covers it).
+	`inline=1` previews PDFs and raster images in the browser; everything else downloads."""
 	require_login()
 	is_student = frappe.db.exists("Student", {"user": frappe.session.user})
 	if kind == "brief":
@@ -459,8 +465,17 @@ def download_assignment_file(name, kind="brief"):
 		else:
 			require_teaching(s.course_offering)
 		url = s.feedback_attachment
+	elif kind == "submission":
+		ensure_exists("Assignment Submission", name, _("Submission"))
+		s = frappe.db.get_value("Assignment Submission", name, ["student", "attachment"], as_dict=True)
+		owner = frappe.db.get_value("Student", {"user": frappe.session.user}, "name")
+		if not (owner and s.student == owner) and not frappe.has_permission(
+			"Assignment Submission", "read", doc=name
+		):
+			frappe.throw(_("Submission not found."), frappe.PermissionError)
+		url = s.attachment
 	else:
-		frappe.throw(_("kind must be 'brief' or 'feedback'."))
+		frappe.throw(_("kind must be 'brief', 'feedback' or 'submission'."))
 	if not url:
 		frappe.throw(_("There is no file to download."))
-	serve_file(url)
+	serve_file(url, inline)
