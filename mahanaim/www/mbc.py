@@ -9,6 +9,8 @@ Every public and portal route is mapped here by hooks.website_route_rules. The c
 
 from __future__ import annotations
 
+from urllib.parse import quote
+
 import frappe
 import frappe.sessions
 from frappe.utils import get_url
@@ -87,7 +89,9 @@ def get_context(context):
 	)
 	image = meta.get("image")
 	context.meta_image = get_url(image) if image and image.startswith("/") else image
-	context.canonical_url = get_url(path) if first not in PRIVATE_PREFIXES else None
+	# request.path is already percent-decoded; re-quote it so the canonical URL is a valid URL
+	# (the shell template also escapes every value it prints).
+	context.canonical_url = get_url(quote(path, safe="/-._~")) if first not in PRIVATE_PREFIXES else None
 	context.noindex = first in PRIVATE_PREFIXES
 	context.og_type = meta.get("og_type") or "website"
 	context.structured_data = meta.get("structured_data")

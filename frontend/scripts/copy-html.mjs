@@ -143,26 +143,26 @@ const html = `<!DOCTYPE html>
 <head>
 	<meta charset="UTF-8" />
 	<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
-	<title>{{ meta_title }}</title>
-	<meta name="description" content="{{ meta_description }}" />
-	{% if canonical_url %}<link rel="canonical" href="{{ canonical_url }}" />{% endif %}
+	<title>{{ meta_title | e }}</title>
+	<meta name="description" content="{{ meta_description | e }}" />
+	{% if canonical_url %}<link rel="canonical" href="{{ canonical_url | e }}" />{% endif %}
 	{% if noindex %}<meta name="robots" content="noindex, nofollow" />{% endif %}
-	<meta property="og:site_name" content="{{ site_name }}" />
-	<meta property="og:type" content="{{ og_type or 'website' }}" />
-	<meta property="og:title" content="{{ meta_title }}" />
-	<meta property="og:description" content="{{ meta_description }}" />
-	{% if canonical_url %}<meta property="og:url" content="{{ canonical_url }}" />{% endif %}
-	{% if meta_image %}<meta property="og:image" content="{{ meta_image }}" /><meta name="twitter:image" content="{{ meta_image }}" />{% endif %}
-	<meta name="twitter:card" content="{{ 'summary_large_image' if meta_image else 'summary' }}" />
+	<meta property="og:site_name" content="{{ site_name | e }}" />
+	<meta property="og:type" content="{{ (og_type or 'website') | e }}" />
+	<meta property="og:title" content="{{ meta_title | e }}" />
+	<meta property="og:description" content="{{ meta_description | e }}" />
+	{% if canonical_url %}<meta property="og:url" content="{{ canonical_url | e }}" />{% endif %}
+	{% if meta_image %}<meta property="og:image" content="{{ meta_image | e }}" /><meta name="twitter:image" content="{{ meta_image | e }}" />{% endif %}
+	<meta name="twitter:card" content="{{ ('summary_large_image' if meta_image else 'summary') | e }}" />
 	<meta name="theme-color" content="#14372a" />
 	<link rel="icon" type="image/png" href="/assets/mahanaim/images/favicon.png" />
 	<link rel="icon" type="image/svg+xml" href="/assets/mahanaim/images/logo.svg" />
 	<link rel="apple-touch-icon" sizes="192x192" href="/assets/mahanaim/images/icon-192.png" />
-	<link rel="manifest" href="${BASE}/{{ manifest or 'site' }}.webmanifest?v=${build}" />
+	<link rel="manifest" href="${BASE}/{{ (manifest or 'site') | e }}.webmanifest?v=${build}" />
 	<meta name="mobile-web-app-capable" content="yes" />
 	<meta name="apple-mobile-web-app-capable" content="yes" />
 	<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
-	<meta name="apple-mobile-web-app-title" content="{{ app_title or 'Mahanaim' }}" />
+	<meta name="apple-mobile-web-app-title" content="{{ (app_title or 'Mahanaim') | e }}" />
 	<link rel="preconnect" href="https://fonts.googleapis.com" />
 	<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 	<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,400;9..40,500;9..40,600;9..40,700&family=Libre+Baskerville:ital,wght@0,400;0,700;1,400&display=swap" />
@@ -170,7 +170,7 @@ const html = `<!DOCTYPE html>
 ${PRELOADS.map((p) => `	<link rel="modulepreload" crossorigin href="${BASE}/${p}" />`).join("\n")}
 	{% if structured_data %}<script type="application/ld+json">{{ structured_data | tojson }}</script>{% endif %}
 	<script>
-		window.csrf_token = "{{ csrf_token }}";
+		window.csrf_token = {{ csrf_token | tojson }};
 		window.mahanaim_boot = {{ boot | tojson }};
 		window.mahanaim_boot.build = "${build}";
 		(function () {
@@ -188,8 +188,8 @@ ${PRELOADS.map((p) => `	<link rel="modulepreload" crossorigin href="${BASE}/${p}
 	<div id="root"></div>
 	<noscript>
 		<div style="max-width:640px;margin:4rem auto;padding:0 1rem;font-family:Georgia,serif">
-			<h1>{{ site_name }}</h1>
-			<p>{{ meta_description }}</p>
+			<h1>{{ site_name | e }}</h1>
+			<p>{{ meta_description | e }}</p>
 			<p>Please enable JavaScript to use the Digital Campus.</p>
 		</div>
 	</noscript>
