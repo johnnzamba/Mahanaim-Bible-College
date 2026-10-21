@@ -7,7 +7,9 @@ Usage from any controller/service:
 	       context={"amount": payment.amount}, link="/student/fees", category="Finance")
 
 If no active template exists for the event, `fallback={"subject":..., "message":...}` is used so a
-fresh site still communicates. Every message is written to Message Log.
+fresh site still communicates. Every message is written to Message Log, except that messages for
+SECRET_EVENTS (one-time codes, password-reset links) are logged with redacted subject and body, so
+staff who can read the log cannot use them to sign in as someone else.
 """
 
 from __future__ import annotations
@@ -19,6 +21,14 @@ from frappe import _
 from frappe.utils import cint, get_url, now_datetime, strip_html
 
 from mahanaim.utils import normalize_phone, setting
+
+SECRET_EVENTS = frozenset({"OTP Code", "Password Reset Link"})
+REDACTED = "[Redacted: this message contained a one-time code or sign-in link]"
+
+
+def _redact(event) -> bool:
+	# `mahanaim_log_secrets` is a development-only site_config switch; never set it in production.
+	return event in SECRET_EVENTS and not cint(frappe.conf.get("mahanaim_log_secrets"))
 
 
 # ---------------------------------------------------------------------------------- recipients
@@ -165,6 +175,8 @@ def _log(
 	user=None,
 	response=None,
 ):
+	if _redact(event):
+		subject, message = (event if subject else None), REDACTED
 	log = frappe.get_doc(
 		{
 			"doctype": "Message Log",
@@ -212,22 +224,28 @@ def send_sms(phone, message, doc=None, template=None, event=None, user=None):
 		"mahanaim.services.communication.deliver_sms",
 		queue="short",
 		log_name=log.name,
+		# a redacted log can't supply the text, so it travels with the (short-lived) job instead
+		message=message if _redact(event) else None,
 		enqueue_after_commit=True,
 	)
 
 
-def deliver_sms(log_name: str):
+def deliver_sms(log_name: str, message: str | None = None):
 	"""Background job: push a queued SMS through the configured gateway."""
 	log = frappe.get_doc("Message Log", log_name)
+	text = message or log.message
+	if not message and log.message == REDACTED:
+		log.db_set({"status": "Failed", "provider_response": "Redacted message cannot be resent"})
+		return
 	settings = frappe.get_single("Mahanaim Settings")
 	if not cint(settings.sms_enabled) or settings.sms_provider in (None, "", "None"):
 		log.db_set({"status": "Failed", "provider_response": "SMS gateway disabled"})
 		return
 	try:
 		if settings.sms_provider == "Africa's Talking":
-			response = _send_africastalking(settings, log.recipient, log.message)
+			response = _send_africastalking(settings, log.recipient, text)
 		else:
-			response = _send_generic(settings, log.recipient, log.message)
+			response = _send_generic(settings, log.recipient, text)
 		log.db_set({"status": "Sent", "sent_on": now_datetime(), "provider_response": str(response)[:1000]})
 	except Exception as e:
 		log.db_set({"status": "Failed", "retries": cint(log.retries) + 1, "provider_response": str(e)[:1000]})

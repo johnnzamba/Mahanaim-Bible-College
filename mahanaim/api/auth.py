@@ -248,6 +248,7 @@ def request_password_reset(email: str):
 			notify(
 				"Password Reset Link",
 				recipients=[{"user": user, "email": doc.email, "name": doc.full_name}],
+				context={"reset_url": url, "hours": hours},
 				category="System",
 				channels=("Email",),
 				fallback={

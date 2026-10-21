@@ -316,7 +316,24 @@ class TestAuth(IntegrationTestCase):
 			self.assertEqual(api.request_password_reset(user.name), {"ok": True})
 		notify.assert_called_once()
 		self.assertIn("/reset-password?key=", notify.call_args.kwargs["fallback"]["message"])
+		self.assertIn("/reset-password?key=", notify.call_args.kwargs["context"]["reset_url"])
 		self.assertTrue(frappe.db.get_value("User", user.name, "reset_password_key"))
+
+	def test_secret_messages_are_redacted_in_message_log(self):
+		from mahanaim.services import communication as comms
+
+		fb.use_settings(self, sms_enabled=1)
+		phone = "2547" + str(frappe.utils.cint(now_datetime().timestamp()))[-8:]
+		with (
+			patch.dict(frappe.conf, {"mahanaim_log_secrets": 0}),
+			patch("mahanaim.services.auth.notify", wraps=comms.notify) as spy,
+		):
+			for recipient, channel in ((_email(), "Email"), (phone, "SMS")):
+				otp.create_otp(recipient, channel, "Signup")
+				code = spy.call_args.kwargs["context"]["code"]
+				log = frappe.get_last_doc("Message Log", filters={"recipient": recipient})
+				self.assertEqual(log.message, comms.REDACTED)
+				self.assertNotIn(code, log.subject or "")
 
 	def test_change_password_and_phone(self):
 		fb.use_settings(self, sms_enabled=1)
