@@ -1,0 +1,265 @@
+/**
+ * Static website copy used alongside (or in place of) CMS content, so every page reads complete even
+ * before the college has filled in Campus Website Settings. Scripture is quoted from the KJV.
+ */
+
+export const VERSES = {
+	harvest: {
+		text: "The harvest truly is plenteous, but the labourers are few; pray ye therefore the Lord of the harvest, that he will send forth labourers into his harvest.",
+		ref: "Matthew 9:37–38",
+	},
+	fields: { text: "Lift up your eyes, and look on the fields; for they are white already to harvest.", ref: "John 4:35" },
+	study: {
+		text: "Study to shew thyself approved unto God, a workman that needeth not to be ashamed, rightly dividing the word of truth.",
+		ref: "2 Timothy 2:15",
+	},
+	faithfulMen: {
+		text: "The things that thou hast heard of me among many witnesses, the same commit thou to faithful men, who shall be able to teach others also.",
+		ref: "2 Timothy 2:2",
+	},
+	mahanaim: {
+		text: "And Jacob went on his way, and the angels of God met him. And when Jacob saw them, he said, This is God's host: and he called the name of that place Mahanaim.",
+		ref: "Genesis 32:1–2",
+	},
+	ministry: {
+		text: "And he gave some, apostles; and some, prophets; and some, evangelists; and some, pastors and teachers; for the perfecting of the saints, for the work of the ministry, for the edifying of the body of Christ.",
+		ref: "Ephesians 4:11–12",
+	},
+	sendMe: { text: "Also I heard the voice of the Lord, saying, Whom shall I send, and who will go for us? Then said I, Here am I; send me.", ref: "Isaiah 6:8" },
+	lamp: { text: "Thy word is a lamp unto my feet, and a light unto my path.", ref: "Psalm 119:105" },
+	cheerful: {
+		text: "Every man according as he purposeth in his heart, so let him give; not grudgingly, or of necessity: for God loveth a cheerful giver.",
+		ref: "2 Corinthians 9:7",
+	},
+	giveMeasure: {
+		text: "Give, and it shall be given unto you; good measure, pressed down, and shaken together, and running over.",
+		ref: "Luke 6:38",
+	},
+	cost: {
+		text: "For which of you, intending to build a tower, sitteth not down first, and counteth the cost, whether he have sufficient to finish it?",
+		ref: "Luke 14:28",
+	},
+	callUnto: { text: "Call unto me, and I will answer thee, and shew thee great and mighty things, which thou knowest not.", ref: "Jeremiah 33:3" },
+	wisdom: {
+		text: "If any of you lack wisdom, let him ask of God, that giveth to all men liberally, and upbraideth not; and it shall be given him.",
+		ref: "James 1:5",
+	},
+	honest: { text: "Providing for honest things, not only in the sight of the Lord, but also in the sight of men.", ref: "2 Corinthians 8:21" },
+	remember: {
+		text: "Remember them which have the rule over you, who have spoken unto you the word of God: whose faith follow.",
+		ref: "Hebrews 13:7",
+	},
+	declare: { text: "Declare his glory among the heathen, his wonders among all people.", ref: "Psalm 96:3" },
+	glad: { text: "I was glad when they said unto me, Let us go into the house of the LORD.", ref: "Psalm 122:1" },
+	lost: { text: "Rejoice with me; for I have found my sheep which was lost.", ref: "Luke 15:6" },
+}
+
+export const WHY_MBC = [
+	{
+		icon: "BookOpen",
+		title: "Scripture at the centre",
+		text: "Every programme is built on careful study of the whole Bible, sound doctrine and the historic Christian faith.",
+	},
+	{
+		icon: "Church",
+		title: "Rooted in the local church",
+		text: "Lecturers are practising ministers, and every student serves in a partner church through supervised ministry practicum.",
+	},
+	{
+		icon: "Laptop",
+		title: "Study your way",
+		text: "Full-time, evening, weekend or fully online through the Digital Campus: keep serving while you train.",
+	},
+	{
+		icon: "Flame",
+		title: "Formation, not just information",
+		text: "Daily chapel, prayer cells, mentoring and retreats shape godly character alongside academic excellence.",
+	},
+	{
+		icon: "Smartphone",
+		title: "Simple, affordable payments",
+		text: "Transparent fee structures, flexible instalments, church sponsorship and M-Pesa payments from your phone.",
+	},
+	{
+		icon: "Globe",
+		title: "A family across Africa",
+		text: "Graduates pastor congregations, plant churches, lead missions and teach in schools across Kenya and beyond.",
+	},
+]
+
+export const PATHWAYS = [
+	{
+		level: "Certificate",
+		icon: "Award",
+		title: "Certificate",
+		text: "A firm foundation in Bible, doctrine and ministry skills for lay leaders, youth workers and those exploring a call.",
+		duration: "1 year",
+	},
+	{
+		level: "Diploma",
+		icon: "ScrollText",
+		title: "Diploma",
+		text: "Deeper biblical, theological and pastoral training for pastors, evangelists and church workers.",
+		duration: "2–3 years",
+	},
+	{
+		level: "Bachelor",
+		icon: "GraduationCap",
+		title: "Degree",
+		text: "Rigorous study of theology, biblical languages and leadership for those called to teach and shepherd.",
+		duration: "4 years",
+	},
+	{
+		level: "Short Course",
+		icon: "Clock",
+		title: "Short courses",
+		text: "Focused modules in preaching, counselling, children's ministry and church administration.",
+		duration: "Weeks",
+	},
+]
+
+export const STUDY_MODES = [
+	{ name: "Full Time", icon: "School", description: "Day classes on campus, Monday to Friday, with chapel and community life." },
+	{ name: "Evening", icon: "Clock", description: "Weekday evening classes for those who work during the day." },
+	{ name: "Weekend", icon: "CalendarDays", description: "Friday evening and Saturday classes for working ministers." },
+	{ name: "Part Time", icon: "Hourglass", description: "A reduced course load spread over a longer period." },
+	{ name: "Distance (Online)", icon: "Laptop", description: "Fully online through the Digital Campus: lessons, assignments and exams." },
+]
+
+export const DEFAULT_STEPS = [
+	"Create an account and verify your email",
+	"Choose a programme, campus and study mode",
+	"Complete your personal, church and academic details",
+	"Upload your documents",
+	"Pay the application fee via M-Pesa",
+	"Track your application and download your admission letter",
+]
+
+export const DOCUMENTS = [
+	{ title: "National ID or passport", text: "A clear scan or photo of both sides of your ID, or the bio page of your passport." },
+	{ title: "Academic certificates", text: "KCSE certificate or result slip, plus any certificates, diplomas and transcripts from previous study." },
+	{ title: "Passport-size photograph", text: "A recent colour photo with a plain background; a good phone photo is fine." },
+	{ title: "Pastor's recommendation", text: "A letter from your pastor or church leadership confirming your membership and ministry involvement." },
+	{ title: "Personal testimony", text: "A short account of your salvation and sense of call to ministry (you can type it into the form)." },
+	{ title: "Sponsorship letter (if any)", text: "If a church, sponsor or employer is paying your fees, attach their commitment letter." },
+]
+
+export const REQUIREMENTS = [
+	{ level: "Certificate", text: "KCSE mean grade D (plain) or equivalent, a clear Christian testimony and a recommendation from your church." },
+	{ level: "Diploma", text: "KCSE mean grade C- (minus) or a relevant certificate, a Christian testimony and a pastor's recommendation." },
+	{ level: "Degree", text: "KCSE mean grade C+ (plus) or a relevant diploma, a Christian testimony and a pastor's recommendation." },
+	{ level: "Mature entry", text: "Experienced ministers without the formal grades may be admitted on the strength of ministry experience and an interview." },
+]
+
+export const DEFAULT_FAQS = [
+	{
+		category: "Admissions",
+		question: "When can I apply?",
+		answer: "Applications are accepted online throughout the year for each open intake. The admissions page lists current intakes and their closing dates; apply early, as some programmes fill up.",
+	},
+	{
+		category: "Admissions",
+		question: "Do I need to be born again to study at the college?",
+		answer: "Yes. We train people for Christian ministry, so we ask every applicant for a personal testimony and a recommendation from their church.",
+	},
+	{
+		category: "Admissions",
+		question: "How long does it take to get a decision?",
+		answer: "Most complete applications are reviewed within two weeks. You can follow every step in the applicant portal and download your admission letter there.",
+	},
+	{
+		category: "Admissions",
+		question: "I don't meet the grade requirements. Can I still apply?",
+		answer: "Experienced ministers can apply through mature entry. Include details of your ministry experience; the admissions team may invite you for an interview.",
+	},
+	{
+		category: "Fees",
+		question: "How do I pay fees?",
+		answer: "Pay through M-Pesa from the student portal (you receive a prompt on your phone), through the college Paybill using your student number as the account, or by bank deposit. Every payment is receipted automatically.",
+	},
+	{
+		category: "Fees",
+		question: "Can I pay in instalments?",
+		answer: "Yes. Fees are charged per term and can be paid in instalments, as long as the minimum required for exams and registration has been paid by the published deadlines.",
+	},
+	{
+		category: "Fees",
+		question: "Are there scholarships or sponsorships?",
+		answer: "Many students are sponsored by their churches or by individual sponsors. The college also offers a limited number of needs-based bursaries. Indicate your sponsorship on the application form.",
+	},
+	{
+		category: "Online Learning",
+		question: "Can I study fully online?",
+		answer: "Yes. Selected programmes are offered by distance learning through the Digital Campus, with recorded lessons, live sessions, online assignments and supervised online exams.",
+	},
+	{
+		category: "Academics",
+		question: "How are students assessed?",
+		answer: "Through continuous assessment (assignments and CATs), ministry practicum reports and end-of-term examinations. Results are published in the student portal.",
+	},
+	{
+		category: "General",
+		question: "Is the college denominational?",
+		answer: "We are an evangelical, interdenominational college. Students come from many churches and are encouraged to serve faithfully in their own congregations.",
+	},
+	{
+		category: "General",
+		question: "How can an employer confirm a graduate's certificate?",
+		answer: "Every certificate and transcript carries a verification code and QR code. Enter the code on our Verify page to confirm it instantly.",
+	},
+	{
+		category: "Admissions",
+		question: "What documents do I upload with my application?",
+		answer: "A copy of your national ID or passport, your KCSE or other academic certificates, a passport photo, your church recommendation letter and, for mature entry, a short ministry CV. Clear phone photos are fine.",
+	},
+	{
+		category: "Fees",
+		question: "Is the application fee refundable?",
+		answer: "No. The application fee covers processing and assessment of your application and is not refundable, but it is only paid once per application.",
+	},
+	{
+		category: "Online Learning",
+		question: "What do I need to study online?",
+		answer: "A smartphone, tablet or computer and a reasonable internet connection. Lessons are designed to work on mobile data, and recordings can be watched later if you miss a live class.",
+	},
+	{
+		category: "Online Learning",
+		question: "Can I use the e-library from home?",
+		answer: "Yes. Students and staff sign in to read e-books, journals and sermon archives online, and can reserve printed books for collection from the campus library.",
+	},
+	{
+		category: "Academics",
+		question: "Is there practical ministry training?",
+		answer: "Yes. Every programme includes supervised ministry practicum in a local church or mission field, with reports reviewed by your lecturers.",
+	},
+	{
+		category: "General",
+		question: "Can I visit the campus before applying?",
+		answer: "You are very welcome. Contact the admissions office to arrange a visit, or come to one of our open days listed on the events page.",
+	},
+]
+
+export const STATEMENT_OF_FAITH = [
+	["The Scriptures", "The Bible, Old and New Testaments, is the inspired, infallible and authoritative Word of God, the final rule for faith and life."],
+	["The Triune God", "There is one God, eternally existing in three persons: the Father, the Son and the Holy Spirit."],
+	["Jesus Christ", "Jesus Christ is fully God and fully man, born of a virgin, who lived a sinless life, died for our sins, rose bodily and will return in glory."],
+	["Salvation", "Salvation is by grace alone through faith alone in Christ alone, and brings forgiveness, new birth and eternal life."],
+	["The Holy Spirit", "The Holy Spirit convicts the world of sin, regenerates believers, indwells, sanctifies and empowers them for holy living and service."],
+	["The Church", "The Church is the body of Christ, called to worship, fellowship, discipleship and the proclamation of the gospel to all nations."],
+	["Last Things", "Christ will return personally; the dead will be raised, the righteous to everlasting life and the unrighteous to judgement."],
+]
+
+export const GIVING_IMPACT = [
+	{ amount: 1000, icon: "BookOpen", text: "buys a study Bible and core textbooks for a first-year student" },
+	{ amount: 5000, icon: "Laptop", text: "provides a term of Digital Campus access for a rural pastor studying online" },
+	{ amount: 15000, icon: "GraduationCap", text: "covers a term of tuition for a student whose church cannot pay" },
+	{ amount: 50000, icon: "Church", text: "sends a ministry team on a mission outreach to an unreached community" },
+]
+
+export const DEFAULT_GIVING_TYPES = [
+	{ name: "General Fund", giving_type_name: "General Fund", description: "Where the need is greatest across the college." },
+	{ name: "Student Scholarships", giving_type_name: "Student Scholarships", description: "Tuition support for called students who cannot afford fees." },
+	{ name: "Missions & Outreach", giving_type_name: "Missions & Outreach", description: "Student mission trips, church planting and evangelism." },
+	{ name: "Building & Development", giving_type_name: "Building & Development", description: "Classrooms, library, hostels and the Digital Campus." },
+]
+export const DEFAULT_AMOUNTS = [500, 1000, 2500, 5000, 10000]
