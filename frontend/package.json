@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "node ./scripts/check-refs.mjs && vite build && node ./scripts/copy-html.mjs",
+    "verify": "node ./scripts/check-refs.mjs && vite build --outDir \"${VERIFY_OUT:-/tmp/mbc-verify}\" --emptyOutDir --logLevel warn",
     "preview": "vite preview",
     "check": "node ./scripts/check-refs.mjs"
   },

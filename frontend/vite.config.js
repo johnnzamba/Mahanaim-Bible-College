@@ -3,11 +3,11 @@ import react from "@vitejs/plugin-react"
 import path from "path"
 
 // The SPA is served by Frappe from /assets/mahanaim/app/ and booted by www/mbc.html for every
-// public and portal route. Entry files keep fixed names (assets/index.js / index.css) so the
-// HTML never tracks a hash; scripts/copy-html.mjs stamps ?v=<md5> for cache busting.
-export default defineConfig({
+// public and portal route; scripts/copy-html.mjs writes that shell from Vite's index.html.
+// In dev the app is served from "/" so the /assets proxy below only ever reaches Frappe.
+export default defineConfig(({ command }) => ({
 	plugins: [react()],
-	base: "/assets/mahanaim/app/",
+	base: command === "build" ? "/assets/mahanaim/app/" : "/",
 	resolve: {
 		alias: {
 			"@": path.resolve(__dirname, "src"),
@@ -39,7 +39,8 @@ export default defineConfig({
 		},
 	},
 	server: {
-		port: 8080,
+		port: Number(process.env.PORT) || 8080,
+		strictPort: true,
 		proxy: {
 			"^/(api|assets|files|private|desk|socket.io)": {
 				target: "http://127.0.0.1:8010",
@@ -48,4 +49,4 @@ export default defineConfig({
 			},
 		},
 	},
-})
+}))

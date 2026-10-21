@@ -1,6 +1,6 @@
-/* Mahanaim Digital Campus service worker — build fb1ebb2bc9 */
-const CACHE = "mbc-fb1ebb2bc9";
-const SHELL = ["/assets/mahanaim/app/assets/index-PW_mqiLF.js", "/assets/mahanaim/app/assets/index-fa1s40vQ.css", "/assets/mahanaim/images/logo.svg"];
+/* Mahanaim Digital Campus service worker — build 75541c46bb */
+const CACHE = "mbc-75541c46bb";
+const SHELL = ["/assets/mahanaim/app/assets/index-CKc_MSvm.js", "/assets/mahanaim/app/assets/index-fa1s40vQ.css", "/assets/mahanaim/images/logo.svg"];
 
 self.addEventListener("install", (e) => {
 	e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL).catch(() => {})).then(() => self.skipWaiting()));
