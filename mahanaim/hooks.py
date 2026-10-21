@@ -103,6 +103,10 @@ doc_events = {
 	},
 }
 
+# Staff MFA (Settings.admin_mfa_required): sessions opened outside mahanaim.api.auth.login + verify_mfa
+# (stock /api/method/login, desk /login, key-based reset auto-login) are refused.
+on_login = ["mahanaim.services.auth.enforce_staff_mfa"]
+
 # ---------------------------------------------------------------------------
 # Permissions: lecturers see only the course offerings they teach (Desk).
 # Campus scoping uses standard User Permissions on Campus (see Staff Member).

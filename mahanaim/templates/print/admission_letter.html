@@ -1,0 +1,140 @@
+{#- Admission letter (rendered by mahanaim.services.admissions.render_admission_letter; HTML and wkhtmltopdf PDF).
+    Context: doc (Programme Application), programme, intake, campus, settings, student_number, letter_date,
+    qr (data URI), verify_url, image(path) -> data URI, money(amount). Table layout only: wkhtmltopdf has no flexbox. -#}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>{{ _("Admission Letter") }} — {{ doc.name }}</title>
+<style>
+	@page { size: A4; margin: 12mm 14mm; }
+	body { font-family: "Helvetica Neue", Helvetica, Arial, sans-serif; color: #1f2937; font-size: 12.5px; line-height: 1.55; margin: 0; }
+	.page { max-width: 780px; margin: 0 auto; padding: 8px 4px; }
+	table { border-collapse: collapse; width: 100%; }
+	.header td { vertical-align: middle; }
+	.logo { width: 82px; height: 82px; object-fit: contain; }
+	.inst { font-size: 21px; font-weight: 700; color: #1e3a8a; letter-spacing: .3px; margin: 0; }
+	.motto { font-style: italic; color: #6b7280; margin: 2px 0 0; font-size: 12px; }
+	.contacts { color: #4b5563; font-size: 11px; margin-top: 4px; }
+	.rule { border: 0; border-top: 3px solid #1e3a8a; margin: 10px 0 2px; }
+	.rule-thin { border: 0; border-top: 1px solid #c7a43b; margin: 0 0 14px; }
+	.meta td { font-size: 12px; padding: 2px 0; }
+	.title { text-align: center; font-size: 16px; font-weight: 700; text-transform: uppercase; letter-spacing: 1px;
+		color: #111827; margin: 18px 0 12px; text-decoration: underline; }
+	.details { margin: 12px 0 14px; border: 1px solid #d1d5db; }
+	.details td { padding: 6px 10px; border-bottom: 1px solid #e5e7eb; font-size: 12px; }
+	.details td.k { width: 34%; background: #f3f4f6; font-weight: 600; color: #374151; }
+	ol { padding-left: 18px; margin: 6px 0 12px; }
+	ol li { margin-bottom: 4px; }
+	.sign td { vertical-align: bottom; padding-top: 18px; }
+	.sigimg { height: 52px; max-width: 170px; object-fit: contain; }
+	.sigline { border-top: 1px solid #374151; width: 210px; padding-top: 3px; font-size: 11.5px; }
+	.seal { height: 90px; opacity: .85; }
+	.qr img { width: 96px; height: 96px; }
+	.footer { margin-top: 18px; font-size: 10.5px; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 6px; }
+	.badge { display: inline-block; padding: 1px 8px; border-radius: 10px; background: #dcfce7; color: #166534; font-size: 11px; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="page">
+	<table class="header">
+		<tr>
+			<td style="width: 96px;">
+				{% if settings.logo %}<img class="logo" src="{{ image(settings.logo) }}" alt="logo">{% endif %}
+			</td>
+			<td>
+				<p class="inst">{{ settings.institution_name }}</p>
+				{% if settings.motto %}<p class="motto">“{{ settings.motto }}”</p>{% endif %}
+				<div class="contacts">
+					{{ [settings.address, settings.phone, settings.email, settings.website] | select | join(" · ") }}
+				</div>
+			</td>
+			<td class="qr" style="width: 100px; text-align: right;">
+				<img src="{{ qr }}" alt="QR">
+			</td>
+		</tr>
+	</table>
+	<hr class="rule"><hr class="rule-thin">
+
+	<table class="meta">
+		<tr>
+			<td>{{ _("Our Ref") }}: <b>{{ doc.name }}</b>{% if student_number %} &nbsp;|&nbsp; {{ _("Student No.") }}: <b>{{ student_number }}</b>{% endif %}</td>
+			<td style="text-align: right;">{{ _("Date") }}: {{ frappe.utils.formatdate(letter_date) }}</td>
+		</tr>
+	</table>
+
+	<p style="margin-top: 14px;">
+		{{ doc.full_name }}<br>
+		{% if doc.postal_address %}{{ doc.postal_address | replace("\n", "<br>") }}<br>{% endif %}
+		{% if doc.county %}{{ doc.county }}{% if doc.nationality %}, {{ doc.nationality }}{% endif %}<br>{% endif %}
+		{{ doc.email }}{% if doc.phone %} · +{{ doc.phone }}{% endif %}
+	</p>
+
+	<p>{{ _("Dear {0},").format(doc.first_name) }}</p>
+
+	<div class="title">{{ _("Offer of Admission") }}</div>
+
+	<p>
+		{{ _("We are pleased to inform you that, following a review of your application, you have been offered admission to") }}
+		<b>{{ programme.programme_name or doc.programme_name }}</b>
+		{% if programme.award_title %}({{ programme.award_title }}){% endif %}
+		{{ _("at") }} {{ settings.institution_name }}.
+		{% if doc.status == "Accepted" %}<span class="badge">{{ _("Offer accepted") }}</span>{% endif %}
+	</p>
+
+	<table class="details">
+		<tr><td class="k">{{ _("Programme") }}</td><td>{{ programme.programme_name or doc.programme_name }}{% if programme.level %} — {{ programme.level }}{% endif %}</td></tr>
+		<tr><td class="k">{{ _("Campus") }}</td><td>{{ campus.campus_name or doc.campus }}{% if campus.town %}, {{ campus.town }}{% endif %}</td></tr>
+		<tr><td class="k">{{ _("Mode of study") }}</td><td>{{ doc.study_mode }}</td></tr>
+		{% if intake.intake_name %}
+		<tr><td class="k">{{ _("Intake") }}</td><td>{{ intake.intake_name }}{% if intake.start_date %} — {{ _("classes begin") }} {{ frappe.utils.formatdate(intake.start_date) }}{% endif %}</td></tr>
+		{% endif %}
+		{% if programme.duration_years %}
+		<tr><td class="k">{{ _("Duration") }}</td><td>{{ "%g" | format(frappe.utils.flt(programme.duration_years)) }} {{ _("year(s)") }}{% if programme.terms_per_year %} · {{ programme.terms_per_year }} {{ _("terms per year") }}{% endif %}</td></tr>
+		{% endif %}
+		{% if programme.indicative_fee_per_term %}
+		<tr><td class="k">{{ _("Indicative tuition per term") }}</td><td>{{ money(programme.indicative_fee_per_term) }}</td></tr>
+		{% endif %}
+		{% if doc.offer_expiry %}
+		<tr><td class="k">{{ _("Accept offer by") }}</td><td><b>{{ frappe.utils.formatdate(doc.offer_expiry) }}</b></td></tr>
+		{% endif %}
+	</table>
+
+	<p><b>{{ _("To take up this offer, please:") }}</b></p>
+	<ol>
+		{% if doc.status != "Accepted" %}
+		<li>{{ _("Accept the offer in the applicant portal") }}{% if doc.offer_expiry %} {{ _("on or before") }} {{ frappe.utils.formatdate(doc.offer_expiry) }}{% endif %}.</li>
+		{% endif %}
+		<li>{{ _("Sign in to the student portal with your student number to register for your first-term courses.") }}</li>
+		<li>{{ _("Pay the first-term fees as shown on your fee invoice (M-Pesa from the student portal, or bank deposit).") }}</li>
+		<li>{{ _("Bring the originals of your National ID, academic certificates and a recommendation letter from your pastor on reporting day.") }}</li>
+	</ol>
+
+	<p>
+		{{ _("This offer is made on the understanding that the information in your application is true and complete. The College reserves the right to withdraw the offer if any information is found to be inaccurate.") }}
+	</p>
+	<p>{{ _("We look forward to walking with you as you are equipped for the harvest. Welcome to the {0} family!").format(settings.short_name or settings.institution_name) }}</p>
+
+	<table class="sign">
+		<tr>
+			<td style="width: 40%;">
+				{% if settings.registrar_signature %}<img class="sigimg" src="{{ image(settings.registrar_signature) }}" alt=""><br>{% endif %}
+				<div class="sigline">{{ settings.registrar_name or _("Registrar") }}<br><b>{{ _("Registrar") }}</b></div>
+			</td>
+			<td style="width: 20%; text-align: center;">
+				{% if settings.college_seal %}<img class="seal" src="{{ image(settings.college_seal) }}" alt="">{% endif %}
+			</td>
+			<td style="width: 40%; text-align: right;">
+				{% if settings.principal_signature %}<img class="sigimg" src="{{ image(settings.principal_signature) }}" alt=""><br>{% endif %}
+				<div class="sigline" style="margin-left: auto;">{{ settings.principal_name or _("Principal") }}<br><b>{{ _("Principal") }}</b></div>
+			</td>
+		</tr>
+	</table>
+
+	<div class="footer">
+		{{ _("Scan the QR code or visit {0} to view this offer.").format(verify_url) }}
+		{{ _("Generated on {0}.").format(frappe.utils.format_datetime(frappe.utils.now_datetime())) }}
+	</div>
+</div>
+</body>
+</html>
