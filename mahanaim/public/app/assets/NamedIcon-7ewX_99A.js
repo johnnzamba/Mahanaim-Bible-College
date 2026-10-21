@@ -1,0 +1,6 @@
+import{j as a}from"./query-BEbt5M_H.js";import{S as t}from"./smartphone-5wkLeL_f.js";import{S as s}from"./scroll-text--mf4QwsS.js";import{S as p}from"./school-C0GD7o-w.js";import{L as i}from"./laptop-DXtGGEVz.js";import{H as e}from"./hourglass-BHYpQveV.js";import{G as f}from"./graduation-cap-DBd6MHlm.js";import{G as c}from"./globe-DicIqUo1.js";import{c as n}from"./index-BF5_Egdm.js";import{C as l}from"./clock-BsPCAGuV.js";import{C}from"./church-CT_lA1Dw.js";import{C as S}from"./calendar-days-CWh09pxW.js";import{B as u}from"./book-open-B_YUhw4z.js";import{A as d}from"./award-DhGzdF2y.js";import{S as x}from"./sparkles-DCIq6g_b.js";/**
+ * @license lucide-react v0.468.0 - ISC
+ *
+ * This source code is licensed under the ISC license.
+ * See the LICENSE file in the root directory of this source tree.
+ */const h=n("Flame",[["path",{d:"M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z",key:"96xj49"}]]),j={Award:d,BookOpen:u,CalendarDays:S,Church:C,Clock:l,Flame:h,Globe:c,GraduationCap:f,Hourglass:e,Laptop:i,School:p,ScrollText:s,Smartphone:t};function D({name:o,...r}){const m=j[o]||x;return a.jsx(m,{...r})}export{D as N};
