@@ -177,6 +177,8 @@ ${PRELOADS.map((p) => `	<link rel="modulepreload" crossorigin href="${BASE}/${p}
 			try {
 				var t = localStorage.getItem("mbc-theme") || "light";
 				if (t === "system") t = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+				// Keep in step with shared/theme.js: the public website is light-only.
+				if (!/^\\/(applicant|student|lecturer|admin|sponsor|signin|forgot-password|reset-password)(\\/|$)/.test(location.pathname)) t = "light";
 				document.documentElement.dataset.theme = t;
 				if (t === "dark") document.documentElement.classList.add("dark");
 				document.documentElement.dataset.rail = localStorage.getItem("mbc-rail") || "forest";

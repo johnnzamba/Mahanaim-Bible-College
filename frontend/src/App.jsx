@@ -1,10 +1,11 @@
-import { lazy, Suspense } from "react"
+import { lazy, Suspense, useLayoutEffect } from "react"
 import { BrowserRouter, Route, Routes } from "react-router-dom"
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query"
 import { SessionProvider, RequirePortal } from "./shared/session"
 import { Toaster } from "./shared/components/toast"
 import { ErrorBoundary } from "./shared/components/ErrorBoundary"
 import { Loading } from "./shared/components/ui"
+import { forceScheme } from "./shared/theme"
 
 /*
  * One SPA, served by www/mbc.html for every public and portal route (see hooks.py _SPA_ROUTES).
@@ -34,6 +35,11 @@ const portal = (name, El) => (
 	</RequirePortal>
 )
 
+function LightOnly({ children }) {
+	useLayoutEffect(() => forceScheme("light"), [])
+	return children
+}
+
 export default function App() {
 	return (
 		<QueryClientProvider client={queryClient}>
@@ -50,7 +56,14 @@ export default function App() {
 								<Route path="/lecturer/*" element={portal("lecturer", LecturerPortal)} />
 								<Route path="/admin/*" element={portal("admin", AdminPortal)} />
 								<Route path="/sponsor/*" element={portal("sponsor", SponsorPortal)} />
-								<Route path="/*" element={<PublicSite />} />
+								<Route
+									path="/*"
+									element={
+										<LightOnly>
+											<PublicSite />
+										</LightOnly>
+									}
+								/>
 							</Routes>
 						</Suspense>
 					</ErrorBoundary>

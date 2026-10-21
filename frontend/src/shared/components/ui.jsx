@@ -94,14 +94,14 @@ export const TONE = {
 export function StatCard({ label, value, icon: Icon, tone = "brand", hint, delta, to, loading, className }) {
 	const t = TONE[tone] || TONE.brand
 	const body = (
-		<div className={clsx("card flex h-full items-start gap-3.5 p-4", to && "transition hover:-translate-y-0.5 hover:shadow-soft", className)}>
+		<div className={clsx("card flex h-full items-start gap-3 p-3.5 sm:gap-3.5 sm:p-4", to && "transition hover:-translate-y-0.5 hover:shadow-soft", className)}>
 			{Icon ? (
-				<span className={clsx("grid h-11 w-11 shrink-0 place-items-center rounded-xl", t.soft)}>
-					<Icon size={20} />
+				<span className={clsx("grid h-9 w-9 shrink-0 place-items-center rounded-xl sm:h-11 sm:w-11", t.soft)}>
+					<Icon size={18} />
 				</span>
 			) : null}
 			<div className="min-w-0 flex-1">
-				<div className="truncate text-xs font-semibold uppercase tracking-wide text-ink-soft">{label}</div>
+				<div className="line-clamp-2 text-xs font-semibold uppercase leading-snug tracking-wide text-ink-soft">{label}</div>
 				{loading ? (
 					<div className="skeleton mt-2 h-6 w-20" />
 				) : (
@@ -262,7 +262,7 @@ export function Avatar({ name, src, size = 40, className, ring }) {
 			style={style}
 			aria-label={name}
 			className={clsx(
-				"inline-grid shrink-0 place-items-center rounded-full bg-gradient-to-br from-brand-600 to-brand-800 font-bold text-gold-200",
+				"inline-grid shrink-0 place-items-center rounded-full bg-gradient-to-br from-brand-600 to-brand-800 font-bold text-gold-200 dark:from-brand-200 dark:to-brand-100 dark:text-gold-300",
 				ring && "ring-2 ring-surface",
 				className
 			)}
@@ -645,7 +645,7 @@ export function FileDrop({ label, hint, accept, onFile, busy, value, className }
 
 export function Tabs({ tabs, active, onChange, className, size = "md" }) {
 	return (
-		<div className={clsx("scroll-thin -mx-1 flex gap-1 overflow-x-auto border-b border-line px-1", className)} role="tablist">
+		<div className={clsx("scroll-thin -mx-1 flex gap-1 overflow-x-auto overflow-y-hidden px-1 shadow-[inset_0_-1px_0_rgb(var(--line))]", className)} role="tablist">
 			{tabs.map((t) => {
 				const id = typeof t === "string" ? t : t.id
 				const label = typeof t === "string" ? t : t.label
@@ -659,7 +659,7 @@ export function Tabs({ tabs, active, onChange, className, size = "md" }) {
 						aria-selected={on}
 						onClick={() => onChange(id)}
 						className={clsx(
-							"relative -mb-px flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 font-semibold transition",
+							"relative flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 font-semibold transition",
 							size === "sm" ? "px-2.5 py-2 text-xs" : "px-3.5 py-2.5 text-sm",
 							on ? "border-gold-500 text-ink" : "border-transparent text-ink-soft hover:text-ink"
 						)}

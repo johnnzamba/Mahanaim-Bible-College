@@ -33,7 +33,12 @@ function write(key, value) {
 	}
 }
 
+// The public website is designed light-only (dark hero bands, photography); portals honour the preference.
+const PORTAL_PATH = /^\/(applicant|student|lecturer|admin|sponsor|signin|forgot-password|reset-password)(\/|$)/
+let forced = null
+
 export function resolvedScheme(scheme = read(THEME_KEY, "light")) {
+	if (forced) return forced
 	if (scheme === "system") {
 		return window.matchMedia?.("(prefers-color-scheme: dark)").matches ? "dark" : "light"
 	}
@@ -50,7 +55,18 @@ export function applyTheme() {
 	if (meta) meta.setAttribute("content", scheme === "dark" ? "#0a120e" : "#14372a")
 }
 
+/** Pin the scheme while a surface is mounted; returns the release function (for effects). */
+export function forceScheme(scheme) {
+	forced = scheme
+	applyTheme()
+	return () => {
+		forced = null
+		applyTheme()
+	}
+}
+
 export function initTheme() {
+	if (!PORTAL_PATH.test(window.location.pathname)) forced = "light"
 	applyTheme()
 	window.matchMedia?.("(prefers-color-scheme: dark)").addEventListener?.("change", () => {
 		if (read(THEME_KEY, "light") === "system") applyTheme()

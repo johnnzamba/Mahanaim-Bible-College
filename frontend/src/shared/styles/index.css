@@ -110,6 +110,18 @@
 	color-scheme: dark;
 }
 
+/*
+ * Dark mode inverts the brand scale, so "white on brand-600..900" (badges, active icons, steppers) would turn into
+ * white on pale green. Flip that text to the canvas colour instead of auditing every portal by hand.
+ */
+[data-theme="dark"] :is(.bg-brand-600, .bg-brand-700, .bg-brand-800, .bg-brand-900).text-white {
+	color: rgb(var(--canvas));
+}
+/* The same inversion would turn modal and drawer scrims pale. */
+[data-theme="dark"] :is(.bg-brand-900\/40, .bg-brand-900\/50, .bg-brand-900\/60) {
+	background-color: rgb(0 0 0 / 0.6);
+}
+
 @layer base {
 	html {
 		-webkit-text-size-adjust: 100%;
@@ -154,7 +166,7 @@
 		@apply bg-brand-800 text-white shadow-sm hover:bg-brand-700 dark:bg-brand-600 dark:text-brand-50 dark:hover:bg-brand-500;
 	}
 	.btn-gold {
-		@apply bg-gold-500 text-brand-900 shadow-sm hover:bg-gold-400;
+		@apply bg-gold-500 text-brand-900 shadow-sm hover:bg-gold-400 dark:text-canvas;
 	}
 	.btn-secondary {
 		@apply border border-line bg-surface text-ink hover:border-brand-300 hover:bg-brand-50;

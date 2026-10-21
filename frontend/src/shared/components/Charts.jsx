@@ -20,6 +20,20 @@ import {
 export const PALETTE = ["#1d4d3a", "#c99a43", "#589878", "#3b82f6", "#8b5cf6", "#ef4444", "#14b8a6", "#f59e0b"]
 
 const axis = { fontSize: 11, fill: "rgb(var(--ink-soft))" }
+const compact = (v) => (Math.abs(v) >= 1000 ? `${Math.round(v / 1000)}k` : v)
+
+/** Shared value-axis options: yDomain ([min, max], e.g. [0, 4] for GPA), yTicks, yFormat, integer (counts). */
+function valueAxis({ yDomain, yTicks, yFormat, integer }) {
+	return {
+		tick: axis,
+		axisLine: false,
+		tickLine: false,
+		tickFormatter: yFormat || compact,
+		allowDecimals: !integer,
+		...(yDomain ? { domain: yDomain } : {}),
+		...(yTicks ? { ticks: yTicks } : {}),
+	}
+}
 const grid = "rgb(var(--line))"
 
 function TooltipBox({ active, payload, label, format }) {
@@ -38,7 +52,8 @@ function TooltipBox({ active, payload, label, format }) {
 	)
 }
 
-export function TrendChart({ data = [], xKey = "label", series = [{ key: "value", label: "Value" }], height = 240, format, area = true }) {
+/** Also accepts the valueAxis options (yDomain, yTicks, yFormat, integer). */
+export function TrendChart({ data = [], xKey = "label", series = [{ key: "value", label: "Value" }], height = 240, format, area = true, ...yOpts }) {
 	const Chart = area ? AreaChart : LineChart
 	return (
 		<ResponsiveContainer width="100%" height={height}>
@@ -53,7 +68,7 @@ export function TrendChart({ data = [], xKey = "label", series = [{ key: "value"
 				</defs>
 				<CartesianGrid stroke={grid} vertical={false} />
 				<XAxis dataKey={xKey} tick={axis} axisLine={false} tickLine={false} />
-				<YAxis tick={axis} axisLine={false} tickLine={false} tickFormatter={(v) => (Math.abs(v) >= 1000 ? `${Math.round(v / 1000)}k` : v)} />
+				<YAxis {...valueAxis(yOpts)} />
 				<Tooltip content={<TooltipBox format={format} />} />
 				{series.length > 1 ? <Legend wrapperStyle={{ fontSize: 12 }} /> : null}
 				{series.map((s, i) =>
@@ -68,20 +83,21 @@ export function TrendChart({ data = [], xKey = "label", series = [{ key: "value"
 	)
 }
 
-export function BarsChart({ data = [], xKey = "label", series = [{ key: "value", label: "Value" }], height = 240, format, stacked, horizontal }) {
+/** Also accepts the valueAxis options (yDomain, yTicks, yFormat, integer). */
+export function BarsChart({ data = [], xKey = "label", series = [{ key: "value", label: "Value" }], height = 240, format, stacked, horizontal, ...yOpts }) {
 	return (
 		<ResponsiveContainer width="100%" height={height}>
 			<BarChart data={data} layout={horizontal ? "vertical" : "horizontal"} margin={{ top: 8, right: 8, left: horizontal ? 8 : -12, bottom: 0 }}>
 				<CartesianGrid stroke={grid} vertical={Boolean(horizontal)} horizontal={!horizontal} />
 				{horizontal ? (
 					<>
-						<XAxis type="number" tick={axis} axisLine={false} tickLine={false} />
+						<XAxis type="number" {...valueAxis(yOpts)} />
 						<YAxis type="category" dataKey={xKey} tick={axis} axisLine={false} tickLine={false} width={110} />
 					</>
 				) : (
 					<>
 						<XAxis dataKey={xKey} tick={axis} axisLine={false} tickLine={false} />
-						<YAxis tick={axis} axisLine={false} tickLine={false} tickFormatter={(v) => (Math.abs(v) >= 1000 ? `${Math.round(v / 1000)}k` : v)} />
+						<YAxis {...valueAxis(yOpts)} />
 					</>
 				)}
 				<Tooltip cursor={{ fill: "rgb(var(--brand-50))" }} content={<TooltipBox format={format} />} />

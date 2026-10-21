@@ -88,6 +88,17 @@ function getVal(row, col) {
  * query: optional react-query result; shows skeleton / error automatically
  * Mobile: renders stacked cards (first col = title) unless `noCards`.
  */
+// Module-level so mobile cards keep their identity across DataTable re-renders (an inline component remounts).
+function RowWrap({ to, children }) {
+	return to ? (
+		<Link to={to} className="block">
+			{children}
+		</Link>
+	) : (
+		children
+	)
+}
+
 export function DataTable({
 	cols,
 	rows,
@@ -157,17 +168,6 @@ export function DataTable({
 	}
 
 	const cellContent = (c, r) => (c.render ? c.render(r) : r?.[c.key] ?? "—")
-	const RowWrap = ({ r, children }) => {
-		const to = rowTo?.(r)
-		return to ? (
-			<Link to={to} className="block">
-				{children}
-			</Link>
-		) : (
-			children
-		)
-	}
-
 	return (
 		<div className={clsx("card overflow-hidden", className)}>
 			{list.length === 0 ? (
@@ -255,7 +255,7 @@ export function DataTable({
 								const [first, ...rest] = cols.filter((c) => !c.hideOnMobile)
 								return (
 									<li key={k} onClick={onRow ? () => onRow(r) : undefined} className={clsx("px-4 py-3", clickable && "active:bg-cream")}>
-										<RowWrap r={r}>
+										<RowWrap to={rowTo?.(r)}>
 											<div className="flex items-start gap-3">
 												{selectable ? (
 													<input

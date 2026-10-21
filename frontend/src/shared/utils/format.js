@@ -3,7 +3,7 @@
 const boot = () => (typeof window !== "undefined" ? window.mahanaim_boot || {} : {})
 
 export function currencyCode() {
-	return boot().settings?.currency || "KES"
+	return boot().session?.settings?.currency || "KES"
 }
 
 export function money(value, { currency, decimals = 0, compact = false } = {}) {

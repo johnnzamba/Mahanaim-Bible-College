@@ -18,7 +18,7 @@ const STATUS_METHOD = "mahanaim.api.finance.payment_request_status"
  *
  * `start` must resolve to the STK response `{ request, checkout_request_id, customer_message, simulation }`.
  * Status is polled with `statusMethod` (default finance.payment_request_status; guests pass
- * church.giving_status + `statusArgs(resp)`). Simulated requests (sandbox without Daraja) show
+ * church.giving_status + `statusArgs(resp)`); `statusVerb="GET"` for GET-only endpoints. Simulated requests (sandbox without Daraja) show
  * "Simulate" buttons for signed-in users so the flow can be demonstrated end to end.
  */
 export function MpesaPay({
@@ -33,6 +33,7 @@ export function MpesaPay({
 	start,
 	statusMethod = STATUS_METHOD,
 	statusArgs = (resp) => ({ request: resp.request }),
+	statusVerb = "POST",
 	onDone,
 	children,
 }) {
@@ -62,7 +63,7 @@ export function MpesaPay({
 		let timer
 		const tick = async () => {
 			try {
-				const s = await frappe.call(statusMethod, statusArgs(resp))
+				const s = await (statusVerb === "GET" ? frappe.get : frappe.call).call(frappe, statusMethod, statusArgs(resp))
 				if (cancelled) return
 				if (s?.done) {
 					const ok = s.status === "Completed"
