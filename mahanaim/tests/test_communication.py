@@ -181,8 +181,27 @@ class TestCommunication(IntegrationTestCase):
 			fallback={"subject": f"Hello {probe}", "message": f"<p>{probe}</p>"},
 		)
 		log = frappe.get_last_doc("Message Log", filters={"recipient": email})
+		self.assertEqual(log.status, "Queued", log.provider_response)
 		self.assertEqual(log.subject, f"Hello {probe}")
 		self.assertIn(probe, log.message)
+
+	def test_failed_email_is_logged_and_other_channels_still_deliver(self):
+		from unittest.mock import patch
+
+		from mahanaim.services.communication import notify
+
+		user = f.make_user("notify.mailfail@example.com", roles=("Student",)).name
+		with patch("frappe.sendmail", side_effect=frappe.OutgoingEmailError("SMTP down")):
+			notify(
+				"Unmatched Event _T",
+				recipients=[{"email": user, "user": user}],
+				fallback={"subject": "Mail outage", "message": "<p>Body</p>"},
+				link="/student",
+			)
+		log = frappe.get_last_doc("Message Log", filters={"recipient": user, "channel": "Email"})
+		self.assertEqual(log.status, "Failed")
+		self.assertIn("SMTP down", log.provider_response)
+		self.assertTrue(frappe.db.exists("Portal Notification", {"user": user, "title": "Mail outage"}))
 
 	def test_templates_cannot_reach_unsafe_objects(self):
 		from mahanaim.services.communication import _context, _render

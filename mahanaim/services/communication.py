@@ -219,15 +219,22 @@ def notify(
 		for r in recipients:
 			ctx = _context(doc, context, r)
 			render = (lambda s: s or "") if tpl.get("literal") else (lambda s, c=ctx: _render(s, c))
-			try:
+			subject = None
+			with _attempt(event):
 				subject = render(tpl.subject) or event
-				if tpl.send_email and r.get("email") and (not channels or "Email" in channels):
+			if subject is None:
+				continue
+			# Each channel is attempted on its own, so a mail failure doesn't also cost the SMS or bell.
+			if tpl.send_email and r.get("email") and _wanted(channels, "Email"):
+				with _attempt(event):
 					send_email(
 						r["email"], subject, render(tpl.email_body), doc, tpl.name, event, r.get("user")
 					)
-				if tpl.send_sms and r.get("phone") and (not channels or "SMS" in channels):
+			if tpl.send_sms and r.get("phone") and _wanted(channels, "SMS"):
+				with _attempt(event):
 					send_sms(r["phone"], render(tpl.sms_body), doc, tpl.name, event, r.get("user"))
-				if tpl.send_in_app and r.get("user") and (not channels or "In-App" in channels):
+			if tpl.send_in_app and r.get("user") and _wanted(channels, "In-App"):
+				with _attempt(event):
 					push_portal_notification(
 						r["user"],
 						subject,
@@ -236,8 +243,26 @@ def notify(
 						category=category,
 						doc=doc,
 					)
-			except Exception:
-				frappe.log_error(title=f"Mahanaim notify failed: {event}")
+
+
+def _wanted(channels, channel) -> bool:
+	return not channels or channel in channels
+
+
+class _attempt:
+	"""Context manager: log and swallow a delivery error so notify() never raises."""
+
+	def __init__(self, event):
+		self.event = event
+
+	def __enter__(self):
+		return self
+
+	def __exit__(self, exc_type, exc, tb):
+		if exc_type and issubclass(exc_type, Exception):
+			frappe.log_error(title=f"Mahanaim notify failed: {self.event}")
+			return True
+		return False
 
 
 def _log(
@@ -278,14 +303,21 @@ def _log(
 def send_email(email, subject, message, doc=None, template=None, event=None, user=None):
 	if not message:
 		return
-	frappe.sendmail(
-		recipients=[email],
-		subject=subject,
-		message=message,
-		reference_doctype=doc.doctype if doc else None,
-		reference_name=doc.name if doc else None,
-		now=False,
-	)
+	try:
+		frappe.sendmail(
+			recipients=[email],
+			subject=subject,
+			message=message,
+			reference_doctype=doc.doctype if doc else None,
+			reference_name=doc.name if doc else None,
+			now=False,
+		)
+	except Exception as e:
+		# Keep a trace staff can see in the message log, not only in the Error Log.
+		frappe.log_error(title=f"Mahanaim email failed: {event or subject}")
+		response = type(e).__name__ if _redact(event) else repr(e)
+		_log("Email", email, subject, message, "Failed", doc, template, event, user, response=response)
+		return
 	_log("Email", email, subject, message, "Queued", doc, template, event, user)
 
 

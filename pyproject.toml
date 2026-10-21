@@ -11,6 +11,8 @@ dynamic = ["version"]
 dependencies = [
     # "frappe>=15,<17" is installed and managed by bench.
     # Optional: "lms" (Frappe LMS) and "erpnext" — detected at runtime, never required.
+    # PNG writer behind pyqrcode (shipped with Frappe), used for QR codes on letters and certificates.
+    "pypng>=0.20220715.0",
 ]
 
 [build-system]
