@@ -48,15 +48,17 @@ export function useChurchRoles() {
 		canRead: hasRole(ROLES.CHAPLAIN, ROLES.FINANCE, ROLES.AUDITOR, ROLES.REGISTRAR),
 		canManage: hasRole(ROLES.CHAPLAIN, ROLES.FINANCE),
 		canEditChurch: hasRole(ROLES.CHAPLAIN, ROLES.FINANCE, ROLES.ADMISSIONS, ROLES.COMMS),
+		// list_sponsors / sponsor_360 also let Admissions read (read-only).
+		canSponsors: hasRole(ROLES.CHAPLAIN, ROLES.FINANCE, ROLES.AUDITOR, ROLES.REGISTRAR, ROLES.ADMISSIONS),
 		isChaplain: hasRole(ROLES.CHAPLAIN),
 		// Finance passes require_roles on chapel endpoints but has no doctype read on Chapel Service / Ministry Group.
-		canChapel: hasRole(ROLES.CHAPLAIN, ROLES.AUDITOR, ROLES.REGISTRAR),
+		canChapel: hasRole(ROLES.CHAPLAIN, ROLES.AUDITOR, ROLES.REGISTRAR, ROLES.DEAN),
 	}
 }
 
 const LINKS = [
 	{ to: "/admin/church", label: "Overview", end: true, read: true },
-	{ to: "/admin/church/sponsors", label: "Sponsors", read: true },
+	{ to: "/admin/church/sponsors", label: "Sponsors", sponsors: true },
 	{ to: "/admin/church/sponsorships", label: "Sponsorships", read: true },
 	{ to: "/admin/church/giving", label: "Giving", read: true },
 	{ to: "/admin/church/chapel", label: "Chapel", read: true, chapel: true },
@@ -65,20 +67,22 @@ const LINKS = [
 ]
 
 export function ChurchTabs() {
-	const { canRead, canChapel } = useChurchRoles()
-	return <SubTabs label="Church sections" links={LINKS.filter((l) => (canRead || !l.read) && (canChapel || !l.chapel))} />
+	const { canRead, canChapel, canSponsors } = useChurchRoles()
+	const show = (l) => (l.sponsors ? canSponsors : (canRead || !l.read) && (canChapel || !l.chapel))
+	return <SubTabs label="Church sections" links={LINKS.filter(show)} />
 }
 
 const GATE_NOTE = {
 	church: "Partner churches are kept by the Chaplain's office, Finance, Admissions and Communications. Ask them or a college administrator for these records.",
-	read: "Sponsors, sponsorships and giving are handled by the Chaplain's office and Finance. Ask them or a college administrator for these records.",
+	read: "Sponsorships and giving are handled by the Chaplain's office and Finance. Ask them or a college administrator for these records.",
+	sponsors: "Sponsors are handled by the Chaplain's office and Finance. Ask them or a college administrator for these records.",
 	chapel: "Chapel services and ministry groups are kept by the Chaplain's office. Ask them or a college administrator for these records.",
 }
 
-/** Renders a church screen only for roles whose records it reads (`need`: "read", "chapel" or "church"). */
+/** Renders a church screen only for roles whose records it reads (`need`: "read", "sponsors", "chapel" or "church"). */
 export function RoleGate({ need = "read", title, children }) {
-	const { canRead, canChapel, canEditChurch } = useChurchRoles()
-	const allowed = { read: canRead, chapel: canChapel, church: canRead || canEditChurch }[need]
+	const { canRead, canChapel, canEditChurch, canSponsors } = useChurchRoles()
+	const allowed = { read: canRead, sponsors: canSponsors, chapel: canChapel, church: canRead || canEditChurch }[need]
 	if (allowed) return children
 	return (
 		<>

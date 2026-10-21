@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react"
-import { useNavigate, useParams } from "react-router-dom"
+import { Navigate, useNavigate, useParams } from "react-router-dom"
 import { BookOpen, ExternalLink, FileDown, Library, Save, Trash2 } from "lucide-react"
 import { useQueryClient } from "@tanstack/react-query"
 import { frappe } from "@/shared/api/frappe"
@@ -39,10 +39,10 @@ const pick = (doc) => Object.fromEntries(KEYS.map((k) => [k, doc?.[k] ?? BLANK[k
 export default function ItemEditor() {
 	const { name } = useParams()
 	const isNew = name === "new"
-	const { canRead } = useLibRoles()
+	const { canRead, canManage } = useLibRoles()
 	const q = useApi(`${API}get_item`, { name }, { enabled: canRead && !isNew })
 	if (!canRead) return <NoAccess title="Catalogue" />
-	if (isNew) return <Editor doc={null} />
+	if (isNew) return canManage ? <Editor doc={null} /> : <Navigate to="/admin/library/catalogue" replace />
 	return (
 		<>
 			<LibTabs />

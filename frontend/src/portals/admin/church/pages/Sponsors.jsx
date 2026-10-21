@@ -56,7 +56,7 @@ const COLS = [
 
 export default function Sponsors() {
 	return (
-		<RoleGate title="Sponsors">
+		<RoleGate need="sponsors" title="Sponsors">
 			<SponsorsPage />
 		</RoleGate>
 	)

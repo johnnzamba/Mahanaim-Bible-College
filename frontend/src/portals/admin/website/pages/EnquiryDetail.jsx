@@ -188,7 +188,7 @@ function Enquiry({ e }) {
 				<div className="space-y-4">
 					<Panel title="Contact">
 						<KeyValueGrid
-							className="sm:!grid-cols-1"
+							cols={1}
 							items={[
 								{ label: "Email", value: <a className="break-all text-brand-700 hover:underline" href={`mailto:${e.email}`}>{e.email}</a> },
 								{ label: "Phone", value: e.phone ? <a className="text-brand-700 hover:underline" href={`tel:${e.phone}`}>{e.phone}</a> : "—" },

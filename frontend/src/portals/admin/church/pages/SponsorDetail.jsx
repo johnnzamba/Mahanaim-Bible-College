@@ -11,7 +11,7 @@ import { SponsorshipForm, SponsorshipStatusDialog } from "../components/Sponsors
 
 export default function SponsorDetail() {
 	return (
-		<RoleGate title="Sponsor">
+		<RoleGate need="sponsors" title="Sponsor">
 			<SponsorDetailPage />
 		</RoleGate>
 	)
@@ -251,7 +251,7 @@ function ProfileCard({ s, summary }) {
 			</Panel>
 			<Panel title="Profile">
 				<KeyValueGrid
-					className="sm:!grid-cols-1"
+					cols={1}
 					items={[
 						{ label: "Contact person", value: s.contact_person || "—" },
 						{

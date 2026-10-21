@@ -171,7 +171,7 @@ function ListView({ search, status, onOpen }) {
 }
 
 function ChurchDrawer({ name, onClose, onEdit, onBranch }) {
-	const { canEditChurch, canRead } = useChurchRoles()
+	const { canEditChurch, canSponsors } = useChurchRoles()
 	const [tab, setTab] = useState("profile")
 	const q = useApi(`${API}get_church`, { name }, { enabled: Boolean(name) })
 	const d = q.data
@@ -289,7 +289,7 @@ function ChurchDrawer({ name, onClose, onEdit, onBranch }) {
 										)
 										return (
 											<li key={s.name}>
-												{canRead ? (
+												{canSponsors ? (
 													<Link to={`/admin/church/sponsors/${encodeURIComponent(s.name)}`} className="flex items-center justify-between gap-3 px-3 py-2.5 hover:bg-cream/60">
 														{row}
 													</Link>

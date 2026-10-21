@@ -68,7 +68,7 @@ function GivingPage() {
 				]}
 			/>
 			{tab === "records" ? <Records canManage={canManage} /> : <GivingTypes canManage={canManage} />}
-			<GiftForm open={recording} prefill={prefill} onClose={closeRecord} />
+			<GiftForm open={recording && canManage} prefill={prefill} onClose={closeRecord} />
 			{canManage ? <StkGift open={stk} onClose={() => setStk(false)} /> : null}
 		</>
 	)

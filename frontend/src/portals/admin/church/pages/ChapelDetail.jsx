@@ -82,7 +82,7 @@ function ChapelDetailPage() {
 							<div className="space-y-4">
 								<Panel title="Service details">
 									<KeyValueGrid
-										className="sm:!grid-cols-1"
+										cols={1}
 										items={[
 											{ label: "Service", value: doc.service_type },
 											{ label: "Theme", value: doc.theme || "—" },

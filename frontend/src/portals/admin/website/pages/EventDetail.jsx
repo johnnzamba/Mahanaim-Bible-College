@@ -411,9 +411,9 @@ function Answers({ raw }) {
 		<div>
 			<div className="label mb-1.5">Answers</div>
 			{parsed && typeof parsed === "object" && !Array.isArray(parsed) ? (
-				<KeyValueGrid className="sm:!grid-cols-1" items={Object.entries(parsed).map(([k, v]) => ({ label: k, value: String(v ?? "—") }))} />
+				<KeyValueGrid cols={1} items={Object.entries(parsed).map(([k, v]) => ({ label: k, value: String(v ?? "—") }))} />
 			) : Array.isArray(parsed) ? (
-				<KeyValueGrid className="sm:!grid-cols-1" items={parsed.map((a, i) => ({ label: a.question || a.label || `Answer ${i + 1}`, value: String(a.answer ?? a.value ?? "—") }))} />
+				<KeyValueGrid cols={1} items={parsed.map((a, i) => ({ label: a.question || a.label || `Answer ${i + 1}`, value: String(a.answer ?? a.value ?? "—") }))} />
 			) : (
 				<p className="whitespace-pre-wrap rounded-xl bg-cream p-3 text-sm text-ink">{String(raw)}</p>
 			)}
