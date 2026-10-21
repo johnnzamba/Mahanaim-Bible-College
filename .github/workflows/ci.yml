@@ -104,6 +104,10 @@ jobs:
         run: |
           sudo apt-get update -qq
           sudo apt-get install -y -qq libcups2-dev redis-tools mariadb-client >/dev/null
+          # wkhtmltopdf with patched Qt, as in production (PDF letters, receipts, transcripts)
+          wget -q -O /tmp/wkhtmltox.deb https://github.com/wkhtmltopdf/packaging/releases/download/0.12.6.1-2/wkhtmltox_0.12.6.1-2.jammy_amd64.deb
+          sudo apt-get install -y -qq /tmp/wkhtmltox.deb >/dev/null
+          wkhtmltopdf --version
 
       - name: Install bench
         run: pip install frappe-bench
