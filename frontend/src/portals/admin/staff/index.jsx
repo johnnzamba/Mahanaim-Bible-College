@@ -1,19 +1,16 @@
 import { Route, Routes } from "react-router-dom"
-import { Empty, PageHeader } from "@/shared/components/ui"
+import StaffList from "./pages/StaffList"
+import StaffForm from "./pages/StaffForm"
+import StaffDetail from "./pages/StaffDetail"
 
-/** /admin/staff/* (placeholder until this area is built). */
+/** /admin/staff/* */
 export default function StaffArea() {
 	return (
 		<Routes>
-			<Route
-				path="*"
-				element={
-					<>
-						<PageHeader title="Staff" subtitle="This workspace is being prepared." />
-						<Empty title="Coming together" subtitle="Screens for this area are under construction." />
-					</>
-				}
-			/>
+			<Route index element={<StaffList />} />
+			<Route path="new" element={<StaffForm />} />
+			<Route path=":name/edit" element={<StaffForm />} />
+			<Route path=":name" element={<StaffDetail />} />
 		</Routes>
 	)
 }

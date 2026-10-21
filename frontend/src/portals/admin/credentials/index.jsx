@@ -1,19 +1,18 @@
 import { Route, Routes } from "react-router-dom"
-import { Empty, PageHeader } from "@/shared/components/ui"
+import CredentialsHome from "./pages/CredentialsHome"
+import TranscriptDetail from "./pages/TranscriptDetail"
+import CertificateDetail from "./pages/CertificateDetail"
+import IssueWizard from "./pages/IssueWizard"
 
-/** /admin/credentials/* (placeholder until this area is built). */
+/** /admin/credentials/* */
 export default function CredentialsArea() {
 	return (
 		<Routes>
-			<Route
-				path="*"
-				element={
-					<>
-						<PageHeader title="Transcripts & certificates" subtitle="This workspace is being prepared." />
-						<Empty title="Coming together" subtitle="Screens for this area are under construction." />
-					</>
-				}
-			/>
+			<Route index element={<CredentialsHome />} />
+			<Route path="issue" element={<IssueWizard />} />
+			<Route path="transcripts/:name" element={<TranscriptDetail />} />
+			<Route path="certificates/:name" element={<CertificateDetail />} />
+			<Route path="*" element={<CredentialsHome />} />
 		</Routes>
 	)
 }

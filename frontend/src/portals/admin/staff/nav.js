@@ -4,5 +4,12 @@ import { UserCog } from "lucide-react"
 export default {
 	section: "People",
 	icon: UserCog,
-	items: [{ to: "/admin/staff", label: "Staff", icon: UserCog }],
+	items: [
+		{
+			to: "/admin/staff",
+			label: "Staff",
+			icon: UserCog,
+			keywords: "staff directory lecturers faculty employees people team new staff member deactivate on leave",
+		},
+	],
 }

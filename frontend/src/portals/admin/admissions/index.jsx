@@ -1,19 +1,13 @@
 import { Route, Routes } from "react-router-dom"
-import { Empty, PageHeader } from "@/shared/components/ui"
+import Applications from "./pages/Applications"
+import ApplicationDetail from "./pages/ApplicationDetail"
 
-/** /admin/admissions/* (placeholder until this area is built). */
+/** /admin/admissions/*: the pipeline (list or board) and the application review page. */
 export default function AdmissionsArea() {
 	return (
 		<Routes>
-			<Route
-				path="*"
-				element={
-					<>
-						<PageHeader title="Admissions" subtitle="This workspace is being prepared." />
-						<Empty title="Coming together" subtitle="Screens for this area are under construction." />
-					</>
-				}
-			/>
+			<Route index element={<Applications />} />
+			<Route path=":name" element={<ApplicationDetail />} />
 		</Routes>
 	)
 }

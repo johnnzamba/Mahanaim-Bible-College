@@ -28,11 +28,15 @@ const ALL_STAFF = [R.ADMIN, R.REGISTRAR, R.ADMISSIONS, R.FINANCE, R.DEAN, R.LIBR
 export const ADMIN_ACCESS = [
 	["/", ALL_STAFF],
 	["/admissions", [R.ADMISSIONS, R.REGISTRAR, R.DEAN]],
-	["/students", [R.REGISTRAR, R.ADMISSIONS, R.DEAN, R.FINANCE, R.CHAPLAIN, R.AUDITOR]],
+	// Students, credentials and alumni mirror STAFF_READ / REQUEST_STAFF in api/students.py, READ_ROLES in
+	// api/credentials.py and STAFF_ROLES in api/alumni.py.
+	["/students", [R.REGISTRAR, R.DEAN, R.FINANCE]],
+	["/students/requests", [R.REGISTRAR, R.DEAN, R.FINANCE, R.LIBRARY]],
 	// Offerings, timetable, exams, mark sheets and results all live under /academics.
 	["/academics", [R.REGISTRAR, R.DEAN]],
 	["/academics/results", [R.REGISTRAR, R.DEAN, R.AUDITOR]],
-	["/credentials", [R.REGISTRAR, R.DEAN]],
+	["/credentials", [R.REGISTRAR, R.DEAN, R.AUDITOR]],
+	["/credentials/issue", [R.REGISTRAR]],
 	["/finance", [R.FINANCE, R.AUDITOR]],
 	// Church, communication, website and library mirror the require_roles() gates in api/church.py,
 	// api/communication.py (messaging.ANNOUNCER_ROLES), api/website.py and api/library.py.
@@ -51,7 +55,7 @@ export const ADMIN_ACCESS = [
 	["/website/content", [R.COMMS, R.ADMISSIONS]],
 	["/library", [R.LIBRARY, R.REGISTRAR, R.AUDITOR, R.FINANCE]],
 	["/staff", [R.REGISTRAR, R.DEAN]],
-	["/alumni", [R.REGISTRAR, R.COMMS, R.CHAPLAIN]],
+	["/alumni", [R.REGISTRAR, R.DEAN]],
 	["/reports", [R.REGISTRAR, R.DEAN, R.FINANCE, R.AUDITOR]],
 	["/settings", []],
 	["/audit", [R.AUDITOR]],

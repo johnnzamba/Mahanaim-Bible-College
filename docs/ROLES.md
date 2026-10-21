@@ -22,7 +22,7 @@ Roles are created by `mahanaim/install.py` and enforced in three places:
 | Finance Officer | admin | Fee structures, invoices, payments, M-Pesa reconciliation, scholarships, refunds, giving |
 | Library Officer | admin | Library catalogue, loans and digital resources |
 | Communications Officer | admin | Website CMS, news, events, announcements, bulk messaging |
-| Chaplain | admin | Chapel services and attendance, ministry groups, pastoral notes on students |
+| Chaplain | admin | Chapel services and attendance, ministry groups, giving overview, church events |
 | Auditor | admin | Read-only finance, results and audit trail |
 | Lecturer | lecturer | Own course offerings: content, attendance, assignments, exams, marking, mark sheets |
 | Student | student | Own courses, assessments, results, fees and payments, requests, profile |
@@ -36,18 +36,30 @@ Roles are created by `mahanaim/install.py` and enforced in three places:
 | --- | --- |
 | `/` dashboard | all staff roles |
 | `/admissions` | Admissions Officer, Registrar, Academic Dean |
-| `/students` | Registrar, Admissions Officer, Academic Dean, Finance Officer, Chaplain, Auditor |
-| `/academics` (programmes, offerings, calendar, exams, mark sheets), `/credentials`, `/staff` | Registrar, Academic Dean |
+| `/students` | Registrar, Academic Dean, Finance Officer |
+| `/students/requests` | as `/students`, plus Library Officer |
+| `/academics` (programmes, offerings, calendar, exams, mark sheets), `/staff`, `/alumni` | Registrar, Academic Dean |
 | `/academics/results` | Registrar, Academic Dean, Auditor (read-only) |
+| `/credentials` | Registrar, Academic Dean, Auditor (read-only); issuing is Registrar only |
 | `/finance` | Finance Officer, Auditor |
-| `/church` | Finance Officer, Chaplain, Communications Officer |
-| `/communication` | Communications Officer, Registrar, Admissions Officer, Academic Dean |
-| `/website` | Communications Officer |
-| `/library` | Library Officer, Academic Dean |
-| `/alumni` | Registrar, Communications Officer, Chaplain |
+| `/church` (dashboard, giving) | Finance Officer, Chaplain, Auditor, Registrar |
+| `/church/churches` | as `/church`, plus Admissions Officer and Communications Officer |
+| `/church/sponsors` | as `/church`, plus Admissions Officer |
+| `/church/chapel`, `/church/ministry-groups` | Chaplain, Auditor, Registrar, Academic Dean |
+| `/communication` (announcements) | Communications Officer, Registrar, Academic Dean, Finance Officer, Chaplain |
+| `/communication/templates` | Communications Officer |
+| `/communication/messages` | Communications Officer, Auditor |
+| `/website` | Communications Officer, Chaplain, Admissions Officer |
+| `/website/news` | Communications Officer |
+| `/website/events` | Communications Officer, Chaplain |
+| `/website/enquiries`, `/website/content` | Communications Officer, Admissions Officer |
+| `/library` | Library Officer, Registrar, Auditor, Finance Officer |
 | `/reports` | Registrar, Academic Dean, Finance Officer, Auditor |
 | `/audit` | Auditor |
 | `/settings` | super-roles only |
+
+The map lives in `frontend/src/shared/access.js` and mirrors the `require_roles()` gates in `mahanaim/api/*`; the server
+remains the authority. Inside an area, write buttons are hidden for read-only roles.
 
 A user may hold several roles (for example Lecturer and Academic Dean); the portal switcher in the user menu
 lists every portal the user can open. `utils/portal.portal_for(user)` decides where to land after sign-in:
