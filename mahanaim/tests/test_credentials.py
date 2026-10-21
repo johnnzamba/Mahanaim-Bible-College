@@ -402,3 +402,51 @@ class TestCredentials(IntegrationTestCase):
 			with self.assertRaises(frappe.ValidationError):
 				api.request_transcript(*bad)
 		self.assertEqual(len(api.my_documents()["requests"]), 1)
+
+	def test_issuing_transcript_completes_its_request(self):
+		s, other = self.graduate(), self.graduate()
+		frappe.set_user(s.user)
+		req = api.request_transcript("Official", 1, "Collect")["name"]
+		frappe.set_user(self.registrar)
+		with self.assertRaises(frappe.ValidationError):
+			api.generate_transcript(other.name, "Official", request=req)  # someone else's request
+		draft = api.generate_transcript(s.name, "Official", request=req)["name"]
+		self.assertEqual(frappe.db.get_value("Student Request", req, "status"), "Pending")
+		api.issue_transcript(draft)
+
+		doc = frappe.get_doc("Student Request", req)
+		self.assertEqual(doc.status, "Completed")
+		log = [(r.from_status, r.to_status) for r in doc.status_log]
+		self.assertEqual(log[-2:], [("Pending", "Approved"), ("Approved", "Completed")])
+		self.assertIn(draft, doc.status_log[-1].note)
+		self.assertEqual(doc.status_log[-1].user, self.registrar)
+		self.assertTrue(self.notified("Transcript Ready"))
+		self.assertFalse(self.notified("Student Request Update"))
+
+		documents.complete_transcript_request(frappe.get_doc("Transcript", draft))  # idempotent
+		self.assertEqual(len(frappe.get_doc("Student Request", req).status_log), len(log))
+
+		frappe.set_user(s.user)
+		cancelled = api.request_transcript("Final", 1, "Collect")["name"]
+		frappe.set_user("Administrator")
+		frappe.db.set_value("Student Request", cancelled, "status", "Cancelled")
+		t = self.issued_transcript(s.name, transcript_type="Final", request=cancelled)
+		self.assertEqual(frappe.db.get_value("Student Request", cancelled, "status"), "Cancelled")
+		self.assertEqual(api.list_transcripts(request=cancelled)["data"][0]["name"], t.name)
+
+	def test_list_status_counts_and_partial_code_filter(self):
+		s = self.graduate()
+		issued = self.issued_transcript(s.name)
+		frappe.get_doc({"doctype": "Transcript", "student": s.name, "transcript_type": "Final"}).insert()
+		res = api.list_transcripts(status="Issued", student=s.name)
+		self.assertEqual(([r.name for r in res["data"]], res["total"]), ([issued.name], 1))
+		self.assertEqual(res["counts_by_status"], {"Draft": 1, "Issued": 1, "Revoked": 0})
+		self.assertEqual(
+			api.list_certificates(student=s.name)["counts_by_status"], {"Draft": 0, "Issued": 0, "Revoked": 0}
+		)
+
+		documents.verify_code(issued.verification_code)
+		fragment = issued.verification_code[2:7].lower()
+		logs = api.verification_logs(code=fragment)
+		self.assertIn(issued.name, [r.document_name for r in logs["data"]])
+		self.assertTrue(all(fragment.upper() in r.verification_code.upper() for r in logs["data"]))

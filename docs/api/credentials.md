@@ -91,7 +91,7 @@ site>/verify/<code>`. The SPA page calls this endpoint.
 
 | Endpoint | Method | Guard | Args | Returns |
 | --- | --- | --- | --- | --- |
-| `mahanaim.api.credentials.verification_logs` | GET | registry read | `code?`, `document_type?`, `result?` (Valid \| Revoked \| Not Found), `start`, `page_length` | `{data: [{name, verification_code, document_type, document_name, result, verified_on, ip_address, requester_name, requester_organisation}], total}` |
+| `mahanaim.api.credentials.verification_logs` | GET | registry read | `code?` (case-insensitive partial match), `document_type?`, `result?` (Valid \| Revoked \| Not Found), `start`, `page_length` | `{data: [{name, verification_code, document_type, document_name, result, verified_on, ip_address, requester_name, requester_organisation}], total}` |
 
 ## Student
 
@@ -117,11 +117,11 @@ Students download their issued documents through `print_view` and `download_pdf`
 
 | Endpoint | Method | Guard | Args | Returns |
 | --- | --- | --- | --- | --- |
-| `mahanaim.api.credentials.list_transcripts` | GET | registry read | `status?`, `student?`, `transcript_type?`, `search?` (name, student name, student number), `start`, `page_length` | `{data, total}`; rows: name, student, student_name, student_number, programme, transcript_type, status, issue_date, as_of_term, cgpa, total_credits, classification, verification_code, issued_by, request, verification_count, override_fee_check, creation |
+| `mahanaim.api.credentials.list_transcripts` | GET | registry read | `status?`, `student?`, `transcript_type?`, `request?` (Student Request name), `search?` (name, student name, student number), `start`, `page_length` | `{data, total, counts_by_status: {Draft, Issued, Revoked}}` (counts use the same filters except `status`); rows: name, student, student_name, student_number, programme, transcript_type, status, issue_date, as_of_term, cgpa, total_credits, classification, verification_code, issued_by, request, verification_count, override_fee_check, creation |
 | `mahanaim.api.credentials.get_transcript` | GET | registry read | `name` | Transcript dict, with `snapshot` parsed into `{terms: [{term, label, courses: [{code, title, credits, total, grade, grade_points, status}], gpa, credits}], cgpa, total_credits, classification}` |
-| `mahanaim.api.credentials.generate_transcript` | POST | Registrar | `student`, `type="Official"`, `as_of_term?`, `request?` (Student Request) | Draft transcript (snapshot taken) |
+| `mahanaim.api.credentials.generate_transcript` | POST | Registrar | `student`, `type="Official"`, `as_of_term?`, `request?` (Student Request; must be a Transcript/Document Request of the same student) | Draft transcript (snapshot taken) |
 | `mahanaim.api.credentials.refresh_transcript` | POST | Registrar | `name` | Re-snapshots a Draft from the current published results |
-| `mahanaim.api.credentials.issue_transcript` | POST | Registrar | `name`, `override_fee_check=0` | Issued transcript. Fails with the clearance message when fees aren't cleared |
+| `mahanaim.api.credentials.issue_transcript` | POST | Registrar | `name`, `override_fee_check=0` | Issued transcript. Fails with the clearance message when fees aren't cleared. If the transcript has a linked `request` (Transcript/Document Request of the same student) that is still open, the request is moved to Completed in the same transaction (Pending/Under Review requests are first logged as Approved), with a status-log note naming the transcript; request notifications are muted because "Transcript Ready" already notifies the student. Closed requests (Completed/Rejected/Cancelled) are left untouched |
 | `mahanaim.api.credentials.revoke_document` | POST | Registrar | `doctype` = Transcript \| Certificate, `name`, `reason` (required) | `{ok: true, doctype, name, status: "Revoked"}` |
 
 ## Registrar: certificates
@@ -131,7 +131,7 @@ Students download their issued documents through `print_view` and `download_pdf`
 | `mahanaim.api.credentials.eligible_graduates` | GET | registry read | `programme`, `intake?`, `include_ineligible=0` | `{data: [eligibility row], total, eligible}` |
 | `mahanaim.api.credentials.certificate_eligibility` | GET | registry read | `student` | Eligibility row |
 | `mahanaim.api.credentials.issue_certificates` | POST | Registrar | `students` (JSON list or a single name), `graduation_date?`, `override_fee_check=0` | See below |
-| `mahanaim.api.credentials.list_certificates` | GET | registry read | `status?`, `programme?`, `student?`, `search?` (name, student name, serial, student number), `start`, `page_length` | `{data, total}`; rows: name, student, student_name, student_number, programme, award_title, status, certificate_serial, verification_code, classification, completion_date, graduation_date, cgpa, issue_date, issued_by, verification_count, override_fee_check, creation |
+| `mahanaim.api.credentials.list_certificates` | GET | registry read | `status?`, `programme?`, `student?`, `search?` (name, student name, serial, student number), `start`, `page_length` | `{data, total, counts_by_status: {Draft, Issued, Revoked}}` (counts use the same filters except `status`); rows: name, student, student_name, student_number, programme, award_title, status, certificate_serial, verification_code, classification, completion_date, graduation_date, cgpa, issue_date, issued_by, verification_count, override_fee_check, creation |
 | `mahanaim.api.credentials.get_certificate` | GET | registry read | `name` | Certificate dict |
 
 **Eligibility row**

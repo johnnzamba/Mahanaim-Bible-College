@@ -65,6 +65,25 @@ def require_registry_read() -> str:
 	return require_roles(*READ_ROLES)
 
 
+CREDENTIAL_STATUSES = ("Draft", "Issued", "Revoked")
+
+
+def _with_status_counts(doctype: str, filters: dict, or_filters, result: dict) -> dict:
+	"""Add `counts_by_status` ({status: n}, every status present) for the same filters minus the status filter."""
+	rows = frappe.get_list(
+		doctype,
+		filters={k: v for k, v in filters.items() if k != "status"},
+		or_filters=or_filters,
+		fields=["status", {"COUNT": "*", "as": "n"}],
+		group_by="status",
+		order_by="status asc",
+	)
+	counts = dict.fromkeys(CREDENTIAL_STATUSES, 0)
+	counts.update({r.status: cint(r.n) for r in rows if r.status})
+	result["counts_by_status"] = counts
+	return result
+
+
 # ---------------------------------------------------------------------------------- public verification
 @frappe.whitelist(allow_guest=True, methods=["GET", "POST"])
 @rate_limit(limit=10, seconds=60)
@@ -87,8 +106,10 @@ def verify(code, requester_name=None, requester_organisation=None):
 def verification_logs(code=None, document_type=None, result=None, start=0, page_length=50):
 	require_registry_read()
 	f = {}
+	code = (code or "").strip()
 	if code:
-		f["verification_code"] = code
+		# partial and case-insensitive (the column uses a case-insensitive collation)
+		f["verification_code"] = ["like", f"%{code}%"]
 	if document_type:
 		f["document_type"] = document_type
 	if result:
@@ -206,10 +227,17 @@ def request_transcript(type="Official", copies=1, delivery_method="Collect", rea
 
 # ---------------------------------------------------------------------------------- registrar: transcripts
 @frappe.whitelist()
-def list_transcripts(status=None, student=None, transcript_type=None, search=None, start=0, page_length=20):
+def list_transcripts(
+	status=None, student=None, transcript_type=None, search=None, start=0, page_length=20, request=None
+):
 	require_registry_read()
 	f = {}
-	for key, value in (("status", status), ("student", student), ("transcript_type", transcript_type)):
+	for key, value in (
+		("status", status),
+		("student", student),
+		("transcript_type", transcript_type),
+		("request", request),
+	):
 		if value:
 			f[key] = value
 	or_filters = None
@@ -220,7 +248,8 @@ def list_transcripts(status=None, student=None, transcript_type=None, search=Non
 			["student_name", "like", like],
 			["student_number", "like", like],
 		]
-	return _list("Transcript", f, TRANSCRIPT_FIELDS, start, page_length, "creation desc", or_filters)
+	result = _list("Transcript", f, TRANSCRIPT_FIELDS, start, page_length, "creation desc", or_filters)
+	return _with_status_counts("Transcript", f, or_filters, result)
 
 
 def _transcript_detail(name: str) -> dict:
@@ -331,7 +360,8 @@ def list_certificates(status=None, programme=None, student=None, search=None, st
 			["certificate_serial", "like", like],
 			["student_number", "like", like],
 		]
-	return _list("Certificate", f, CERTIFICATE_FIELDS, start, page_length, "creation desc", or_filters)
+	result = _list("Certificate", f, CERTIFICATE_FIELDS, start, page_length, "creation desc", or_filters)
+	return _with_status_counts("Certificate", f, or_filters, result)
 
 
 @frappe.whitelist()

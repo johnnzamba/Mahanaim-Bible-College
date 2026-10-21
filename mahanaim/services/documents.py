@@ -1420,9 +1420,53 @@ def validate_credential(doc, issue_fn):
 		doc.flags.just_revoked = True
 
 
+TRANSCRIPT_REQUEST_TYPES = ("Transcript Request", "Document Request")
+CLOSED_REQUEST_STATUSES = ("Completed", "Rejected", "Cancelled")
+
+
+def validate_transcript_request(doc):
+	"""A transcript may only be linked to a transcript/document request of the same student."""
+	if not doc.request or doc.status == "Revoked":
+		return
+	row = frappe.db.get_value("Student Request", doc.request, ["student", "request_type"], as_dict=True)
+	if not row or row.student != doc.student or row.request_type not in TRANSCRIPT_REQUEST_TYPES:
+		frappe.throw(
+			_("Request {0} is not a transcript request of {1}").format(
+				doc.request, doc.student_name or doc.student
+			)
+		)
+
+
+def complete_transcript_request(doc):
+	"""Issuing a transcript completes its Student Request in the same transaction, with a status-log note.
+
+	Idempotent: closed requests (Completed / Rejected / Cancelled) are left alone. A request still Pending or Under
+	Review is approved first (the only path to Completed). The student is told by "Transcript Ready", so the request
+	update notifications are muted."""
+	if not doc.request:
+		return
+	status = frappe.db.get_value("Student Request", doc.request, "status", for_update=True)
+	if not status or status in CLOSED_REQUEST_STATUSES:
+		return
+	req = frappe.get_doc("Student Request", doc.request)
+	req.flags.ignore_permissions = True
+	req.flags.mute_notifications = True
+	if req.status != "Approved":
+		req.status = "Approved"
+		req.flags.status_note = _("Approved on issue of transcript {0}").format(doc.name)
+		req.save()
+	req.status = "Completed"
+	req.flags.status_note = _("{0} transcript {1} issued on {2}").format(
+		_(doc.transcript_type or "Official"), doc.name, _fmt_date(doc.issue_date, "d MMM yyyy")
+	)
+	req.save()
+
+
 def after_credential_update(doc):
 	if doc.flags.just_issued:
 		doc.flags.just_issued = False
+		if doc.doctype == "Transcript":
+			complete_transcript_request(doc)
 		notify_issued(doc)
 	if doc.flags.just_revoked:
 		doc.flags.just_revoked = False

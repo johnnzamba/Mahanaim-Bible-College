@@ -11,6 +11,8 @@ from mahanaim.services import documents
 class Transcript(Document):
 	def validate(self):
 		documents.validate_credential(self, documents.prepare_transcript_issue)
+		if self.status == "Draft" or self.flags.just_issued:
+			documents.validate_transcript_request(self)
 		if self.status == "Draft" and not self.snapshot:
 			try:
 				documents.apply_snapshot(self, documents.transcript_snapshot(self.student, self.as_of_term))
