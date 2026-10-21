@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom"
 import clsx from "clsx"
-import { CheckCircle2, Circle, CircleAlert } from "lucide-react"
+import { CheckCircle2, Circle, CircleAlert, FileWarning } from "lucide-react"
 import { Donut } from "@/shared/components/ui"
 
 /** Completeness meter + list for the required documents. `checklist` comes from lib.docChecklist. */
@@ -20,6 +20,11 @@ export function DocChecklist({ checklist, uploadTo, compact }) {
 					<div className="text-xs text-ink-muted">
 						{checklist.missing.length ? `${checklist.missing.length} still to upload` : "All required documents are in"}
 					</div>
+					{checklist.flagged?.length ? (
+						<div className="text-xs font-semibold text-amber-700 dark:text-amber-300">
+							{checklist.flagged.length} need{checklist.flagged.length === 1 ? "s" : ""} a new copy
+						</div>
+					) : null}
 					{uploadTo && checklist.missing.length ? (
 						<Link to={uploadTo} className="link mt-1 inline-block text-xs font-semibold">
 							Upload now
@@ -30,20 +35,29 @@ export function DocChecklist({ checklist, uploadTo, compact }) {
 			<ul className="mt-4 space-y-2">
 				{checklist.items.map((it) => (
 					<li key={it.key} className="flex items-start gap-2.5 text-sm">
-						{it.done ? (
+						{it.flagged ? (
+							<FileWarning size={17} className="mt-0.5 shrink-0 text-amber-600 dark:text-amber-400" aria-hidden />
+						) : it.done ? (
 							<CheckCircle2 size={17} className="mt-0.5 shrink-0 text-emerald-600" aria-hidden />
 						) : it.required ? (
 							<CircleAlert size={17} className="mt-0.5 shrink-0 text-amber-600" aria-hidden />
 						) : (
 							<Circle size={17} className="mt-0.5 shrink-0 text-ink-soft" aria-hidden />
 						)}
-						<span className={clsx("min-w-0 flex-1", it.done ? "text-ink" : "text-ink-muted")}>
-							{it.label}
-							<span className="sr-only">{it.done ? " — uploaded" : " — missing"}</span>
-						</span>
-						<span className="shrink-0 text-[11px] font-semibold uppercase tracking-wide text-ink-soft">
-							{it.done ? (it.doc?.verified ? "Verified" : "Uploaded") : it.required ? "Required" : "Recommended"}
-						</span>
+						<div className="flex min-w-0 flex-1 flex-wrap items-baseline gap-x-2">
+							<span className={clsx("min-w-0 break-words", it.done ? "text-ink" : "text-ink-muted")}>
+								{it.label}
+								<span className="sr-only">{it.flagged ? " — new copy needed" : it.done ? " — uploaded" : " — missing"}</span>
+							</span>
+							<span
+								className={clsx(
+									"ml-auto shrink-0 text-[11px] font-semibold uppercase tracking-wide",
+									it.flagged ? "text-amber-700 dark:text-amber-300" : it.doc?.verified ? "text-emerald-700 dark:text-emerald-300" : "text-ink-soft"
+								)}
+							>
+								{it.flagged ? "New copy" : it.done ? (it.doc?.verified ? "Verified" : "Uploaded") : it.required ? "Required" : "Recommended"}
+							</span>
+						</div>
 					</li>
 				))}
 			</ul>

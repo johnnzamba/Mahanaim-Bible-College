@@ -1,7 +1,8 @@
 import { useState } from "react"
 import { Eye, FileText, Plus } from "lucide-react"
-import { Badge, Button } from "@/shared/components/ui"
+import { Button } from "@/shared/components/ui"
 import { DOC_UPLOAD_STATUSES, fileName } from "../lib"
+import { DocRemarks, DocStateBadge } from "./DocState"
 import { DocumentUploader } from "./DocumentUploader"
 import { FilePreview } from "./FilePreview"
 import { documentSlots } from "./wizard/StepDocuments"
@@ -51,12 +52,6 @@ export function ApplicationDocuments({ app, options, onChanged }) {
 	)
 }
 
-export function VerificationBadge({ doc }) {
-	if (doc.verified) return <Badge tone="green" dot>Verified</Badge>
-	if (doc.remarks) return <Badge tone="red" dot>Needs attention</Badge>
-	return <Badge tone="orange" dot>Awaiting verification</Badge>
-}
-
 export function DocumentList({ docs }) {
 	const [preview, setPreview] = useState(null)
 	if (!docs.length) return <p className="text-sm text-ink-soft">No documents were uploaded with this application.</p>
@@ -69,9 +64,9 @@ export function DocumentList({ docs }) {
 						<div className="min-w-0 flex-1">
 							<div className="text-sm font-semibold text-ink">{d.document_type}</div>
 							<div className="truncate text-xs text-ink-soft">{fileName(d.file)}</div>
-							{d.remarks ? <div className="mt-0.5 text-xs text-red-600 dark:text-red-300">{d.remarks}</div> : null}
+							<DocRemarks doc={d} className="mt-1" closed />
 						</div>
-						{d.verified ? <Badge tone="green" dot>Verified</Badge> : <Badge tone="gray" dot>Not verified</Badge>}
+						<DocStateBadge doc={d} closed />
 						<Button variant="ghost" size="sm" icon={Eye} onClick={() => setPreview(d)}>
 							View
 						</Button>

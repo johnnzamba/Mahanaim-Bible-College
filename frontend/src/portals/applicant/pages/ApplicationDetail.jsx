@@ -6,11 +6,12 @@ import { Alert, Badge, Button, ErrorState, InfoRow, KeyValueGrid, PageHeader, Pa
 import { Timeline } from "@/shared/components/kit"
 import { useSession } from "@/shared/session"
 import { date, dateTime, money } from "@/shared/utils/format"
-import { CLOSED_STATUSES, FEE_PAYABLE_STATUSES, M, docChecklist, draftProgress, journey, letterPdfUrl, receiptUrl } from "../lib"
+import { CLOSED_STATUSES, FEE_PAYABLE_STATUSES, M, docChecklist, draftProgress, journey, letterPdfUrl, needsReupload, receiptUrl } from "../lib"
 import { useApplication, useOptions } from "../hooks"
 import { AppStatus, FeeBadge } from "../components/AppStatus"
 import { AdmissionLetter } from "../components/AdmissionLetter"
 import { DocChecklist } from "../components/DocChecklist"
+import { FlaggedDocsAlert } from "../components/DocState"
 import { ApplicationDocuments } from "../components/ApplicationDocuments"
 import { NextActionCard, resolveNextAction } from "../components/NextAction"
 import { OfferResponse, WelcomeModal } from "../components/OfferResponse"
@@ -51,7 +52,7 @@ function DetailSkeleton() {
 
 function Detail({ app, options }) {
 	const session = useSession()
-	const { hash } = useLocation()
+	const { hash, key } = useLocation()
 	const [paying, setPaying] = useState(false)
 	const [withdrawing, setWithdrawing] = useState(false)
 	const [welcome, setWelcome] = useState(null)
@@ -65,13 +66,13 @@ function Detail({ app, options }) {
 		if (!hash) return
 		const t = setTimeout(() => document.getElementById(hash.slice(1))?.scrollIntoView({ behavior: "smooth", block: "start" }), 150)
 		return () => clearTimeout(t)
-	}, [hash])
+	}, [hash, key])
 
 	const action = useMemo(() => {
 		const a = resolveNextAction(app, { checklist, progress: draftProgress(app, options), portals: session.portals || [] })
 		// Admitted → OfferResponse, Accepted → EnrolledBanner carry the call to action on this page.
 		if (!a || app.status === "Admitted" || app.status === "Accepted") return null
-		if (a.cta?.to?.startsWith(detail)) return { ...a, cta: null }
+		if (a.cta?.to?.startsWith(detail) && !a.cta.to.startsWith(`${detail}#`)) return { ...a, cta: null }
 		if (a.cta?.to === "/applicant/documents") return { ...a, cta: { ...a.cta, to: `${detail}#documents` } }
 		if (a.secondary?.to === "/applicant/documents") return { ...a, secondary: { ...a.secondary, to: `${detail}#documents` } }
 		return a
@@ -124,6 +125,9 @@ function Detail({ app, options }) {
 			<div className="grid gap-5 lg:grid-cols-[minmax(0,1fr),340px]">
 				<div className="min-w-0 space-y-5">
 					{action ? <NextActionCard action={action} onPay={() => setPaying(true)} /> : null}
+					{action?.kind !== "reupload" ? (
+						<FlaggedDocsAlert app={app} onOpen={() => document.getElementById("documents")?.scrollIntoView({ behavior: "smooth", block: "start" })} />
+					) : null}
 					{app.status === "Rejected" ? (
 						<Alert tone="error" title="We're unable to offer you a place this time">
 							{app.rejection_reason || "Thank you for your interest in Mahanaim. You're welcome to apply again for a later intake."}
@@ -348,9 +352,11 @@ function AcademicSection({ app }) {
 function DocumentsSection({ app, options, checklist }) {
 	const docs = (app.documents || []).filter((d) => d.file)
 	const verified = docs.filter((d) => d.verified).length
+	const flagged = docs.filter(needsReupload).length
+	const summary = [`${docs.length} uploaded`, `${verified} verified`, flagged ? `${flagged} need${flagged === 1 ? "s" : ""} a new copy` : null].filter(Boolean).join(" · ")
 	return (
 		<div id="documents" className="scroll-mt-24">
-			<Panel title="Documents" icon={FileText} subtitle={docs.length ? `${docs.length} uploaded · ${verified} verified` : "Nothing uploaded yet"}>
+			<Panel title="Documents" icon={FileText} subtitle={docs.length ? <span className="whitespace-normal">{summary}</span> : "Nothing uploaded yet"}>
 				<div className="mb-5 rounded-2xl border border-line bg-cream/40 p-4">
 					<DocChecklist checklist={checklist} compact />
 				</div>
@@ -410,13 +416,14 @@ function FeePanel({ app, fee, feeData, canPay, onPay }) {
 }
 
 function ActivityPanel({ log = [] }) {
-	if (!log.length) return null
-	const rows = [...log].reverse()
+	// Applicants only receive status changes; ignore anything else defensively.
+	const rows = (log || []).filter((l) => l.to_status && l.from_status !== l.to_status).reverse()
+	if (!rows.length) return null
 	return (
 		<Panel title="Activity">
 			<ul className="space-y-3">
-				{rows.map((l) => (
-					<li key={l.name} className="flex items-start gap-2.5 text-sm">
+				{rows.map((l, i) => (
+					<li key={l.name || `${l.timestamp}-${i}`} className="flex items-start gap-2.5 text-sm">
 						<span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-brand-600" aria-hidden />
 						<div className="min-w-0">
 							<div className="text-ink">

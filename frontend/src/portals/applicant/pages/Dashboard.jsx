@@ -21,6 +21,7 @@ import { CLOSED_STATUSES, FEE_PAYABLE_STATUSES, docChecklist, draftProgress, jou
 import { useApplication, useMyApplications, useOptions } from "../hooks"
 import { AppStatus, FeeBadge } from "../components/AppStatus"
 import { DocChecklist } from "../components/DocChecklist"
+import { FlaggedBadge, FlaggedDocsAlert } from "../components/DocState"
 import { NextActionCard, resolveNextAction } from "../components/NextAction"
 import { PayFeeDialog } from "../components/PayFeeDialog"
 import { ProgrammeCard } from "../components/ProgrammeCard"
@@ -75,9 +76,14 @@ function Overview({ apps }) {
 	const others = apps.filter((a) => a.name !== current.name)
 	const docsLink = app.status === "Draft" ? `/applicant/apply?application=${app.name}&step=4` : "/applicant/documents"
 	const feePayable = app.fee_status !== "Paid" && app.fee_status !== "Waived" && FEE_PAYABLE_STATUSES.includes(app.status)
+	// The hero's next-step card already covers the current application when re-upload is its next step.
+	const flaggedApps = [app, ...others].filter((a) => a.name !== app.name || action?.kind !== "reupload")
 
 	return (
 		<div className="space-y-5">
+			{flaggedApps.map((a) => (
+				<FlaggedDocsAlert key={a.name} app={a} to={`/applicant/application/${a.name}#documents`} withProgramme={apps.length > 1} />
+			))}
 			<div className="grid gap-5 lg:grid-cols-3">
 				<section className="card overflow-hidden lg:col-span-2" aria-label="Current application">
 					<div className="hero-wash relative px-5 py-5 text-white sm:px-6">
@@ -182,7 +188,16 @@ function Overview({ apps }) {
 								),
 							},
 							{ key: "intake", label: "Intake", hideOnMobile: true },
-							{ key: "status", label: "Status", render: (r) => <AppStatus status={r.status} size="xs" /> },
+							{
+								key: "status",
+								label: "Status",
+								render: (r) => (
+									<div className="flex flex-wrap gap-1">
+										<AppStatus status={r.status} size="xs" />
+										<FlaggedBadge app={r} />
+									</div>
+								),
+							},
 							{ key: "modified", label: "Updated", hideOnMobile: true, render: (r) => <span className="text-ink-muted">{date(r.modified)}</span>, sortValue: (r) => r.modified },
 						]}
 					/>

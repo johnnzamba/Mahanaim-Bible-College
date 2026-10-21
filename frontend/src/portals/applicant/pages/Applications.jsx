@@ -7,6 +7,7 @@ import { date } from "@/shared/utils/format"
 import { CLOSED_STATUSES } from "../lib"
 import { useMyApplications } from "../hooks"
 import { AppStatus, FeeBadge } from "../components/AppStatus"
+import { FlaggedBadge } from "../components/DocState"
 
 const GROUPS = {
 	all: () => true,
@@ -77,7 +78,16 @@ export default function Applications() {
 						),
 					},
 					{ key: "intake", label: "Intake", hideOnMobile: true },
-					{ key: "status", label: "Status", render: (r) => <AppStatus status={r.status} size="xs" /> },
+					{
+						key: "status",
+						label: "Status",
+						render: (r) => (
+							<div className="flex flex-wrap gap-1">
+								<AppStatus status={r.status} size="xs" />
+								<FlaggedBadge app={r} />
+							</div>
+						),
+					},
 					{
 						key: "fee_status",
 						label: "Fee",

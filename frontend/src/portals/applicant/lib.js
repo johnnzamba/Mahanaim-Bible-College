@@ -55,6 +55,14 @@ export const fileName = (url) => {
 export const isImage = (url) => /\.(png|jpe?g|gif|webp|bmp|svg)$/i.test(String(url || "").split("?")[0])
 export const isPdf = (url) => /\.pdf$/i.test(String(url || "").split("?")[0])
 
+/** Staff flagged this document for a new copy: not verified and carrying the officer's remark. */
+export const needsReupload = (d) => Boolean(d?.file) && (d.needs_reupload ?? (!d.verified && Boolean(String(d.remarks || "").trim())))
+/** "verified" | "flagged" | "pending" (uploaded, awaiting check). */
+export const docState = (d) => (d?.verified ? "verified" : needsReupload(d) ? "flagged" : "pending")
+/** Number of flagged documents on an application (list rows carry the count, full records the rows). */
+export const flaggedCount = (app) => app?.documents_flagged ?? (app?.documents || []).filter(needsReupload).length
+export const flaggedLabel = (n) => `${n} document${n === 1 ? " needs" : "s need"} a new copy`
+
 export const letterPdfUrl = (name) => frappe.downloadUrl(M.letter, { name, format: "pdf" })
 export const receiptUrl = (payment) => frappe.downloadUrl("mahanaim.api.finance.download", { doctype: "receipt", name: payment, format: "pdf" })
 
@@ -70,9 +78,10 @@ export function docChecklist(app, options) {
 	const groups = options?.required_documents?.length ? options.required_documents : DEFAULT_REQUIRED_DOCS
 	const docs = (app?.documents || []).filter((d) => d.file)
 	const items = groups.map((types) => {
-		let doc = docs.find((d) => types.includes(d.document_type))
+		const matches = docs.filter((d) => types.includes(d.document_type))
+		let doc = matches.find((d) => d.verified) || matches.find((d) => !needsReupload(d)) || matches[0]
 		if (!doc && types.includes("Passport Photo") && app?.photo) doc = { document_type: "Passport Photo", file: app.photo }
-		return { key: types.join("|"), types, label: types.join(" or "), required: true, doc, done: Boolean(doc) }
+		return { key: types.join("|"), types, label: types.join(" or "), required: true, doc, done: Boolean(doc), flagged: needsReupload(doc) }
 	})
 	const letters = docs.filter((d) => d.document_type === "Recommendation Letter")
 	items.push({
@@ -80,8 +89,9 @@ export function docChecklist(app, options) {
 		types: ["Recommendation Letter"],
 		label: "Recommendation letter",
 		required: false,
-		doc: letters[0],
+		doc: letters.find((d) => !needsReupload(d)) || letters[0],
 		done: letters.length > 0,
+		flagged: letters.length > 0 && letters.every(needsReupload),
 	})
 	const required = items.filter((i) => i.required)
 	const done = required.filter((i) => i.done).length
@@ -91,6 +101,7 @@ export function docChecklist(app, options) {
 		total: required.length,
 		pct: required.length ? Math.round((done / required.length) * 100) : 100,
 		missing: required.filter((i) => !i.done),
+		flagged: items.filter((i) => i.flagged),
 	}
 }
 

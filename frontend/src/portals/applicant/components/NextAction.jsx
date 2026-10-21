@@ -5,6 +5,7 @@ import {
 	CalendarClock,
 	FilePlus2,
 	FileUp,
+	FileWarning,
 	GraduationCap,
 	Hourglass,
 	PartyPopper,
@@ -13,9 +14,29 @@ import {
 	Smartphone,
 	TimerOff,
 } from "lucide-react"
+import { plainText } from "@/shared/api/frappe"
 import { Button, TONE } from "@/shared/components/ui"
 import { date, dateTime, money } from "@/shared/utils/format"
-import { CLOSED_STATUSES, DOC_UPLOAD_STATUSES } from "../lib"
+import { CLOSED_STATUSES, DOC_UPLOAD_STATUSES, flaggedCount, flaggedLabel, needsReupload } from "../lib"
+
+const listJoin = (xs) => (xs.length > 1 ? `${xs.slice(0, -1).join(", ")} and ${xs[xs.length - 1]}` : xs[0] || "")
+
+/** Admissions flagged documents for a new copy. Full records list the rows; list rows only carry the count. */
+function reuploadAction(app, n, to) {
+	const docs = (app.documents || []).filter(needsReupload)
+	const names = [...new Set(docs.map((d) => d.document_type))]
+	const why = docs.length === 1 ? plainText(docs[0].remarks).trim() : ""
+	const what = names.length ? `your ${listJoin(names)}` : n === 1 ? "one of your documents" : `${n} of your documents`
+	const interview = app.status === "Interview" && app.interview_date ? ` Your interview is still on ${dateTime(app.interview_date)}.` : ""
+	return {
+		kind: "reupload",
+		icon: FileWarning,
+		tone: "orange",
+		title: flaggedLabel(n),
+		text: `The admissions team asked for a new copy of ${what}${why ? ` — “${why}”` : ""}. Upload ${n === 1 ? "it" : "them"} so your review can continue.${interview}`,
+		cta: { label: n === 1 ? "Upload new copy" : "Upload new copies", to },
+	}
+}
 
 /** Decide the single most useful thing the applicant should do next. */
 export function resolveNextAction(app, { checklist, progress = 0, portals = [] } = {}) {
@@ -23,6 +44,9 @@ export function resolveNextAction(app, { checklist, progress = 0, portals = [] }
 	const detail = `/applicant/application/${app.name}`
 	const missingDocs = checklist?.missing?.length || 0
 	const docsNeeded = missingDocs > 0 && DOC_UPLOAD_STATUSES.includes(app.status) && app.status !== "Draft"
+	const flagged = DOC_UPLOAD_STATUSES.includes(app.status) && app.status !== "Draft" ? flaggedCount(app) : 0
+	const reuploadTo = `${detail}#documents`
+	if (flagged && app.next_action !== "pay_fee") return reuploadAction(app, flagged, reuploadTo)
 	switch (app.next_action) {
 		case "complete_application":
 			return {
@@ -39,7 +63,11 @@ export function resolveNextAction(app, { checklist, progress = 0, portals = [] }
 				title: "Pay the application fee",
 				text: `Your application is submitted. Pay ${money(app.application_fee)} by M-Pesa so the admissions team can start reviewing it.`,
 				cta: { label: `Pay ${money(app.application_fee)}`, action: "pay" },
-				secondary: docsNeeded ? { label: "Upload missing documents", to: "/applicant/documents" } : null,
+				secondary: flagged
+					? { label: flagged === 1 ? "Upload new copy" : "Upload new copies", to: reuploadTo }
+					: docsNeeded
+						? { label: "Upload missing documents", to: "/applicant/documents" }
+						: null,
 			}
 		case "attend_interview":
 			return {

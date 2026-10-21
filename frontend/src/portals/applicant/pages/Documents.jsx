@@ -5,10 +5,11 @@ import { DataTable } from "@/shared/components/kit"
 import { Alert, Empty, ErrorState, IconButton, PageHeader, Panel, Skeleton, StatCard, Tabs } from "@/shared/components/ui"
 import { date } from "@/shared/utils/format"
 import { safeUrl } from "@/shared/utils/sanitize"
-import { CLOSED_STATUSES, DOC_UPLOAD_STATUSES, docChecklist, fileName } from "../lib"
+import { CLOSED_STATUSES, DOC_UPLOAD_STATUSES, docChecklist, fileName, flaggedLabel, needsReupload } from "../lib"
 import { useApplicationDetails, useMyApplications, useOptions } from "../hooks"
 import { AppStatus } from "../components/AppStatus"
-import { ApplicationDocuments, VerificationBadge } from "../components/ApplicationDocuments"
+import { ApplicationDocuments } from "../components/ApplicationDocuments"
+import { DocRemarks, DocStateBadge, ReuploadButton, remarksText } from "../components/DocState"
 import { DocChecklist } from "../components/DocChecklist"
 import { FilePreview } from "../components/FilePreview"
 import { Resp } from "../components/Amount"
@@ -82,7 +83,13 @@ function DocumentsBody({ apps, options }) {
 	)
 	const missing = uploadable.flatMap((a) => docChecklist(a, options).missing.map((m) => ({ app: a, item: m })))
 	const verified = files.filter((f) => f.verified).length
-	const attention = files.filter((f) => !f.verified && f.remarks).length
+	const flagged = files.filter(needsReupload)
+	const toReupload = flagged.filter((f) => DOC_UPLOAD_STATUSES.includes(f.app_status))
+	const todo = missing.length + toReupload.length
+	const goTo = (appName) => {
+		setTab("apps")
+		setTimeout(() => document.getElementById(`app-${appName}`)?.scrollIntoView({ behavior: "smooth", block: "start" }), 60)
+	}
 
 	const cols = [
 		{
@@ -92,6 +99,7 @@ function DocumentsBody({ apps, options }) {
 				<div className="min-w-0">
 					<div className="font-medium text-ink">{r.document_type}</div>
 					<div className="max-w-[260px] truncate text-xs text-ink-soft">{fileName(r.file)}</div>
+					<DocRemarks doc={r} className="mt-1 max-w-[320px]" closed={!DOC_UPLOAD_STATUSES.includes(r.app_status)} />
 				</div>
 			),
 			sortValue: (r) => r.document_type,
@@ -106,7 +114,7 @@ function DocumentsBody({ apps, options }) {
 			),
 		},
 		{ key: "programme_name", label: "Programme", hideOnMobile: true },
-		{ key: "verified", label: "Status", render: (r) => <VerificationBadge doc={r} />, sortValue: (r) => (r.verified ? 1 : 0) },
+		{ key: "verified", label: "Status", render: (r) => <DocStateBadge doc={r} closed={!DOC_UPLOAD_STATUSES.includes(r.app_status)} />, sortValue: (r) => (r.verified ? 2 : needsReupload(r) ? 0 : 1) },
 		{
 			key: "actions",
 			label: "",
@@ -115,7 +123,8 @@ function DocumentsBody({ apps, options }) {
 			render: (r) => {
 				const href = safeUrl(r.file)
 				return (
-					<div className="flex justify-end gap-1">
+					<div className="flex items-center justify-end gap-1 whitespace-nowrap">
+						{needsReupload(r) ? <ReuploadButton app={{ name: r.application, status: r.app_status }} doc={r} /> : null}
 						<IconButton icon={Eye} label={`Preview ${r.document_type}`} onClick={() => setPreview(r)} />
 						{href ? (
 							<a href={href} download className="grid h-8 w-8 place-items-center rounded-lg text-ink-soft hover:bg-cream hover:text-ink" aria-label={`Download ${r.document_type}`} title="Download">
@@ -133,8 +142,20 @@ function DocumentsBody({ apps, options }) {
 			<div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
 				<StatCard label="Uploaded" value={files.length} icon={FileText} tone="brand" hint={<Resp short={`${apps.length} application${apps.length === 1 ? "" : "s"}`}>{`across ${apps.length} application${apps.length === 1 ? "" : "s"}`}</Resp>} />
 				<StatCard label="Verified" value={verified} icon={FileCheck2} tone="green" hint="by admissions" />
-				<StatCard label={<Resp short="Pending">Awaiting check</Resp>} hint="in review" value={files.length - verified - attention} icon={FileClock} tone="blue" />
-				<StatCard label={<Resp short="Missing">Still needed</Resp>} value={missing.length} icon={FileWarning} tone={missing.length ? "orange" : "green"} hint={missing.length ? <Resp short="required">required documents</Resp> : <Resp short="all done">nothing missing</Resp>} />
+				<StatCard label={<Resp short="Pending">Awaiting check</Resp>} hint="in review" value={files.length - verified - flagged.length} icon={FileClock} tone="blue" />
+				<StatCard
+					label={<Resp short="To do">Still needed</Resp>}
+					value={todo}
+					icon={FileWarning}
+					tone={toReupload.length ? "red" : missing.length ? "orange" : "green"}
+					hint={
+						todo ? (
+							[missing.length ? `${missing.length} missing` : null, toReupload.length ? `${toReupload.length} new cop${toReupload.length === 1 ? "y" : "ies"}` : null].filter(Boolean).join(" · ")
+						) : (
+							<Resp short="all done">nothing missing</Resp>
+						)
+					}
+				/>
 			</div>
 
 			{missing.length ? (
@@ -144,17 +165,33 @@ function DocumentsBody({ apps, options }) {
 							<li key={`${app.name}-${item.key}`} className="flex flex-wrap items-center gap-x-2">
 								<span className="font-medium">{item.label}</span>
 								<span className="opacity-75">for {app.name}</span>
-								<a href={`#app-${app.name}`} className="link inline-flex items-center gap-0.5 text-xs">
+								<button type="button" onClick={() => goTo(app.name)} className="link inline-flex items-center gap-0.5 text-xs">
 									Upload <ArrowRight size={12} />
-								</a>
+								</button>
 							</li>
 						))}
 					</ul>
 				</Alert>
 			) : null}
-			{attention ? (
-				<Alert tone="error" title="Some documents need your attention">
-					The admissions team left a note on {attention} document{attention === 1 ? "" : "s"}. Please upload a clearer or corrected copy.
+			{toReupload.length ? (
+				<Alert tone="warning" icon={FileWarning} title={flaggedLabel(toReupload.length)}>
+					<p>The admissions team asked for a clearer or corrected copy. Uploading a new one clears the request and your review continues.</p>
+					<ul className="mt-2 divide-y divide-amber-200/70 dark:divide-amber-900/60">
+						{toReupload.map((d) => {
+							const why = remarksText(d)
+							return (
+								<li key={d.key} className="flex flex-wrap items-center gap-x-3 gap-y-2 py-2">
+									<div className="min-w-0 flex-1 basis-56">
+										<div>
+											<span className="font-semibold">{d.document_type}</span> <span className="opacity-75">· {d.application}</span>
+										</div>
+										{why ? <div className="break-words text-xs">“{why}”</div> : null}
+									</div>
+									<ReuploadButton app={{ name: d.application, status: d.app_status }} doc={d} />
+								</li>
+							)
+						})}
+					</ul>
 				</Alert>
 			) : null}
 
