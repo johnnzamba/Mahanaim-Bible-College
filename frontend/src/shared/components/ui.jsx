@@ -19,6 +19,7 @@ import {
 	XCircle,
 } from "lucide-react"
 import { initials } from "../utils/format"
+import { sanitizeHtml } from "../utils/sanitize"
 
 /* ────────────────────────────── Surfaces ────────────────────────────── */
 
@@ -869,7 +870,8 @@ export function Divider({ label, className }) {
 	)
 }
 
-/** Sanitised-on-server HTML (CMS bodies, announcements). */
+/** Server HTML (CMS bodies, announcements, answers), sanitised in the browser before render. */
 export function Html({ html, className }) {
-	return <div className={clsx("prose-mbc", className)} dangerouslySetInnerHTML={{ __html: html || "" }} />
+	const clean = useMemo(() => sanitizeHtml(html), [html])
+	return <div className={clsx("prose-mbc", className)} dangerouslySetInnerHTML={{ __html: clean }} />
 }

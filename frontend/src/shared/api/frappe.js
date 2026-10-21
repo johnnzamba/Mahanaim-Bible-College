@@ -30,10 +30,10 @@ export function plainText(html) {
 	if (html == null) return ""
 	const s = String(html)
 	if (!/[<&]/.test(s)) return s
-	if (typeof document === "undefined") return s.replace(/<[^>]+>/g, "")
-	const el = document.createElement("div")
-	el.innerHTML = s
-	return (el.textContent || el.innerText || "").trim()
+	if (typeof DOMParser === "undefined") return s.replace(/<[^>]+>/g, "")
+	// DOMParser documents are inert: no scripts run and no <img onerror> fires.
+	const doc = new DOMParser().parseFromString(s, "text/html")
+	return (doc.body.textContent || "").trim()
 }
 
 function parseServerMessages(body) {
