@@ -1,0 +1,284 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/*
+ * Design tokens. Space-separated RGB channels so Tailwind can generate /opacity variants.
+ * Brand: forest green #14372a / #1d4d3a, gold #c99a43, cream #f7f3ea (see DESIGN.md).
+ * <html data-theme="light|dark" data-rail="forest|parchment|ink">
+ */
+:root {
+	--brand-50: 240 247 243;
+	--brand-100: 220 236 227;
+	--brand-200: 185 216 199;
+	--brand-300: 140 188 163;
+	--brand-400: 88 152 120;
+	--brand-500: 52 117 87;
+	--brand-600: 37 95 70;
+	--brand-700: 29 77 58;
+	--brand-800: 20 55 42;
+	--brand-900: 12 36 27;
+
+	--gold-50: 251 246 235;
+	--gold-100: 245 233 207;
+	--gold-200: 236 214 164;
+	--gold-300: 224 189 118;
+	--gold-400: 213 168 84;
+	--gold-500: 201 154 67;
+	--gold-600: 176 129 47;
+	--gold-700: 142 101 37;
+	--gold-800: 110 78 31;
+	--gold-900: 82 58 25;
+
+	--canvas: 248 246 240;
+	--surface: 255 255 255;
+	--cream: 247 243 234;
+	--line: 230 225 213;
+	--ink: 22 33 28;
+	--ink-muted: 78 92 85;
+	--ink-soft: 124 136 129;
+
+	/* Portal rail (sidebar) */
+	--rail-bg: #14372a;
+	--rail-ink: #f4efe3;
+	--rail-muted: rgba(244, 239, 227, 0.72);
+	--rail-soft: rgba(244, 239, 227, 0.5);
+	--rail-hover: rgba(255, 255, 255, 0.07);
+	--rail-active-bg: #c99a43;
+	--rail-active-ink: #14372a;
+	--rail-line: rgba(255, 255, 255, 0.09);
+
+	--header-bg: rgba(248, 246, 240, 0.82);
+	color-scheme: light;
+}
+
+[data-rail="parchment"] {
+	--rail-bg: #fffdf8;
+	--rail-ink: #14372a;
+	--rail-muted: #4e5c55;
+	--rail-soft: #8a968f;
+	--rail-hover: #f3efe4;
+	--rail-active-bg: #14372a;
+	--rail-active-ink: #fffdf8;
+	--rail-line: #ebe5d6;
+}
+
+[data-rail="ink"] {
+	--rail-bg: #0f1a15;
+	--rail-ink: #e9efe9;
+	--rail-muted: rgba(233, 239, 233, 0.7);
+	--rail-soft: rgba(233, 239, 233, 0.45);
+	--rail-hover: rgba(255, 255, 255, 0.06);
+	--rail-active-bg: #1d4d3a;
+	--rail-active-ink: #ffffff;
+	--rail-line: rgba(255, 255, 255, 0.07);
+}
+
+[data-theme="dark"] {
+	--brand-50: 20 38 30;
+	--brand-100: 26 50 39;
+	--brand-200: 36 70 54;
+	--brand-300: 56 104 80;
+	--brand-400: 84 142 112;
+	--brand-500: 110 170 138;
+	--brand-600: 132 190 158;
+	--brand-700: 150 205 174;
+	--brand-800: 186 225 202;
+	--brand-900: 220 242 229;
+
+	--gold-50: 44 36 20;
+	--gold-100: 60 48 24;
+
+	--canvas: 10 18 14;
+	--surface: 17 28 23;
+	--cream: 22 34 28;
+	--line: 38 54 46;
+	--ink: 234 240 236;
+	--ink-muted: 176 190 182;
+	--ink-soft: 126 142 134;
+
+	--rail-bg: #0c1611;
+	--rail-ink: #e9efe9;
+	--rail-muted: rgba(233, 239, 233, 0.7);
+	--rail-soft: rgba(233, 239, 233, 0.45);
+	--rail-hover: rgba(255, 255, 255, 0.05);
+	--rail-active-bg: #c99a43;
+	--rail-active-ink: #10201a;
+	--rail-line: rgba(255, 255, 255, 0.07);
+
+	--header-bg: rgba(10, 18, 14, 0.82);
+	color-scheme: dark;
+}
+
+@layer base {
+	html {
+		-webkit-text-size-adjust: 100%;
+		text-rendering: optimizeLegibility;
+	}
+	body {
+		@apply bg-canvas font-sans text-[14px] text-ink antialiased;
+	}
+	h1,
+	h2,
+	h3,
+	h4 {
+		@apply text-ink;
+	}
+	::selection {
+		background: rgb(var(--gold-200));
+		color: rgb(var(--brand-900));
+	}
+	:focus-visible {
+		outline: 2px solid rgb(var(--gold-500));
+		outline-offset: 2px;
+	}
+	input[type="number"]::-webkit-inner-spin-button {
+		opacity: 0.4;
+	}
+}
+
+@layer components {
+	.card {
+		@apply rounded-2xl border border-line bg-surface shadow-card;
+	}
+	.btn {
+		@apply inline-flex select-none items-center justify-center gap-2 whitespace-nowrap rounded-xl px-4 py-2 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50;
+	}
+	.btn-sm {
+		@apply rounded-lg px-3 py-1.5 text-xs;
+	}
+	.btn-lg {
+		@apply px-6 py-3 text-base;
+	}
+	.btn-primary {
+		@apply bg-brand-800 text-white shadow-sm hover:bg-brand-700 dark:bg-brand-600 dark:text-brand-50 dark:hover:bg-brand-500;
+	}
+	.btn-gold {
+		@apply bg-gold-500 text-brand-900 shadow-sm hover:bg-gold-400;
+	}
+	.btn-secondary {
+		@apply border border-line bg-surface text-ink hover:border-brand-300 hover:bg-brand-50;
+	}
+	.btn-ghost {
+		@apply text-ink-muted hover:bg-brand-50 hover:text-ink;
+	}
+	.btn-danger {
+		@apply bg-red-600 text-white hover:bg-red-700;
+	}
+	.btn-danger-soft {
+		@apply border border-red-200 bg-red-50 text-red-700 hover:bg-red-100 dark:border-red-900 dark:bg-red-950/40 dark:text-red-300;
+	}
+	.input {
+		@apply w-full rounded-xl border border-line bg-surface px-3.5 py-2.5 text-sm text-ink placeholder:text-ink-soft focus:border-brand-500 focus:outline-none focus:ring-4 focus:ring-brand-500/10 disabled:opacity-60;
+	}
+	.label {
+		@apply mb-1.5 block text-xs font-semibold uppercase tracking-wide text-ink-muted;
+	}
+	.chip {
+		@apply inline-flex items-center gap-1.5 rounded-full border border-line bg-surface px-3 py-1 text-xs font-semibold text-ink-muted transition hover:border-brand-300 hover:text-ink;
+	}
+	.chip-active {
+		@apply border-brand-800 bg-brand-800 text-white hover:text-white dark:border-brand-600 dark:bg-brand-600 dark:text-brand-50;
+	}
+	.eyebrow {
+		@apply text-[11px] font-bold uppercase tracking-[0.18em] text-gold-600;
+	}
+	.link {
+		@apply font-semibold text-brand-700 underline-offset-4 hover:underline dark:text-brand-600;
+	}
+	.table-base {
+		@apply w-full text-left text-sm;
+	}
+	.table-base thead th {
+		@apply sticky top-0 z-[1] border-b border-line bg-cream/80 px-4 py-2.5 text-[11px] font-bold uppercase tracking-wider text-ink-soft backdrop-blur;
+	}
+	.table-base tbody td {
+		@apply border-b border-line/70 px-4 py-3 align-middle;
+	}
+	.table-base tbody tr:last-child td {
+		@apply border-b-0;
+	}
+	.skeleton {
+		@apply relative overflow-hidden rounded-lg bg-line/60;
+	}
+	.skeleton::after {
+		content: "";
+		@apply absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/40 to-transparent;
+	}
+}
+
+/* CMS / server-rendered rich text */
+.prose-mbc {
+	@apply text-[15px] leading-7 text-ink-muted;
+}
+.prose-mbc h1,
+.prose-mbc h2,
+.prose-mbc h3 {
+	@apply mb-3 mt-6 font-serif text-ink;
+}
+.prose-mbc h2 {
+	@apply text-2xl;
+}
+.prose-mbc h3 {
+	@apply text-xl;
+}
+.prose-mbc p {
+	@apply mb-4;
+}
+.prose-mbc ul {
+	@apply mb-4 list-disc pl-6;
+}
+.prose-mbc ol {
+	@apply mb-4 list-decimal pl-6;
+}
+.prose-mbc a {
+	@apply font-semibold text-brand-700 underline underline-offset-4;
+}
+.prose-mbc blockquote {
+	@apply my-6 border-l-4 border-gold-500 bg-cream px-5 py-3 font-serif italic text-ink;
+}
+.prose-mbc img {
+	@apply my-4 rounded-xl;
+}
+
+/* Layout helpers */
+.safe-bottom {
+	padding-bottom: env(safe-area-inset-bottom);
+}
+.pad-for-tabbar {
+	padding-bottom: calc(4.25rem + env(safe-area-inset-bottom));
+}
+.scroll-thin {
+	scrollbar-width: thin;
+	scrollbar-color: rgb(var(--line)) transparent;
+}
+.rail-scroll {
+	scrollbar-width: thin;
+	scrollbar-color: var(--rail-line) transparent;
+}
+.hero-wash {
+	background:
+		radial-gradient(1200px 500px at 85% -10%, rgba(201, 154, 67, 0.22), transparent 60%),
+		radial-gradient(900px 500px at -10% 110%, rgba(255, 255, 255, 0.06), transparent 60%),
+		linear-gradient(160deg, #14372a 0%, #1d4d3a 55%, #14372a 100%);
+}
+.pattern-dots {
+	background-image: radial-gradient(rgba(201, 154, 67, 0.25) 1px, transparent 1px);
+	background-size: 18px 18px;
+}
+
+/* Exam mode: no selection / callouts on the paper */
+.exam-paper {
+	-webkit-user-select: none;
+	user-select: none;
+	-webkit-touch-callout: none;
+}
+
+@media print {
+	.no-print {
+		display: none !important;
+	}
+	body {
+		background: white;
+	}
+}

@@ -1,0 +1,32 @@
+{
+  "name": "MBC Sponsor Portal",
+  "short_name": "MBC Sponsor",
+  "id": "/sponsor",
+  "start_url": "/sponsor",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#f8f6f0",
+  "theme_color": "#14372a",
+  "description": "Mahanaim Bible College Digital Campus",
+  "icons": [
+    {
+      "src": "/assets/mahanaim/images/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/mahanaim/images/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/mahanaim/images/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

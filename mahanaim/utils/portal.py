@@ -36,24 +36,3 @@ def portal_for(user: str | None = None) -> str:
 def get_website_user_home_page(user):
 	return portal_for(user)
 
-
-def set_sw_headers(response=None, request=None, **_kwargs):
-	"""Let /assets/mahanaim/app/sw.js control the whole site (Service-Worker-Allowed: /)."""
-	req = request or getattr(frappe.local, "request", None)
-	if not req:
-		return
-	path = (req.path or "").split("?")[0]
-	if not path.endswith("/mahanaim/app/sw.js"):
-		return
-	headers = {
-		"Service-Worker-Allowed": "/",
-		"Content-Type": "application/javascript; charset=utf-8",
-		"Cache-Control": "no-cache",
-	}
-	for target in (getattr(frappe.local, "response", None), response):
-		try:
-			if target is not None and hasattr(target, "headers"):
-				for k, v in headers.items():
-					target.headers[k] = v
-		except Exception:
-			pass

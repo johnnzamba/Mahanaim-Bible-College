@@ -83,3 +83,30 @@ def session_info():
 		"sponsor": sponsor,
 		"settings": settings,
 	}
+
+
+@frappe.whitelist(allow_guest=True, methods=["GET"])
+def service_worker():
+	"""Serve the SPA service worker from a path Frappe controls so it can claim scope "/".
+
+	Static /assets responses (nginx in production) cannot carry Service-Worker-Allowed, so the
+	browser registers /api/method/mahanaim.api.session.service_worker instead.
+	"""
+	import os
+
+	from werkzeug.wrappers import Response
+
+	path = frappe.get_app_path("mahanaim", "public", "app", "sw.js")
+	body = ""
+	if os.path.exists(path):
+		with open(path, encoding="utf-8") as f:
+			body = f.read()
+	return Response(
+		body or "/* no build */",
+		status=200,
+		headers={
+			"Content-Type": "application/javascript; charset=utf-8",
+			"Service-Worker-Allowed": "/",
+			"Cache-Control": "no-cache, no-store, must-revalidate",
+		},
+	)

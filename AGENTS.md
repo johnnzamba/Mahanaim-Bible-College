@@ -143,10 +143,29 @@ next_student_number(programme, campus=None, date=None); new_verification_code(le
 
 ## Frontend conventions (frontend/)
 
-See `frontend/DESIGN.md`. Short version: React 18 + Vite + Tailwind + TanStack Query + react-router 6, lucide icons.
-All server calls go through `src/shared/api/frappe.js` (`call(method, args)`, `get(method, params)`,
-`resource.*`). Portal code lives in `src/portals/<portal>/`, shared UI in `src/shared/components/{ui,kit}.jsx`.
-Build with `npm run build` (outputs to `mahanaim/public/app`, stamps `www/mbc.html` with `?v=` hashes); commit the build.
+Full guide: `frontend/DESIGN.md`. React 18 + Vite 5 + Tailwind 3 + TanStack Query 5 + react-router 6 + lucide-react + recharts.
+
+- **One SPA** for the website and every portal. `www/mbc.html` (generated) + `www/mbc.py` (boot context) serve every
+  route listed in `hooks._SPA_ROUTES`. New top-level public paths must be added there (lead owns `hooks.py`).
+- **Portals** are lazy chunks: `src/portals/{public,auth,applicant,student,lecturer,admin,sponsor}/`. Each portal's
+  default export renders `<PortalShell portal="student" nav={NAV} tabs={TABS}><Routes>…</Routes></PortalShell>`;
+  nav paths are absolute (`/student/fees`). Admin nav items are filtered by `shared/access.js` `ADMIN_ACCESS`.
+- **Data**: `useApi("mahanaim.api.x.y", args, {guest})` for reads (GET, cached under `[method, args]`),
+  `useAction("mahanaim.api.x.z", {invalidate: ["mahanaim.api.x."], success: "Saved"})` for writes (POST, toasts).
+  Raw calls: `frappe.call/get/uploadFile` from `shared/api/frappe.js`. Never `fetch` the API directly.
+- **Session**: `useSession()` → `{user, roles, portals, student, staff, sponsor, settings, isGuest, hasRole, reload}`.
+- **UI**: only `shared/components/ui.jsx` + `kit.jsx` + `Charts.jsx` primitives and the Tailwind tokens
+  (`brand-*`, `gold-*`, `ink`, `canvas`, `surface`, `line`, `.card`, `.btn-*`, `.input`, `.chip`). No new colour hexes.
+  Every list uses `DataTable` (sort, CSV export, mobile cards); every async surface handles loading/empty/error
+  (`QueryState`). Money via `money()`, dates via `date()/ago()` from `shared/utils/format.js`.
+- **Routes** (deep links used by notifications/search): `/admin/students/<name>`, `/admin/admissions/<name>`,
+  `/admin/finance/invoices/<name>`, `/admin/academics/courses/<code>`, `/admin/church/sponsors/<name>`,
+  `/admin/staff/<name>`, `/student/courses/<offering>`, `/student/exams/<exam>`, `/lecturer/courses/<offering>`.
+- **Build**: `cd frontend && npm run build` = `check-refs` (catches icons/components used but never imported) →
+  `vite build` (content-hashed entry + chunks into `mahanaim/public/app`) → `copy-html` (writes `www/mbc.html`,
+  per-portal manifests, `sw.js`). Commit the build output. The service worker is served by
+  `mahanaim.api.session.service_worker` so it can control scope `/`.
+- **Dev**: `npm run dev` (port 8080, proxies `/api` etc. to bench on 8010).
 
 ## Commits
 

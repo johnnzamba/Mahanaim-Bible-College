@@ -45,8 +45,12 @@ _SPA_ROUTES = [
 	"faq",
 	"verify",
 	"apply",
+	"give",
+	"privacy",
+	"terms",
 	"signin",
 	"forgot-password",
+	"reset-password",
 	# portals
 	"applicant",
 	"student",
@@ -68,9 +72,6 @@ website_redirects = [
 ]
 
 get_website_user_home_page = "mahanaim.utils.portal.get_website_user_home_page"
-
-before_request = ["mahanaim.utils.portal.set_sw_headers"]
-after_request = ["mahanaim.utils.portal.set_sw_headers"]
 
 # ---------------------------------------------------------------------------
 # Install / migrate
