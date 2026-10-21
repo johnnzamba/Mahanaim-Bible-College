@@ -88,16 +88,19 @@ function zoneOpt(v) {
 	}
 }
 
+// Newer ICU abbreviates September as "Sept" in en-GB; keep three-letter months consistent.
+const sep = (s) => s.replace(/\bSept\b/, "Sep")
+
 export function date(v, opts = { day: "numeric", month: "short", year: "numeric" }) {
 	const d = parseServerDate(v)
-	return d ? d.toLocaleDateString("en-GB", { ...opts, ...zoneOpt(v) }) : "—"
+	return d ? sep(d.toLocaleDateString("en-GB", { ...opts, ...zoneOpt(v) })) : "—"
 }
 
 export function dateTime(v) {
 	const d = parseServerDate(v)
 	if (!d) return "—"
 	const z = zoneOpt(v)
-	return `${d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", ...z })}, ${d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", ...z })}`
+	return `${sep(d.toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric", ...z }))}, ${d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", ...z })}`
 }
 
 export function time(v) {

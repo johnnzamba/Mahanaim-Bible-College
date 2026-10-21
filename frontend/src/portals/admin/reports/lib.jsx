@@ -41,12 +41,17 @@ export const BLURB = {
 	credentials_issued: "Transcripts and certificates issued, reissued or revoked, with verification counts.",
 }
 
-/** What the server assumes when a filter is left empty (it does not echo these defaults back). */
-export function defaultNote(report, applied, summary = {}) {
-	if (report === "payment_reconciliation" && !applied.from_date && !applied.to_date) return "No dates chosen, so the last 30 days are shown."
-	if (report === "lecturer_workload" && !applied.academic_term) return summary.term ? `No term chosen, so the current term (${summary.term}) is shown.` : "No term chosen, so the current term is shown."
+/** Server-side fallbacks that aren't declared as a filter `default` (so they never appear in applied_filters). */
+export function implicitNote(report, applied = {}) {
+	if (report === "student_list" && !applied.status) return "Current students only (Admitted, Registered, Active, Deferred, Suspended)"
 	return null
 }
+
+/** "From Date" → "From", "Academic Term" → "Term" for the compact "Showing" line. */
+export const shortLabel = (label) => String(label || "").replace(/ Date$/i, "").replace(/^Academic /i, "")
+
+/** Non-blank catalog defaults for a report definition. */
+export const filterDefaults = (def) => Object.fromEntries((def?.filters || []).filter((f) => f.default != null && f.default !== "").map((f) => [f.key, String(f.default)]))
 
 export function useReportsAccess() {
 	const s = useSession()

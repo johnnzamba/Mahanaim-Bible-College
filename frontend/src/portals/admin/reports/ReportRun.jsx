@@ -5,10 +5,15 @@ import { useApi, useAction } from "@/shared/api/hooks"
 import { Badge, Button, Empty, ErrorState, Input, PageHeader, Panel, Select, SkeletonRows } from "@/shared/components/ui"
 import { BarRow, DataTable, SearchInput } from "@/shared/components/kit"
 import { BarsChart, DonutChart, Legendary, TrendChart } from "@/shared/components/Charts"
-import { money, num } from "@/shared/utils/format"
-import { BLURB, CellLink, M, NoReports, categoryOf, cellRoute, defaultNote, fmtCell, fmtSummary, humanise, rememberReport, useCatalog, useLinkOptions, useReportsAccess } from "./lib"
+import { date, money, num } from "@/shared/utils/format"
+import { BLURB, CellLink, M, NoReports, categoryOf, cellRoute, filterDefaults, fmtCell, fmtSummary, humanise, implicitNote, rememberReport, shortLabel, useCatalog, useLinkOptions, useReportsAccess } from "./lib"
 
 const clean = (o) => Object.fromEntries(Object.entries(o || {}).filter(([, v]) => v !== "" && v != null))
+const sameFilters = (a, b) => {
+	const x = clean(a)
+	const y = clean(b)
+	return Object.keys(x).length === Object.keys(y).length && Object.keys(x).every((k) => String(x[k]) === String(y[k]))
+}
 
 function download({ content, filename, mimetype }) {
 	const blob = new Blob([content ?? ""], { type: mimetype || "text/csv" })
@@ -30,11 +35,17 @@ export default function ReportRun() {
 	const def = (Array.isArray(cat.data) ? cat.data : []).find((r) => r.key === report)
 	const [params, setParams] = useSearchParams()
 	const keys = useMemo(() => (def?.filters || []).map((f) => f.key), [def])
+	// The URL holds only values the user chose; blanks fall back to the catalog defaults (as run_report does).
+	const defaults = useMemo(() => filterDefaults(def), [def])
 	const applied = useMemo(() => clean(Object.fromEntries(keys.map((k) => [k, params.get(k) || ""]))), [keys, params])
-	const [draft, setDraft] = useState(applied)
+	const effective = useMemo(() => ({ ...defaults, ...applied }), [defaults, applied])
 	const appliedKey = JSON.stringify(applied)
-	useEffect(() => setDraft(JSON.parse(appliedKey)), [appliedKey])
-	const dirty = JSON.stringify(clean(draft)) !== appliedKey
+	const effectiveKey = JSON.stringify(effective)
+	const [draft, setDraft] = useState(effective)
+	useEffect(() => setDraft(JSON.parse(effectiveKey)), [effectiveKey])
+	const dirty = !sameFilters(draft, effective)
+	const atDefaults = sameFilters(draft, defaults) && !Object.keys(applied).some((k) => applied[k] !== defaults[k])
+	const hasDefaults = Object.keys(defaults).length > 0
 
 	const q = useApi(`${M}run_report`, { report, filters: appliedKey }, { enabled: Boolean(def) && allowed, placeholderData: (prev) => prev, staleTime: 30_000 })
 	useEffect(() => {
@@ -45,9 +56,14 @@ export default function ReportRun() {
 		onSuccess: (d) => download(d),
 	})
 
-	const run = () => setParams(clean(draft))
+	const run = () => {
+		if (!dirty) return q.refetch()
+		const chosen = Object.fromEntries(Object.entries(clean(draft)).filter(([k, v]) => String(v) !== defaults[k]))
+		setParams(chosen)
+		setDraft({ ...defaults, ...chosen })
+	}
 	const reset = () => {
-		setDraft({})
+		setDraft(defaults)
 		setParams({})
 	}
 
@@ -117,16 +133,12 @@ export default function ReportRun() {
 							<Button type="submit" icon={Play} size="sm" loading={q.isFetching && !q.isLoading}>
 								{dirty ? "Run report" : "Run again"}
 							</Button>
-							{Object.keys(applied).length || Object.keys(clean(draft)).length ? (
+							{!atDefaults ? (
 								<Button variant="ghost" size="sm" icon={RotateCcw} onClick={reset}>
-									Clear filters
+									{hasDefaults ? "Reset to defaults" : "Clear filters"}
 								</Button>
 							) : null}
-							{dirty ? (
-								<span className="text-xs text-amber-700">Filters changed. Run the report to update the results.</span>
-							) : defaultNote(report, applied, d?.summary) ? (
-								<span className="text-xs text-ink-soft">{defaultNote(report, applied, d?.summary)}</span>
-							) : null}
+							{dirty ? <span className="text-xs text-amber-700">Filters changed. Run the report to update the results.</span> : null}
 						</div>
 					</form>
 				</div>
@@ -141,10 +153,50 @@ export default function ReportRun() {
 					<ErrorState error={q.error} onRetry={() => q.refetch()} title="This report couldn't run" />
 				</div>
 			) : d ? (
-				<Results d={d} roles={roles} report={report} icon={meta.icon} />
+				<>
+					<AppliedLine filters={def.filters || []} applied={d.applied_filters || {}} chosen={applied} defaults={defaults} note={implicitNote(report, d.applied_filters || applied)} />
+					<Results d={d} roles={roles} report={report} icon={meta.icon} />
+				</>
 			) : null}
 		</div>
 	)
+}
+
+/** "Showing: From 21 Sep 2026 · Term 2026-2027 Term 1" from run_report's applied_filters; defaulted values are marked. */
+function AppliedLine({ filters, applied, chosen, defaults, note }) {
+	const items = filters.filter((f) => applied[f.key] != null && applied[f.key] !== "")
+	if (!items.length && !note) return null
+	return (
+		<p className="-mt-2 flex flex-wrap items-center gap-x-1.5 gap-y-1 text-xs text-ink-soft">
+			<span className="font-semibold uppercase tracking-wide">Showing</span>
+			{items.map((f, i) => {
+				const isDefault = chosen[f.key] == null && String(applied[f.key]) === defaults[f.key]
+				return (
+					<span key={f.key} className="inline-flex items-center gap-1">
+						{i ? <span aria-hidden="true">·</span> : null}
+						<span>{shortLabel(f.label)}</span>
+						<AppliedValue f={f} value={applied[f.key]} term={applied.academic_term} />
+						{isDefault ? <span className="rounded bg-cream px-1 text-[10px] font-medium text-ink-muted" title="Default; change it in the filters above">default</span> : null}
+					</span>
+				)
+			})}
+			{note ? (
+				<span className="inline-flex items-center gap-1">
+					{items.length ? <span aria-hidden="true">·</span> : null}
+					<span className="font-medium text-ink">{note}</span>
+				</span>
+			) : null}
+		</p>
+	)
+}
+
+function AppliedValue({ f, value, term }) {
+	const { options } = useLinkOptions(f.type === "Link" ? f.options : null, { term })
+	let text = String(value)
+	if (f.type === "Date") text = date(value)
+	else if (f.type === "Check") text = Number(value) ? "Yes" : "No"
+	else if (f.type === "Link") text = (options || []).find((o) => o.value === value)?.label || text
+	return <span className="font-medium text-ink">{text}</span>
 }
 
 function FilterControl({ f, value, onChange, term }) {
