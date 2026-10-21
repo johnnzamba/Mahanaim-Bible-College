@@ -2,7 +2,7 @@ import json
 
 import frappe
 from frappe.tests import IntegrationTestCase
-from frappe.utils import add_to_date, now_datetime
+from frappe.utils import add_to_date, now_datetime, today
 
 from mahanaim.api import communication
 from mahanaim.tests import factories as f
@@ -71,7 +71,9 @@ class TestCommunication(IntegrationTestCase):
 		self.assertTrue(self.student_user)
 		keys, names = self.visible_keys(self.student_user)
 		self.assertEqual(keys, {"everyone", "students", "programme", "campus", "offering", "pinned"})
-		self.assertEqual(names[0], self.ann["pinned"])
+		pinned_at = names.index(self.ann["pinned"])
+		self.assertLess(pinned_at, min(names.index(self.ann[k]) for k in keys - {"pinned"}))
+		self.assertTrue(frappe.db.get_value("Announcement", names[0], "is_pinned"))
 
 	def test_lecturer_visibility(self):
 		self.assertTrue(self.lecturer_user)
@@ -217,3 +219,66 @@ class TestCommunication(IntegrationTestCase):
 			}
 		).insert(ignore_permissions=True)
 		self.assertNotEqual(frappe.db.get_value("Student", student, "first_name"), "Hacked")
+
+	def test_my_announcements_total_counts_every_visible_row(self):
+		frappe.set_user(self.student_user)
+		everything = communication.my_announcements(limit=100)
+		page = communication.my_announcements(limit=2)
+		second = communication.my_announcements(limit=2, start=2)
+		self.assertGreater(everything["total"], 2)
+		self.assertEqual(len(page["data"]), 2)
+		self.assertEqual(page["total"], everything["total"])
+		self.assertEqual(second["total"], everything["total"])
+		self.assertEqual(everything["total"], len(everything["data"]))
+		self.assertEqual(len(second["data"]), min(2, everything["total"] - 2))
+
+	def test_announcement_visible_through_its_expiry_day(self):
+		today_ann = fb.make_announcement("Expires today _T", "All Students", expires_on=today()).name
+		self.assertIn(today_ann, self.visible_keys(self.student_user)[1])
+		self.assertNotIn(self.ann["expired"], self.visible_keys(self.student_user)[1])
+
+	def test_lecturer_direct_message_limited_to_own_classes(self):
+		from unittest.mock import patch
+
+		from mahanaim.services import messaging
+
+		outsider = f.make_student(
+			"Tobias",
+			"Outsider _T",
+			email="dm.outsider.b4@example.com",
+			programme=self.other_programme,
+			campus=self.campus,
+			create_user=False,
+		).name
+		frappe.cache.delete(frappe.cache.make_key(f"mbc:direct-message:{self.lecturer_user}"))
+
+		def send(**kwargs):
+			return communication.send_direct_message(
+				subject="Class notes _T", message="<p>See the notes</p>", channels=["In-App"], **kwargs
+			)
+
+		frappe.set_user(self.lecturer_user)
+		with patch.object(messaging, "LECTURER_DIRECT_PER_HOUR", 2):
+			one = send(recipients=json.dumps([{"student": self.student.name}]))
+			self.assertEqual((one["recipients"], one["sent"]["In-App"]), (1, 1))
+			whole = send(offering=self.offering)
+			self.assertGreaterEqual(whole["recipients"], 1)
+			for bad in (
+				{"recipients": [{"student": outsider}]},
+				{"recipients": [{"student": self.student.name}, {"email": "stranger@example.com"}]},
+				{"recipients": [{"user": "Administrator"}]},
+				{"offering": self.other_offering},
+			):
+				with self.assertRaises(frappe.PermissionError, msg=bad):
+					send(**bad)
+			with self.assertRaises(frappe.RateLimitExceededError):
+				send(recipients=[{"user": self.student_user}])
+		frappe.set_user("Administrator")
+		self.assertTrue(
+			frappe.db.exists("Portal Notification", {"user": self.student_user, "title": "Class notes _T"})
+		)
+		staff = send(recipients=[{"student": outsider}], offering=self.offering)
+		self.assertGreaterEqual(staff["recipients"], 2)
+		frappe.set_user(self.student_user)
+		with self.assertRaises(frappe.PermissionError):
+			send(offering=self.offering)

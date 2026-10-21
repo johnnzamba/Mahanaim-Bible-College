@@ -4,7 +4,7 @@
 import frappe
 from frappe import _
 from frappe.model.document import Document
-from frappe.utils import get_datetime, now_datetime, strip_html
+from frappe.utils import get_datetime, getdate, now_datetime, strip_html
 
 from mahanaim.utils import validate_transition
 
@@ -56,10 +56,14 @@ class Announcement(Document):
 	def validate_dates(self):
 		if self.status == "Scheduled" and not self.publish_on:
 			frappe.throw(_("Set the date and time to publish this announcement."))
-		if self.expires_on:
+		dates_changed = (
+			self.is_new() or self.has_value_changed("expires_on") or self.has_value_changed("publish_on")
+		)
+		if self.expires_on and dates_changed:
+			# Visible through the whole expiry day, so expiring on the publish day is allowed.
 			start = get_datetime(self.publish_on) if self.publish_on else now_datetime()
-			if get_datetime(self.expires_on) <= start:
-				frappe.throw(_("The expiry must be after the publish time."))
+			if getdate(self.expires_on) < getdate(start):
+				frappe.throw(_("The expiry date cannot be before the publish date."))
 
 	def validate_sent_lock(self):
 		before = self.get_doc_before_save()

@@ -10,7 +10,7 @@ from __future__ import annotations
 import frappe
 from frappe import _
 from frappe.query_builder import Order
-from frappe.utils import cstr, now_datetime, strip_html
+from frappe.utils import cstr, strip_html, today
 
 from mahanaim.services.communication import push_portal_notification, send_email, send_sms
 from mahanaim.utils import (
@@ -93,9 +93,8 @@ def audience_context(user: str) -> dict:
 	return ctx
 
 
-def visible_announcements(user: str, limit: int = 20, start: int = 0) -> list[dict]:
-	A = frappe.qb.DocType("Announcement")
-	ctx = audience_context(user)
+def _visible_filter(A, ctx: dict):
+	"""Portal visibility: published (Sent, shown in the portal, not expired) and addressed to the user."""
 	crit = A.audience.isin(sorted(ctx["audiences"]))
 	if ctx["programme"]:
 		crit = crit | ((A.audience == "Programme") & (A.programme == ctx["programme"]))
@@ -103,7 +102,27 @@ def visible_announcements(user: str, limit: int = 20, start: int = 0) -> list[di
 		crit = crit | ((A.audience == "Campus") & (A.campus == ctx["campus"]))
 	if ctx["offerings"]:
 		crit = crit | ((A.audience == "Course Offering") & A.course_offering.isin(sorted(ctx["offerings"])))
-	now = now_datetime()
+	# expires_on is a Date: the announcement stays visible through the whole expiry day.
+	return (
+		(A.show_in_portal == 1)
+		& (A.status == "Sent")
+		& (A.expires_on.isnull() | (A.expires_on >= today()))
+		& crit
+	)
+
+
+def count_visible_announcements(user: str, ctx: dict | None = None) -> int:
+	from frappe.query_builder.functions import Count
+
+	A = frappe.qb.DocType("Announcement")
+	ctx = ctx or audience_context(user)
+	row = frappe.qb.from_(A).select(Count(A.name)).where(_visible_filter(A, ctx)).run()
+	return int(row[0][0] or 0) if row else 0
+
+
+def visible_announcements(user: str, limit: int = 20, start: int = 0, ctx: dict | None = None) -> list[dict]:
+	A = frappe.qb.DocType("Announcement")
+	ctx = ctx or audience_context(user)
 	rows = (
 		frappe.qb.from_(A)
 		.select(
@@ -121,9 +140,7 @@ def visible_announcements(user: str, limit: int = 20, start: int = 0) -> list[di
 			A.attachment,
 			A.posted_by,
 		)
-		.where((A.show_in_portal == 1) & (A.status == "Sent"))
-		.where(A.expires_on.isnull() | (A.expires_on >= now))
-		.where(crit)
+		.where(_visible_filter(A, ctx))
 		.orderby(A.is_pinned, order=Order.desc)
 		.orderby(A.sent_on, order=Order.desc)
 		.limit(limit)
@@ -158,6 +175,107 @@ def visible_announcements(user: str, limit: int = 20, start: int = 0) -> list[di
 
 
 # ---------------------------------------------------------------------------------- direct messages
+LECTURER_DIRECT_PER_HOUR = 20  # direct sends per lecturer-only user per hour (staff are not limited)
+
+
+def class_students(offerings) -> list[str]:
+	"""Students actively enrolled (Course Enrolment "Enrolled") in any of `offerings`."""
+	offerings = [o for o in (offerings or []) if o]
+	if not offerings:
+		return []
+	return frappe.get_all(
+		"Course Enrolment",
+		filters={"course_offering": ["in", offerings], "status": "Enrolled"},
+		pluck="student",
+		distinct=True,
+	)
+
+
+def students_for_specs(specs: list) -> list[str | None]:
+	"""Map each recipient spec to the Student it addresses (by student, user or email), batched."""
+	keyed = []
+	users, emails = set(), set()
+	for spec in specs:
+		if isinstance(spec, str):
+			spec = {"email": spec} if "@" in spec else {"phone": spec}
+		spec = spec if isinstance(spec, dict) else {}
+		if spec.get("student"):
+			keyed.append(("student", cstr(spec["student"])))
+		elif spec.get("user"):
+			keyed.append(("user", cstr(spec["user"])))
+			users.add(cstr(spec["user"]))
+		elif spec.get("email"):
+			email = cstr(spec["email"]).strip().lower()
+			keyed.append(("email", email))
+			emails.add(email)
+		else:
+			keyed.append((None, None))
+	by_user, by_email = {}, {}
+	if users or emails:
+		or_filters = []
+		if users:
+			or_filters.append(["user", "in", sorted(users)])
+		if emails:
+			or_filters += [["user", "in", sorted(emails)], ["email", "in", sorted(emails)]]
+		for r in frappe.get_all("Student", or_filters=or_filters, fields=["name", "user", "email"]):
+			if r.user:
+				by_user[r.user] = r.name
+				by_email.setdefault(r.user.lower(), r.name)
+			if r.email:
+				by_email.setdefault(r.email.lower(), r.name)
+	out = []
+	for kind, value in keyed:
+		if kind == "student":
+			out.append(value)
+		elif kind == "user":
+			out.append(by_user.get(value))
+		elif kind == "email":
+			out.append(by_email.get(value))
+		else:
+			out.append(None)
+	return out
+
+
+def check_lecturer_direct_quota(user: str) -> None:
+	key = frappe.cache.make_key(f"mbc:direct-message:{user}")
+	sent = frappe.cache.incrby(key, 1)
+	if sent == 1:
+		frappe.cache.expire(key, 60 * 60)
+	if sent > LECTURER_DIRECT_PER_HOUR:
+		frappe.throw(
+			_("You have sent {0} messages in the last hour. Please try again later.").format(
+				LECTURER_DIRECT_PER_HOUR
+			),
+			frappe.RateLimitExceededError,
+		)
+
+
+def resolve_students(names) -> list[dict]:
+	"""Batch form of resolve_recipient for students (keeps the order of `names`, drops unknown ones)."""
+	names = list(dict.fromkeys(n for n in (names or []) if n))
+	if not names:
+		return []
+	rows = {
+		r.name: r
+		for r in frappe.get_all(
+			"Student",
+			filters={"name": ["in", names]},
+			fields=["name", "user", "email", "phone", "full_name"],
+		)
+	}
+	return [
+		{
+			"user": rows[n].user,
+			"email": rows[n].email,
+			"phone": rows[n].phone,
+			"name": rows[n].full_name,
+			"student": n,
+		}
+		for n in names
+		if n in rows
+	]
+
+
 def resolve_recipient(spec) -> dict | None:
 	"""{user|student|staff_member|sponsor|email|phone[, name]} -> {user, email, phone, name}."""
 	if isinstance(spec, str):

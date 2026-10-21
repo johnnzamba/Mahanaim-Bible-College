@@ -18,7 +18,7 @@ from datetime import timedelta
 
 import frappe
 from frappe import _
-from frappe.utils import cint, flt, get_datetime, get_url, getdate, now_datetime, nowdate, strip_html
+from frappe.utils import cint, cstr, flt, get_datetime, get_url, getdate, now_datetime, nowdate, strip_html
 
 CACHE_PREFIX = "mbc:web:"
 CACHE_TTL = 300  # seconds; public pages tolerate 5 minutes of staleness, saves clear it immediately
@@ -215,6 +215,79 @@ def mark_event_registration_paid(
 	reg.save()
 	reg.notify_registrant()
 	return reg.name
+
+
+EVENT_PAYMENT_MESSAGES = {
+	"Initiated": "Waiting for you to confirm on your phone…",
+	"Pending": "Waiting for you to confirm on your phone…",
+	"Completed": "Payment received. Your seat is confirmed.",
+	"Received": "Payment received. We are confirming your seat.",
+	"Failed": "The payment did not go through. Please try again.",
+	"Cancelled": "The payment was cancelled on the phone.",
+	"Timeout": "The M-Pesa prompt timed out. Please try again.",
+	"Not Started": "No M-Pesa payment has been started for this registration.",
+	"Not Required": "This registration does not need a payment.",
+	"Waived": "The fee for this registration was waived.",
+}
+
+
+def event_payment_state(reg) -> dict:
+	"""Read-only `{status, done, receipt, message}` for an Event Registration's M-Pesa fee payment.
+
+	`status` is the M-Pesa Request status (Initiated/Pending/Completed/Failed/Cancelled/Timeout), "Completed" once the
+	registration is Paid, "Received" when M-Pesa confirmed but the registration is still being updated, or
+	"Not Started" / "Not Required" / "Waived"."""
+	req = (
+		frappe.db.get_value(
+			"M-Pesa Request",
+			reg.mpesa_request,
+			["status", "purpose", "mpesa_receipt_number"],
+			as_dict=True,
+		)
+		if reg.mpesa_request
+		else None
+	)
+	if req and req.purpose != "Event Fee":
+		req = None
+	receipt = None
+	if reg.payment_status == "Paid":
+		status = "Completed"
+		receipt = (req and req.mpesa_receipt_number) or reg.payment_reference
+	elif reg.payment_status in ("Not Required", "Waived"):
+		status = reg.payment_status
+	elif not req:
+		status = "Not Started"
+	elif req.status == "Completed":
+		status, receipt = "Received", req.mpesa_receipt_number
+	else:
+		status = req.status or "Pending"
+	return {
+		"status": status,
+		"done": status not in ("Initiated", "Pending"),
+		"receipt": receipt,
+		"message": _(EVENT_PAYMENT_MESSAGES.get(status, "Waiting for M-Pesa…")),
+	}
+
+
+def public_payment_details() -> dict:
+	"""Public M-Pesa PayBill / Till numbers for the fees pages; never exposes keys, passkeys or tokens."""
+	out = {"enabled": False, "paybill": None, "till": None, "account_hint": None}
+	try:
+		m = frappe.get_cached_doc("M-Pesa Settings")
+	except Exception:
+		return out
+	if not cint(m.get("enabled")):
+		return out
+	if m.get("transaction_type") == "CustomerBuyGoodsOnline":
+		out["till"] = cstr(m.get("till_number")).strip() or None
+	else:
+		out["paybill"] = cstr(m.get("business_shortcode")).strip() or None
+		if out["paybill"]:
+			out["account_hint"] = _(
+				"Your student number, or your application number if you have not enrolled yet."
+			)
+	out["enabled"] = bool(out["paybill"] or out["till"])
+	return out
 
 
 # ---------------------------------------------------------------------------------- serialisers

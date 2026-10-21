@@ -17,6 +17,11 @@ groups, plus the public `/give` page. The sponsor self-service portal is in `doc
 - **staff**: any staff role (`require_staff`).
 - **roles: …**: `require_roles(...)`. System Manager, College Administrator and Administrator always pass.
 
+Every role a read guard admits also holds a read-only DocPerm on the doctypes that endpoint reads, so the
+permission-aware lists and `check_permission("read")` never return 403 for an admitted role. For example, Registrar
+reads Giving Record and Giving Type, Finance Officer reads Library Item, and chapel and ministry reads are limited to
+Chaplain, Registrar, Academic Dean and Auditor. `test_church.test_read_gates_match_doctype_permissions` enforces this.
+
 **Public giving flow (`/give`)**
 1. `giving_options()` lists active Giving Types with `allow_online = 1` (all active types when none are flagged), the
    PayBill details and the currency.
@@ -829,6 +834,8 @@ Example args: `{"data": {"name": "Missions", "allow_online": 1, "suggested_amoun
 
 Args: `giving_type` (default `None`), `giver_type` (default `None`), `sponsor` (default `None`), `partner_church` (default `None`), `chapel_service` (default `None`), `from_date` (default `None`), `to_date` (default `None`), `search` (default `None`), `include_cancelled` (default `0`), `start` (default `0`), `page_length` (default `20`).
 
+`search` matches giver name, giver email, reference, record name and purpose. Each row includes `giver_email`.
+
 Example args: `{"page_length": 2}`
 
 ```json
@@ -840,6 +847,7 @@ Example args: `{"page_length": 2}`
         "giving_type": "Scholarship Fund",
         "giver_type": "Sponsor",
         "giver_name": "Harvest Fellowship Kasarani Missions Board",
+        "giver_email": null,
         "sponsor": "SPN-00002",
         "partner_church": null,
         "student": null,
@@ -856,6 +864,7 @@ Example args: `{"page_length": 2}`
         "giving_type": "Offering",
         "giver_type": "Anonymous",
         "giver_name": "Anonymous",
+        "giver_email": null,
         "sponsor": null,
         "partner_church": null,
         "student": null,
@@ -890,7 +899,12 @@ Create a Giving Record and (by default) submit it — which posts the journal an
 
 Args: `data` (required), `submit` (default `1`).
 
-Example args: `{"data": {"giving_type": "Missions", "giver_type": "Other", "giver_name": "Anonymous well-wisher", "amount": 2500, "mode_of_payment": "Cash"}}`
+`data` accepts `giving_type`, `giver_type`, `sponsor`, `partner_church`, `student`, `giver_name`, `giver_email`,
+`posting_date`, `amount`, `mode_of_payment`, `reference_no`, `msisdn`, `chapel_service` and `purpose`.
+`giver_email` is optional. It is trimmed, lower-cased and validated (an invalid address raises `ValidationError`).
+For a walk-in giver (no sponsor, student or church), it is where the receipt email is sent.
+
+Example args: `{"data": {"giving_type": "Missions", "giver_type": "Other", "giver_name": "Jane Wanjiku", "giver_email": "jane.wanjiku@example.com", "amount": 2500, "mode_of_payment": "Cash"}}`
 
 ```json
 {
@@ -907,8 +921,8 @@ Example args: `{"data": {"giving_type": "Missions", "giver_type": "Other", "give
     "sponsor": null,
     "partner_church": null,
     "student": null,
-    "giver_name": "Anonymous well-wisher",
-    "giver_email": null,
+    "giver_name": "Jane Wanjiku",
+    "giver_email": "jane.wanjiku@example.com",
     "posting_date": "2026-10-22",
     "amount": 2500.0,
     "mode_of_payment": "Cash",
@@ -941,9 +955,12 @@ Example args: `{"name": "GIV-2026-00016", "reason": "Duplicate entry"}`
 ### `list_chapel_services`
 - **Path:** `mahanaim.api.church.list_chapel_services`
 - **Method:** GET
-- **Guard:** roles: Chaplain, Finance Officer, Auditor, Registrar, Academic Dean
+- **Guard:** roles: Chaplain, Registrar, Academic Dean, Auditor (Finance Officer is not admitted)
 
 Args: `status` (default `None`), `campus` (default `None`), `from_date` (default `None`), `to_date` (default `None`), `start` (default `0`), `page_length` (default `20`).
+
+Ordered by `service_date desc, start_time desc`. Chapel Service has optional `start_time` (Time) and `venue` (Data, e.g.
+"Main Chapel"; blank means the campus chapel) fields, which `get_chapel_service`/`save_chapel_service` also read and write.
 
 Example args: `{"page_length": 2}`
 
@@ -954,8 +971,10 @@ Example args: `{"page_length": 2}`
       {
         "name": "CHP-2026-00010",
         "service_date": "2026-10-28",
+        "start_time": "10:00:00",
         "service_type": "Chapel",
         "campus": "Main Campus Nairobi",
+        "venue": "Main Chapel",
         "status": "Scheduled",
         "theme": "Faithful in Little Things",
         "scripture": "Luke 16:10",
@@ -970,8 +989,10 @@ Example args: `{"page_length": 2}`
       {
         "name": "CHP-2026-00004",
         "service_date": "2026-10-21",
+        "start_time": null,
         "service_type": "Chapel",
         "campus": "Main Campus Nairobi",
+        "venue": null,
         "status": "Held",
         "theme": "Two Camps: God With Us on the Journey",
         "scripture": "Genesis 32:1–2",
@@ -992,7 +1013,7 @@ Example args: `{"page_length": 2}`
 ### `get_chapel_service`
 - **Path:** `mahanaim.api.church.get_chapel_service`
 - **Method:** GET
-- **Guard:** roles: Chaplain, Finance Officer, Auditor, Registrar, Academic Dean
+- **Guard:** roles: Chaplain, Registrar, Academic Dean, Auditor (Finance Officer is not admitted)
 
 Args: `name` (required).
 
@@ -1088,10 +1109,75 @@ Example args: `{"service": "CHP-2026-00009", "headcounts": {"visitors": 9}, "row
 {"message": {"name": "CHP-2026-00009", "total_attendance": 113, "present": 1, "rows": 1, "status": "Held"}}
 ```
 
+### `my_chapel`
+- **Path:** `mahanaim.api.church.my_chapel`
+- **Method:** GET
+- **Guard:** login, and the session user must be linked to a Student (`Student.user`); otherwise `PermissionError`
+  "No student record is linked to your account."
+
+The student portal's chapel page. Everything is scoped to the caller's own Student record. No args.
+
+- `upcoming`: Scheduled services from today to today + 14 days at the student's campus (or with no campus), soonest
+  first. `title` is the theme, falling back to the service type. `venue` falls back to the campus. `speaker` is the
+  preacher.
+- `attendance`: Held services in the current academic term (`term.start_date` to the earlier of `term.end_date` and
+  today), or the last 120 days when no term is current. A service counts when it is at the student's campus or the
+  student is on its roll, and it has a roll call. A student missing from the roll counts as Absent.
+  `percent = attended / (held - excused) × 100`, rounded to 1 dp; `null` when nothing counts yet.
+- `required_percent`: the `chapel_attendance_percent` field on Mahanaim Settings when it exists, else `null`.
+  `meets_requirement` is `null` when either value is `null`.
+- `ministries`: the student's memberships in active Ministry Groups.
+- `practicum`: the student's enrolments (excluding Dropped/Withdrawn) in courses whose Programme Course `course_type` is
+  "Practicum". There is no separate placement doctype.
+
+```json
+{
+  "message": {
+    "student": {"name": "STU-2026-00011", "full_name": "Joseph Kamau", "campus": "Nairobi Main Campus"},
+    "term": {"name": "2026-2027 Term 1", "term_name": "Term 1", "start_date": "2026-09-07", "end_date": "2026-12-11"},
+    "upcoming": [
+      {
+        "name": "CHP-2026-00012", "title": "Faithful in Little Things", "theme": "Faithful in Little Things",
+        "service_type": "Chapel", "date": "2026-10-28", "start_time": "10:00:00", "venue": "Main Chapel",
+        "campus": "Nairobi Main Campus", "speaker": "Rev. Peter Mwangi", "scripture": "Luke 16:10", "status": "Scheduled"
+      }
+    ],
+    "attendance": {
+      "from_date": "2026-09-07",
+      "to_date": "2026-10-21",
+      "records": [
+        {
+          "name": "CHP-2026-00011", "title": "Walking in the Spirit", "theme": "Walking in the Spirit",
+          "service_type": "Chapel", "date": "2026-10-21", "start_time": null, "venue": "Nairobi Main Campus",
+          "campus": "Nairobi Main Campus", "speaker": "Rev. Dr. Grace Wanjiru", "scripture": "Galatians 5:16-26",
+          "status": "Held", "attendance": "Present"
+        }
+      ],
+      "attended": 3, "excused": 0, "absent": 1, "held": 4, "percent": 75.0
+    },
+    "required_percent": null,
+    "meets_requirement": null,
+    "ministries": [
+      {
+        "group": "MIN-0003", "group_name": "Chapel Choir", "group_type": "Choir", "role": "Member",
+        "joined_on": "2026-09-14", "campus": "Nairobi Main Campus", "meeting_day": "Wednesday",
+        "meeting_time": "17:00:00", "patron_name": "Rev. Peter Mwangi"
+      }
+    ],
+    "practicum": [
+      {
+        "course_offering": "PMN201-2026-T1", "course": "PMN201", "academic_term": "2026-2027 Term 1",
+        "status": "Enrolled", "final_grade": null, "course_title": "Ministry Practicum I"
+      }
+    ]
+  }
+}
+```
+
 ### `list_ministry_groups`
 - **Path:** `mahanaim.api.church.list_ministry_groups`
 - **Method:** GET
-- **Guard:** roles: Chaplain, Finance Officer, Auditor, Registrar, Academic Dean
+- **Guard:** roles: Chaplain, Registrar, Academic Dean, Auditor (Finance Officer is not admitted)
 
 Args: `search` (default `None`), `group_type` (default `None`), `campus` (default `None`), `is_active` (default `None`), `start` (default `0`), `page_length` (default `50`).
 
@@ -1136,7 +1222,7 @@ Args: `search` (default `None`), `group_type` (default `None`), `campus` (defaul
 ### `get_ministry_group`
 - **Path:** `mahanaim.api.church.get_ministry_group`
 - **Method:** GET
-- **Guard:** roles: Chaplain, Finance Officer, Auditor, Registrar, Academic Dean
+- **Guard:** roles: Chaplain, Registrar, Academic Dean, Auditor (Finance Officer is not admitted)
 
 Args: `name` (required).
 
@@ -1237,9 +1323,30 @@ Example args: `{"data": {"name": "Missions & Evangelism Team", "meeting_day": "T
 }
 ```
 
+### `partner_churches`
+- **Path:** `mahanaim.api.church.partner_churches`
+- **Method:** GET or POST
+- **Guard:** guest · rate-limited (120 per 10 minutes per IP)
+
+Public church pick-list, used for example by the applicant wizard's church step. It returns Active, non-group Partner
+Churches with public fields only (no contacts, notes, MOU or sponsor), ordered by name. `search` matches the name,
+town, county, denomination or church code. `website.apply_lookups().partner_churches` returns the full unsearched
+list, without `county`.
+
+Args: `search` (default `None`), `limit` (default `20`, clamped to 1–50).
+
+Example args: `{"search": "kasarani", "limit": 10}`
+
+```json
+{"message": [
+  {"name": "Harvest Fellowship Kasarani", "church_name": "Harvest Fellowship Kasarani", "denomination": "Pentecostal",
+   "town": "Kasarani", "county": "Nairobi"}
+]}
+```
+
 ### `giving_options`
 - **Path:** `mahanaim.api.church.giving_options`
-- **Method:** GET
+- **Method:** GET or POST
 - **Guard:** guest
 
 Giving types offered online (+ quick amounts), PayBill details and currency for the public /give page.
@@ -1282,7 +1389,7 @@ Example args: `{"giving_type": "Missions", "amount": 1000, "phone": "0712345678"
 
 ### `giving_status`
 - **Path:** `mahanaim.api.church.giving_status`
-- **Method:** GET
+- **Method:** GET or POST (the shared MpesaPay poller may use either)
 - **Guard:** guest · rate-limited
 
 Guest-safe poll for a gift started with `give`: `{status, done, receipt, message}`.

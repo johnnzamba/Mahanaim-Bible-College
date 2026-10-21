@@ -11,7 +11,7 @@ from __future__ import annotations
 import frappe
 from frappe import _
 from frappe.rate_limiter import rate_limit
-from frappe.utils import add_days, cint, flt, getdate, nowdate
+from frappe.utils import add_days, cint, flt, formatdate, getdate, nowdate
 
 from mahanaim.api.utils import clean_payload, page_args, parse_json, require_login, require_roles
 from mahanaim.services import library as lib
@@ -327,6 +327,30 @@ def my_loans(include_history=1):
 	}
 
 
+def _reject_duplicate_request(field: str, borrower: str, it) -> None:
+	"""One open request or unreturned copy per member and item (an unsettled Lost loan also counts)."""
+	clash = frappe.get_all(
+		"Library Loan",
+		filters={"library_item": it.name, field: borrower, "status": ["in", (*lib.OPEN_STATUSES, "Lost")]},
+		fields=["name", "status", "due_date", "fine_paid"],
+		order_by="creation desc",
+	)
+	clash = next((r for r in clash if r.status != "Lost" or not cint(r.fine_paid)), None)
+	if not clash:
+		return
+	if clash.status == "Requested":
+		msg = _("You already have a pending request for {0} ({1}).").format(it.title, clash.name)
+	elif clash.status == "Lost":
+		msg = _("{0} is recorded as lost on loan {1}. Please settle it with the library first.").format(
+			it.title, clash.name
+		)
+	else:
+		msg = _("You already have {0} on loan ({1}, due {2}). Return it before requesting it again.").format(
+			it.title, clash.name, formatdate(clash.due_date)
+		)
+	frappe.throw(msg, frappe.DuplicateEntryError, title=_("Already requested"))
+
+
 @frappe.whitelist(methods=["POST"])
 def request_loan(item: str, remarks: str | None = None):
 	"""Reserve a physical copy: creates a Library Loan with status "Requested" for the librarian to issue."""
@@ -335,6 +359,11 @@ def request_loan(item: str, remarks: str | None = None):
 	if not it.is_active or cint(it.total_copies) <= 0:
 		frappe.throw(_("{0} cannot be borrowed.").format(it.title))
 	field = "student" if borrower["borrower_type"] == "Student" else "staff_member"
+	# Serialise requests per member so a double submit cannot create two open requests.
+	frappe.db.get_value(
+		"Student" if field == "student" else "Staff Member", borrower[field], "name", for_update=True
+	)
+	_reject_duplicate_request(field, borrower[field], it)
 	pending = frappe.db.count("Library Loan", {field: borrower[field], "status": "Requested"})
 	if pending >= lib.MAX_ACTIVE_LOANS:
 		frappe.throw(_("You already have {0} pending requests.").format(pending))
@@ -539,6 +568,46 @@ def list_loans(
 		if r.status in lib.ACTIVE_STATUSES and not r.fine_paid:
 			r.fine_amount = max(flt(r.fine_amount), lib.compute_fine(r.due_date))
 	return {"data": data, "total": cint(total)}
+
+
+@frappe.whitelist()
+def get_loan(name: str):
+	"""One loan for the desk drawer: loan fields, live fine, item summary and borrower contact."""
+	require_roles(*READ_ROLES)
+	doc = frappe.get_doc("Library Loan", name)
+	doc.check_permission("read")
+	out = {f: doc.get(f) for f in LOAN_FIELDS}
+	out.update(issued_by=doc.issued_by, creation=doc.creation, modified=doc.modified, days_overdue=0)
+	if doc.status in lib.ACTIVE_STATUSES and doc.due_date:
+		out["days_overdue"] = max(0, (getdate(nowdate()) - getdate(doc.due_date)).days)
+		if not doc.fine_paid:
+			out["fine_amount"] = max(flt(doc.fine_amount), lib.compute_fine(doc.due_date))
+	out["item"] = frappe.db.get_value(
+		"Library Item",
+		doc.library_item,
+		[
+			"name",
+			"title",
+			"item_type",
+			"authors",
+			"call_number",
+			"location",
+			"total_copies",
+			"available_copies",
+		],
+		as_dict=True,
+	)
+	borrower = doc.student or doc.staff_member
+	contact = lib.loan_recipient(doc) or {}
+	out["borrower"] = {
+		"type": doc.borrower_type,
+		"id": borrower,
+		"name": doc.borrower_name,
+		"email": contact.get("email"),
+		"phone": contact.get("phone"),
+		"active_loans": lib.active_loan_count(doc.borrower_type, borrower) if borrower else 0,
+	}
+	return out
 
 
 @frappe.whitelist()

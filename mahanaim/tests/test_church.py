@@ -294,3 +294,260 @@ class TestChurch(IntegrationTestCase):
 		frappe.set_user(f.make_user("church.student.b4@example.com", roles=("Student",)).name)
 		with self.assertRaises(frappe.PermissionError):
 			church.send_sponsor_reports(sponsor=sp)
+
+	def test_my_chapel_is_scoped_to_the_student(self):
+		from frappe.utils import add_days, getdate, nowdate
+
+		elsewhere = f.make_campus("Chapel Campus _T", "CCT").name
+		student_user = frappe.db.get_value("Student", self.student, "user")
+		today = getdate(nowdate())
+
+		def service(days, campus=None, status="Held", rows=(), **extra):
+			return (
+				frappe.get_doc(
+					{
+						"doctype": "Chapel Service",
+						"service_date": add_days(today, days),
+						"service_type": "Chapel",
+						"campus": campus or self.campus,
+						"status": status,
+						"attendance": [{"student": s, "status": st} for s, st in rows],
+						**extra,
+					}
+				)
+				.insert(ignore_permissions=True)
+				.name
+			)
+
+		def mine():
+			frappe.set_user(student_user)
+			try:
+				return church.my_chapel()
+			finally:
+				frappe.set_user("Administrator")
+
+		with patch("mahanaim.utils.current_term", return_value=None):
+			base = mine()["attendance"]
+			upcoming = service(
+				2,
+				status="Scheduled",
+				theme="Faith That Works _T",
+				start_time="10:00:00",
+				venue="Main Chapel _T",
+				preacher="Rev. Amos _T",
+			)
+			hidden = [
+				service(20, status="Scheduled"),
+				service(3, status="Cancelled"),
+				service(2, campus=elsewhere, status="Scheduled"),
+			]
+			s = {
+				"present": service(-1, rows=[(self.student, "Present"), (self.other_student, "Present")]),
+				"absent": service(-2, rows=[(self.other_student, "Present")]),
+				"excused": service(-3, rows=[(self.student, "Excused")]),
+				"no_roll": service(-4),
+				"away": service(-5, campus=elsewhere, rows=[(self.student, "Present")]),
+				"not_mine": service(-6, campus=elsewhere, rows=[(self.other_student, "Present")]),
+			}
+			group = frappe.get_doc(
+				{
+					"doctype": "Ministry Group",
+					"group_name": f"Chapel Choir {random_string(4)} _T",
+					"group_type": "Choir",
+					"is_active": 1,
+					"members": [{"student": self.student, "role": "Secretary"}],
+				}
+			).insert(ignore_permissions=True)
+			data = mine()
+
+		cards = {r["name"]: r for r in data["upcoming"]}
+		self.assertIn(upcoming, cards)
+		self.assertFalse(set(hidden) & set(cards))
+		card = cards[upcoming]
+		self.assertEqual(
+			(card["title"], card["venue"], card["speaker"], str(card["start_time"])),
+			("Faith That Works _T", "Main Chapel _T", "Rev. Amos _T", "10:00:00"),
+		)
+		att = data["attendance"]
+		records = {r["name"]: r["attendance"] for r in att["records"]}
+		self.assertEqual(
+			{k: records.get(v) for k, v in s.items()},
+			{
+				"present": "Present",
+				"absent": "Absent",
+				"excused": "Excused",
+				"no_roll": None,
+				"away": "Present",
+				"not_mine": None,
+			},
+		)
+		delta = {k: att[k] - base[k] for k in ("attended", "excused", "absent", "held")}
+		self.assertEqual(delta, {"attended": 2, "excused": 1, "absent": 1, "held": 4})
+		counted = att["held"] - att["excused"]
+		self.assertEqual(att["percent"], round(att["attended"] * 100.0 / counted, 1))
+		self.assertEqual(
+			[(m["group"], m["role"]) for m in data["ministries"] if m["group"] == group.name],
+			[(group.name, "Secretary")],
+		)
+		self.assertNotIn(self.other_student, frappe.as_json(data))
+		frappe.set_user(f.make_user("church.student.b4@example.com", roles=("Student",)).name)
+		with self.assertRaises(frappe.PermissionError):
+			church.my_chapel()
+
+	def test_sponsor_fee_totals_and_invoice_limit(self):
+		from mahanaim.tests import factories_b3 as fin
+
+		st = f.make_student(
+			"Faith", "Fees _T", programme=self.programme, campus=self.campus, create_user=False
+		).name
+		for amount in (8000, 7000, 9000):
+			fin.make_invoice(st, amount=amount)
+		fin.make_payment(st, amount=5000)
+		fin.make_adjustment(st, amount=1000)
+		sp, user = fb.make_sponsor_with_user("Fees Sponsor _T")
+		fb.make_sponsorship(sp.name, st, amount=10000)
+		frappe.set_user(user)
+		data = sponsor.my_students()
+		row = next(r for r in data["data"] if r["student"] == st)
+		expected = {"invoiced": 24000, "paid": 5000, "adjustments": 1000, "balance": 18000}
+		self.assertEqual({k: row["fees"][k] for k in expected}, expected)
+		self.assertEqual(row["fee_balance"], 18000)
+		self.assertEqual(row["fees"]["currency"], "KES")
+		self.assertEqual({k: data["totals"][k] for k in expected}, expected)
+
+		def invoices(**kwargs):
+			fees = sponsor.student_progress(st, **kwargs)["fees"]
+			return len(fees["invoices"]), fees["invoice_total_count"], fees["invoiced"]
+
+		self.assertEqual(invoices(), (3, 3, 24000))
+		self.assertEqual(invoices(invoice_limit=2), (2, 3, 24000))
+		self.assertEqual(invoices(invoice_limit="500"), (3, 3, 24000))
+
+	def test_public_partner_churches(self):
+		def church_doc(name, **extra):
+			return frappe.get_doc(
+				{
+					"doctype": "Partner Church",
+					"church_name": name,
+					"denomination": "Pentecostal",
+					"town": "Kasarani",
+					"county": "Nairobi",
+					"partnership_status": "Active",
+					"phone": "0700111222",
+					"email": "pastor.private@example.com",
+					**extra,
+				}
+			).insert(ignore_permissions=True)
+
+		active = church_doc("Zion Kasarani Fellowship _T").name
+		church_doc("Zion Prospect Chapel _T", partnership_status="Prospect")
+		church_doc("Zion Region _T", is_group=1)
+		frappe.set_user("Guest")
+		rows = church.partner_churches(search="zion")
+		self.assertEqual([r["name"] for r in rows], [active])
+		self.assertEqual(set(rows[0]), {"name", "church_name", "denomination", "town", "county"})
+		self.assertIn(active, [r["name"] for r in church.partner_churches(search="Kasarani", limit=500)])
+		self.assertLessEqual(len(church.partner_churches(limit=500)), church.PUBLIC_CHURCH_MAX)
+		self.assertEqual(len(church.partner_churches(limit=1)), 1)
+
+	def test_read_gates_match_doctype_permissions(self):
+		from mahanaim.api import library
+
+		gates = {
+			church.CHAPEL_READ_ROLES: ("Chapel Service", "Ministry Group"),
+			church.READ_ROLES: ("Giving Record", "Giving Type", "Sponsorship"),
+			(*church.READ_ROLES, church.ROLE_ADMISSIONS): ("Sponsor",),
+			(*church.CHURCH_EDIT_ROLES, *church.READ_ROLES): ("Partner Church",),
+			library.READ_ROLES: ("Library Item", "Library Loan"),
+		}
+		self.assertNotIn(church.ROLE_FINANCE, church.CHAPEL_READ_ROLES)
+		for roles, doctypes in gates.items():
+			for dt in doctypes:
+				readers = {p.role for p in frappe.get_meta(dt).permissions if p.read and not p.permlevel}
+				self.assertFalse(
+					set(roles) - readers, f"{dt} lacks a read DocPerm for {set(roles) - readers}"
+				)
+
+	def test_registrar_and_auditor_read_chapel_loans_and_giving(self):
+		from frappe.utils import nowdate
+
+		from mahanaim.api import library
+
+		service = frappe.get_doc(
+			{
+				"doctype": "Chapel Service",
+				"service_date": nowdate(),
+				"service_type": "Chapel",
+				"campus": self.campus,
+				"status": "Scheduled",
+			}
+		).insert(ignore_permissions=True)
+		group = frappe.get_doc(
+			{"doctype": "Ministry Group", "group_name": f"Worship Team {random_string(4)} _T"}
+		).insert(ignore_permissions=True)
+		item = fb.make_library_item(f"Gate Check {random_string(4)} _T", copies=2).name
+		loan = fb.make_loan(item, self.student).name
+		for email, role in (
+			("church.registrar.b4@example.com", "Registrar"),
+			("church.auditor.b4@example.com", "Auditor"),
+		):
+			frappe.set_user(f.make_user(email, roles=(role,)).name)
+			listed = church.list_chapel_services(from_date=nowdate(), to_date=nowdate(), page_length=500)
+			self.assertIn(service.name, [r.name for r in listed["data"]])
+			self.assertEqual(church.get_chapel_service(service.name)["name"], service.name)
+			groups = church.list_ministry_groups(search=group.group_name)["data"]
+			self.assertEqual([r.name for r in groups], [group.name])
+			self.assertEqual(church.get_ministry_group(group.name)["name"], group.name)
+			loans = library.list_loans(library_item=item)
+			self.assertEqual([r.name for r in loans["data"]], [loan])
+			self.assertEqual(library.get_loan(loan)["item"]["name"], item)
+			self.assertIn("totals", church.list_giving())
+			frappe.set_user("Administrator")
+
+		frappe.set_user(f.make_user("church.finance.b4@example.com", roles=("Finance Officer",)).name)
+		for call in (
+			church.list_chapel_services,
+			church.list_ministry_groups,
+			lambda: church.get_chapel_service(service.name),
+			lambda: church.get_ministry_group(group.name),
+		):
+			with self.assertRaises(frappe.PermissionError):
+				call()
+		self.assertIn(
+			item, [r.name for r in library.list_items(search="Gate Check", page_length=100)["data"]]
+		)
+		self.assertEqual(library.get_item(item)["name"], item)
+
+	def test_record_giving_accepts_giver_email(self):
+		frappe.set_user(f.make_user("church.finance.b4@example.com", roles=("Finance Officer",)).name)
+		doc = church.record_giving(
+			frappe.as_json(
+				{
+					"giving_type": self.giving_type,
+					"giver_type": "Other",
+					"giver_name": "Walk-in Giver _T",
+					"giver_email": "  Walk.In.Giver@Example.COM ",
+					"amount": 750,
+					"mode_of_payment": "Cash",
+				}
+			)
+		)
+		self.assertEqual(doc["docstatus"], 1)
+		self.assertEqual(doc["giver_email"], "walk.in.giver@example.com")
+		receipt_to = frappe.get_doc("Giving Record", doc["name"]).receipt_recipient()
+		self.assertEqual(receipt_to["email"], "walk.in.giver@example.com")
+		rows = church.list_giving(search="walk.in.giver@")["data"]
+		self.assertEqual(
+			[(r.name, r.giver_email) for r in rows], [(doc["name"], "walk.in.giver@example.com")]
+		)
+		with self.assertRaises(frappe.ValidationError):
+			church.record_giving(
+				{
+					"giving_type": self.giving_type,
+					"giver_type": "Other",
+					"giver_name": "Bad Email _T",
+					"giver_email": "not-an-email",
+					"amount": 100,
+					"mode_of_payment": "Cash",
+				}
+			)

@@ -157,13 +157,13 @@ def my_students(sponsor=None):
 	me = _me(sponsor)
 	rows = _sponsorships(me.name)
 	if not rows:
-		return {"data": [], "total": 0}
+		return {"data": [], "total": 0, "totals": _fee_totals([])}
 	students = list({r.student for r in rows})
 	info = {
 		s.name: s
 		for s in frappe.get_all("Student", filters={"name": ["in", students]}, fields=STUDENT_FIELDS)
 	}
-	balances = svc.student_balances(students)
+	fees = svc.student_fee_totals(students)
 	attendance = svc.attendance_by_student(students)
 	campuses = _campus_names(s.campus for s in info.values())
 	data = []
@@ -171,6 +171,7 @@ def my_students(sponsor=None):
 		s = info.get(r.student)
 		if not s:
 			continue
+		fee = fees.get(s.name) or {}
 		data.append(
 			{
 				"student": s.name,
@@ -186,7 +187,8 @@ def my_students(sponsor=None):
 				"cgpa": flt(s.cgpa, 2),
 				"academic_standing": s.academic_standing,
 				"attendance_pct": attendance.get(s.name, {}).get("pct"),
-				"fee_balance": flt(balances.get(s.name)),
+				"fee_balance": flt(fee.get("balance")),
+				"fees": fee,
 				"sponsorship": {
 					"name": r.name,
 					"status": r.status,
@@ -199,11 +201,24 @@ def my_students(sponsor=None):
 				},
 			}
 		)
-	return {"data": data, "total": len(data)}
+	return {"data": data, "total": len(data), "totals": _fee_totals(fees.values())}
+
+
+def _fee_totals(rows) -> dict:
+	rows = list(rows)
+	out = {
+		k: flt(sum(flt(r.get(k)) for r in rows), 2) for k in ("invoiced", "paid", "adjustments", "balance")
+	}
+	out["currency"] = setting("currency", "KES") or "KES"
+	return out
+
+
+INVOICE_LIMIT_DEFAULT = 6
+INVOICE_LIMIT_MAX = 100
 
 
 @frappe.whitelist()
-def student_progress(student: str, sponsor=None):
+def student_progress(student: str, sponsor=None, invoice_limit=INVOICE_LIMIT_DEFAULT):
 	me = _me(sponsor)
 	_ensure_sponsors(me, student)
 	s = frappe.get_all("Student", filters={"name": student}, fields=STUDENT_FIELDS)[0]
@@ -254,9 +269,11 @@ def student_progress(student: str, sponsor=None):
 	term = s.current_term or current_term()
 	attendance = svc.attendance_by_student([student]).get(student)
 	term_attendance = svc.attendance_by_student([student], term).get(student) if term else None
+	invoice_limit = min(max(cint(invoice_limit) or INVOICE_LIMIT_DEFAULT, 1), INVOICE_LIMIT_MAX)
+	invoice_filters = {"student": student, "docstatus": 1}
 	invoices = frappe.get_all(
 		"Student Invoice",
-		filters={"student": student, "docstatus": 1},
+		filters=invoice_filters,
 		fields=[
 			"name",
 			"academic_term",
@@ -268,14 +285,25 @@ def student_progress(student: str, sponsor=None):
 			"status",
 		],
 		order_by="posting_date desc",
-		limit_page_length=6,
+		limit=invoice_limit,
 	)
+	invoice_total = (
+		len(invoices)
+		if len(invoices) < invoice_limit
+		else frappe.db.count("Student Invoice", invoice_filters)
+	)
+	fee = svc.student_fee_totals([student]).get(student) or {}
 	s["campus_name"] = _campus_names([s.campus]).get(s.campus, s.campus)
 	return {
 		"student": s,
 		"terms": term_rows,
 		"attendance": {"overall": attendance, "current_term": term_attendance, "term": term},
-		"fees": {"balance": flt(svc.student_balances([student]).get(student)), "invoices": invoices},
+		"fees": {
+			**fee,
+			"balance": flt(fee.get("balance")),
+			"invoices": invoices,
+			"invoice_total_count": invoice_total,
+		},
 		"sponsorship": frappe.get_all(
 			"Sponsorship",
 			filters={"sponsor": me.name, "student": student},

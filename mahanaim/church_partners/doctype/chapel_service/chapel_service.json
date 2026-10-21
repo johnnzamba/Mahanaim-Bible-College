@@ -7,8 +7,10 @@
  "engine": "InnoDB",
  "field_order": [
   "service_date",
+  "start_time",
   "service_type",
   "campus",
+  "venue",
   "status",
   "column_break_0_1",
   "theme",
@@ -40,6 +42,11 @@
    "reqd": 1
   },
   {
+   "fieldname": "start_time",
+   "fieldtype": "Time",
+   "label": "Start Time"
+  },
+  {
    "default": "Chapel",
    "fieldname": "service_type",
    "fieldtype": "Select",
@@ -55,6 +62,12 @@
    "in_standard_filter": 1,
    "label": "Campus",
    "options": "Campus"
+  },
+  {
+   "description": "Hall or room, e.g. Main Chapel. Leave blank to show the campus.",
+   "fieldname": "venue",
+   "fieldtype": "Data",
+   "label": "Venue"
   },
   {
    "default": "Scheduled",
@@ -164,7 +177,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-05-01 09:00:00.000000",
+ "modified": "2026-10-21 22:50:00.000000",
  "modified_by": "Administrator",
  "module": "Church Partners",
  "name": "Chapel Service",

@@ -1,11 +1,16 @@
 """Church partners, sponsors, giving, chapel and ministry endpoints for staff (backend domain B4).
 
 Guard: Chaplain or Finance Officer (College Administrator / System Manager always pass). Partner churches are also
-editable by Admissions/Communications (doctype permissions decide). Lists use permission-aware `get_list` and
-return `{"data": [...], "total": n}`; mutations are POST-only and go through doctype permission checks.
+editable by Admissions/Communications (doctype permissions decide). Chapel services and ministry groups are read by
+Chaplain, Registrar, Academic Dean and Auditor (`CHAPEL_READ_ROLES`). Lists use permission-aware `get_list` and
+return `{"data": [...], "total": n}`; mutations are POST-only and go through doctype permission checks. Every role
+admitted by a read gate also holds a read-only DocPerm on the doctypes that endpoint reads (asserted in tests).
 
-Public (guest) endpoints for the /give page: `giving_options`, `give` (rate-limited M-Pesa STK push) and
-`giving_status` (poll). The Giving Record is created when the M-Pesa payment completes.
+Public (guest) endpoints for the /give page: `giving_options` (GET or POST), `give` (rate-limited M-Pesa STK push)
+and `giving_status` (poll, GET or POST). The Giving Record is created when the M-Pesa payment completes.
+`partner_churches` is a rate-limited public church pick-list (public fields only).
+
+Student portal: `my_chapel` (scoped to the Student linked to the session user).
 """
 
 from __future__ import annotations
@@ -17,7 +22,7 @@ from frappe import _
 from frappe.rate_limiter import rate_limit
 from frappe.utils import cint, cstr, flt, getdate, nowdate, validate_email_address
 
-from mahanaim.api.utils import clean_payload, page_args, parse_json, require_roles
+from mahanaim.api.utils import clean_payload, page_args, parse_json, require_login, require_roles
 from mahanaim.services import church as svc
 from mahanaim.utils import (
 	ROLE_ADMIN,
@@ -25,6 +30,7 @@ from mahanaim.utils import (
 	ROLE_AUDITOR,
 	ROLE_CHAPLAIN,
 	ROLE_COMMS,
+	ROLE_DEAN,
 	ROLE_FINANCE,
 	ROLE_REGISTRAR,
 	normalize_phone,
@@ -35,6 +41,7 @@ from mahanaim.utils import (
 CHURCH_ROLES = (ROLE_CHAPLAIN, ROLE_FINANCE)
 READ_ROLES = (*CHURCH_ROLES, ROLE_AUDITOR, ROLE_REGISTRAR)
 CHURCH_EDIT_ROLES = (*CHURCH_ROLES, ROLE_ADMISSIONS, ROLE_COMMS)
+CHAPEL_READ_ROLES = (ROLE_CHAPLAIN, ROLE_REGISTRAR, ROLE_DEAN, ROLE_AUDITOR)
 
 CHURCH_FIELDS = (
 	"church_name",
@@ -89,6 +96,7 @@ GIVING_FIELDS = (
 	"partner_church",
 	"student",
 	"giver_name",
+	"giver_email",
 	"posting_date",
 	"amount",
 	"mode_of_payment",
@@ -99,8 +107,10 @@ GIVING_FIELDS = (
 )
 CHAPEL_FIELDS = (
 	"service_date",
+	"start_time",
 	"service_type",
 	"campus",
+	"venue",
 	"status",
 	"theme",
 	"scripture",
@@ -608,7 +618,7 @@ def list_giving(
 		filters["posting_date"] = [">=", getdate(from_date)]
 	elif to_date:
 		filters["posting_date"] = ["<=", getdate(to_date)]
-	or_filters = _like(search, ("giver_name", "reference_no", "name", "purpose"))
+	or_filters = _like(search, ("giver_name", "giver_email", "reference_no", "name", "purpose"))
 	out = _paged(
 		"Giving Record",
 		[
@@ -616,6 +626,7 @@ def list_giving(
 			"giving_type",
 			"giver_type",
 			"giver_name",
+			"giver_email",
 			"sponsor",
 			"partner_church",
 			"student",
@@ -652,12 +663,16 @@ def list_giving(
 
 @frappe.whitelist(methods=["POST"])
 def record_giving(data, submit=1):
-	"""Create a Giving Record and (by default) submit it — which posts the journal and sends the receipt."""
+	"""Create a Giving Record and (by default) submit it — which posts the journal and sends the receipt.
+
+	`giver_email` (optional) is stored lower-cased so walk-in givers get the emailed receipt.
+	"""
 	require_roles(*CHURCH_ROLES)
 	payload = parse_json(data, {}) or {}
 	if payload.get("name"):
 		frappe.throw(_("Submitted giving records cannot be edited; cancel and record again."))
-	doc = _upsert("Giving Record", payload, GIVING_FIELDS)
+	meta = frappe.get_meta("Giving Record")
+	doc = _upsert("Giving Record", payload, tuple(f for f in GIVING_FIELDS if meta.has_field(f)))
 	doc.posting_date = doc.posting_date or nowdate()
 	doc.insert()
 	if cint(submit):
@@ -682,7 +697,7 @@ def cancel_giving(name: str, reason: str | None = None):
 # ---------------------------------------------------------------------------------- chapel
 @frappe.whitelist()
 def list_chapel_services(status=None, campus=None, from_date=None, to_date=None, start=0, page_length=20):
-	require_roles(*READ_ROLES, "Academic Dean")
+	require_roles(*CHAPEL_READ_ROLES)
 	filters = {k: v for k, v in {"status": status, "campus": campus}.items() if v}
 	if from_date:
 		filters["service_date"] = [">=", getdate(from_date)]
@@ -695,8 +710,10 @@ def list_chapel_services(status=None, campus=None, from_date=None, to_date=None,
 		[
 			"name",
 			"service_date",
+			"start_time",
 			"service_type",
 			"campus",
+			"venue",
 			"status",
 			"theme",
 			"scripture",
@@ -709,7 +726,7 @@ def list_chapel_services(status=None, campus=None, from_date=None, to_date=None,
 			"offering_total",
 		],
 		filters,
-		order_by="service_date desc",
+		order_by="service_date desc, start_time desc",
 		start=start,
 		page_length=page_length,
 	)
@@ -717,7 +734,7 @@ def list_chapel_services(status=None, campus=None, from_date=None, to_date=None,
 
 @frappe.whitelist()
 def get_chapel_service(name: str):
-	require_roles(*READ_ROLES, "Academic Dean")
+	require_roles(*CHAPEL_READ_ROLES)
 	doc = frappe.get_doc("Chapel Service", name)
 	doc.check_permission("read")
 	out = doc.as_dict()
@@ -780,10 +797,20 @@ def record_chapel_attendance(service: str, rows=None, headcounts=None, mark_held
 	}
 
 
+@frappe.whitelist()
+def my_chapel():
+	"""Student portal: upcoming chapel services, the caller's chapel attendance this term and their ministries."""
+	user = require_login()
+	student = frappe.db.get_value("Student", {"user": user}, "name")
+	if not student:
+		frappe.throw(_("No student record is linked to your account."), frappe.PermissionError)
+	return svc.student_chapel(student)
+
+
 # ---------------------------------------------------------------------------------- ministry groups
 @frappe.whitelist()
 def list_ministry_groups(search=None, group_type=None, campus=None, is_active=None, start=0, page_length=50):
-	require_roles(*READ_ROLES, "Academic Dean")
+	require_roles(*CHAPEL_READ_ROLES)
 	filters = {k: v for k, v in {"group_type": group_type, "campus": campus}.items() if v}
 	if is_active not in (None, ""):
 		filters["is_active"] = cint(is_active)
@@ -849,7 +876,7 @@ def list_ministry_groups(search=None, group_type=None, campus=None, is_active=No
 
 @frappe.whitelist()
 def get_ministry_group(name: str):
-	require_roles(*READ_ROLES, "Academic Dean")
+	require_roles(*CHAPEL_READ_ROLES)
 	doc = frappe.get_doc("Ministry Group", name)
 	doc.check_permission("read")
 	return doc.as_dict()
@@ -863,6 +890,33 @@ def save_ministry_group(data):
 	)
 	doc.save()
 	return doc.as_dict()
+
+
+# ---------------------------------------------------------------------------------- public church picklist
+PUBLIC_CHURCH_FIELDS = ("name", "church_name", "denomination", "town", "county")
+PUBLIC_CHURCH_MAX = 50
+
+
+@frappe.whitelist(allow_guest=True, methods=["GET", "POST"])
+@rate_limit(limit=120, seconds=10 * 60)
+def partner_churches(search=None, limit=20):
+	"""Active partner churches for public pick-lists (e.g. the applicant wizard); public fields only."""
+	limit = min(max(cint(limit) or 20, 1), PUBLIC_CHURCH_MAX)
+	search = cstr(search).strip()[:100]
+	or_filters = None
+	if search:
+		like = f"%{search}%"
+		or_filters = [
+			[f, "like", like] for f in ("church_name", "town", "county", "denomination", "church_code")
+		]
+	return frappe.get_all(
+		"Partner Church",
+		filters={"partnership_status": "Active", "is_group": 0},
+		or_filters=or_filters,
+		fields=list(PUBLIC_CHURCH_FIELDS),
+		order_by="church_name asc",
+		limit=limit,
+	)
 
 
 # ---------------------------------------------------------------------------------- public online giving
@@ -893,7 +947,7 @@ def _paybill() -> dict | None:
 	}
 
 
-@frappe.whitelist(allow_guest=True, methods=["GET"])
+@frappe.whitelist(allow_guest=True, methods=["GET", "POST"])
 def giving_options():
 	"""Giving types offered online (+ quick amounts), PayBill details and currency for the public /give page."""
 	return {
@@ -977,7 +1031,7 @@ GIVING_STATUS_MESSAGES = {
 }
 
 
-@frappe.whitelist(allow_guest=True, methods=["GET"])
+@frappe.whitelist(allow_guest=True, methods=["GET", "POST"])
 @rate_limit(limit=120, seconds=10 * 60)
 def giving_status(request, checkout_request_id=None):
 	"""Guest-safe poll for a gift started with `give`: `{status, done, receipt, message}`.

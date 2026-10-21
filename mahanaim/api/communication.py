@@ -9,11 +9,13 @@ from __future__ import annotations
 import frappe
 from frappe import _
 from frappe.utils import cint, cstr, get_datetime, getdate, now_datetime, strip_html
+from frappe.utils.html_utils import sanitize_html
 
 from mahanaim.api.utils import clean_payload, page_args, parse_json, require_login, require_roles
 from mahanaim.services import messaging
 from mahanaim.services.communication import _context, _render, announcement_recipients, send_sms
 from mahanaim.utils import (
+	ROLE_ADMIN,
 	ROLE_ADMISSIONS,
 	ROLE_COMMS,
 	ROLE_DEAN,
@@ -21,6 +23,7 @@ from mahanaim.utils import (
 	ROLE_LECTURER,
 	ROLE_REGISTRAR,
 	normalize_phone,
+	user_roles,
 )
 
 ANNOUNCE_ROLES = (*messaging.ANNOUNCER_ROLES, ROLE_LECTURER)
@@ -123,10 +126,16 @@ def mark_read(names=None, all=0):
 
 @frappe.whitelist()
 def my_announcements(limit=20, start=0):
+	"""Announcements visible to the caller; `total` counts every visible one (for pagination)."""
 	user = require_login()
 	pa = page_args(start, limit or 20, max_length=100)
-	rows = messaging.visible_announcements(user, limit=pa["page_length"], start=pa["start"])
-	return {"data": rows, "total": len(rows)}
+	ctx = messaging.audience_context(user)
+	rows = messaging.visible_announcements(user, limit=pa["page_length"], start=pa["start"], ctx=ctx)
+	if pa["start"] == 0 and len(rows) < pa["page_length"]:
+		total = len(rows)
+	else:
+		total = messaging.count_visible_announcements(user, ctx=ctx)
+	return {"data": rows, "total": total}
 
 
 # ============================================================================ announcements (staff)
@@ -516,10 +525,53 @@ def send_test_sms(phone, message=None):
 	return {"ok": True, "log": log[0] if log else None}
 
 
+def _direct_lecturer_only(user: str) -> bool:
+	"""A Lecturer without a direct-messaging role: limited to students in the classes they teach."""
+	if user == "Administrator":
+		return False
+	roles = user_roles(user)
+	return ROLE_LECTURER in roles and not roles & {"System Manager", ROLE_ADMIN, *DIRECT_ROLES}
+
+
+def _spec_label(spec) -> str:
+	if isinstance(spec, dict):
+		for key in ("student", "user", "email", "phone", "staff_member", "sponsor"):
+			if spec.get(key):
+				return cstr(spec[key])
+	return cstr(spec)[:60]
+
+
+def _lecturer_recipients(user: str, specs: list, offering: str | None) -> list[str]:
+	"""Students a lecturer-only user may message; rejects anyone outside the classes they teach."""
+	if offering and not messaging.teaches(user, offering):
+		frappe.throw(_("You do not teach {0}.").format(offering), frappe.PermissionError)
+	from mahanaim.permissions import taught_offerings
+
+	allowed = set(messaging.class_students(taught_offerings(user)))
+	students = messaging.students_for_specs(specs)
+	outside = [_spec_label(spec) for spec, s in zip(specs, students, strict=True) if s not in allowed]
+	if outside:
+		shown = ", ".join(outside[:10]) + ("…" if len(outside) > 10 else "")
+		frappe.throw(
+			_("You can only message students enrolled in the classes you teach. Not allowed: {0}").format(
+				shown
+			),
+			frappe.PermissionError,
+		)
+	return students
+
+
 @frappe.whitelist(methods=["POST"])
-def send_direct_message(recipients, subject, message, channels=None):
-	"""recipients: [{user|student|staff_member|sponsor|email|phone}], channels ⊆ Email/SMS/In-App."""
-	user = require_roles(*DIRECT_ROLES)
+def send_direct_message(recipients=None, subject=None, message=None, channels=None, offering=None):
+	"""recipients: [{user|student|staff_member|sponsor|email|phone}], channels ⊆ Email/SMS/In-App.
+
+	`offering` adds every student actively enrolled in that Course Offering. Lecturers without a messaging role may
+	only reach students enrolled in offerings they teach (individually or via `offering`), at most
+	`messaging.LECTURER_DIRECT_PER_HOUR` sends per hour."""
+	user = require_login()
+	lecturer_only = _direct_lecturer_only(user)
+	if not lecturer_only:
+		require_roles(*DIRECT_ROLES)
 	specs = parse_json(recipients, []) or []
 	if not isinstance(specs, list):
 		specs = [specs]
@@ -538,19 +590,40 @@ def send_direct_message(recipients, subject, message, channels=None):
 				messaging.DIRECT_MAX_RECIPIENTS
 			)
 		)
+	offering = cstr(offering).strip() or None
+	if offering and not frappe.db.exists("Course Offering", offering):
+		frappe.throw(_("Course offering {0} was not found.").format(offering), frappe.DoesNotExistError)
 	resolved, skipped, seen = [], [], set()
-	for spec in specs:
-		r = messaging.resolve_recipient(spec)
+
+	def add(r, spec=None):
 		key = r and (r.get("user") or r.get("email") or r.get("phone"))
 		if not key:
 			skipped.append(spec)
-			continue
-		if key in seen:
-			continue
-		seen.add(key)
-		resolved.append(r)
+		elif key not in seen:
+			seen.add(key)
+			resolved.append(r)
+
+	if lecturer_only:
+		students = _lecturer_recipients(user, specs, offering)
+		message = sanitize_html(cstr(message))
+	else:
+		students = []
+		for spec in specs:
+			add(messaging.resolve_recipient(spec), spec)
+	if offering:
+		students = [*students, *messaging.class_students([offering])]
+	for r in messaging.resolve_students(students):
+		add(r, {"student": r["student"]})
 	if not resolved:
 		frappe.throw(_("None of the recipients could be reached."))
+	if len(resolved) > messaging.DIRECT_MAX_RECIPIENTS:
+		frappe.throw(
+			_("Send to at most {0} recipients at a time, or use an announcement.").format(
+				messaging.DIRECT_MAX_RECIPIENTS
+			)
+		)
+	if lecturer_only:
+		messaging.check_lecturer_direct_quota(user)
 	if len(resolved) > messaging.DIRECT_SYNC_LIMIT and not frappe.flags.in_test:
 		frappe.enqueue(
 			"mahanaim.services.messaging.deliver_direct_job",

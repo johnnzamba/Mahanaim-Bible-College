@@ -33,11 +33,11 @@
    "label": "Is Active"
   },
   {
+   "default": "1",
+   "description": "Offer this giving type on the public /give page (M-Pesa).",
    "fieldname": "allow_online",
    "fieldtype": "Check",
-   "label": "Show on Online Giving Page",
-   "default": "1",
-   "description": "Offer this giving type on the public /give page (M-Pesa)."
+   "label": "Show on Online Giving Page"
   },
   {
    "fieldname": "column_break_0_1",
@@ -50,10 +50,10 @@
    "label": "Income Account"
   },
   {
+   "description": "Comma-separated quick amounts for the online giving page, e.g. 500, 1000, 2500, 5000",
    "fieldname": "suggested_amounts",
    "fieldtype": "Data",
-   "label": "Suggested Amounts",
-   "description": "Comma-separated quick amounts for the online giving page, e.g. 500, 1000, 2500, 5000"
+   "label": "Suggested Amounts"
   },
   {
    "fieldname": "section_section_1",
@@ -67,7 +67,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-10-21 23:40:00.000000",
+ "modified": "2026-10-21 23:50:00.000000",
  "modified_by": "Administrator",
  "module": "Church Partners",
  "name": "Giving Type",
@@ -133,6 +133,15 @@
    "read": 1,
    "report": 1,
    "role": "Auditor",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Registrar",
    "share": 1
   }
  ],

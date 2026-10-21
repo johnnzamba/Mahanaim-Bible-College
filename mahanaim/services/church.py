@@ -215,6 +215,59 @@ def student_balances(students: list[str]) -> dict[str, float]:
 		}
 
 
+def student_fee_totals(students: list[str]) -> dict[str, dict]:
+	"""Fee totals per student in one grouped ledger query: {student: {invoiced, paid, adjustments, balance, currency}}.
+
+	`invoiced` = invoice debits; `paid` = payment credits less refunds paid out; `balance` matches `student_balances`
+	(the ledger balance, negative when in credit); `adjustments` (waivers, penalties, journals; positive reduces the
+	balance) makes `invoiced - paid - adjustments == balance`."""
+	from frappe.query_builder.functions import Coalesce, Sum
+
+	students = [s for s in set(students or []) if s]
+	if not students:
+		return {}
+	sums = defaultdict(lambda: {"invoiced": 0.0, "paid": 0.0})
+	try:
+		sle = frappe.qb.DocType("Student Ledger Entry")
+		rows = (
+			frappe.qb.from_(sle)
+			.select(
+				sle.student,
+				sle.voucher_type,
+				Coalesce(Sum(sle.debit), 0).as_("debit"),
+				Coalesce(Sum(sle.credit), 0).as_("credit"),
+			)
+			.where(sle.student.isin(students) & (sle.is_cancelled == 0))
+			.groupby(sle.student, sle.voucher_type)
+			.run(as_dict=True)
+		)
+	except Exception:
+		frappe.log_error(title="Sponsor portal: fee totals lookup failed")
+		rows = []
+	for r in rows:
+		t = sums[r.student]
+		if r.voucher_type == "Student Invoice":
+			t["invoiced"] += flt(r.debit) - flt(r.credit)
+		elif r.voucher_type == "Student Payment":
+			t["paid"] += flt(r.credit) - flt(r.debit)
+		elif r.voucher_type == "Refund Request":
+			t["paid"] -= flt(r.debit) - flt(r.credit)
+	balances = student_balances(students)
+	currency = setting("currency", "KES") or "KES"
+	out = {}
+	for st in students:
+		invoiced, paid = flt(sums[st]["invoiced"], 2), flt(sums[st]["paid"], 2)
+		balance = flt(balances.get(st), 2)
+		out[st] = {
+			"invoiced": invoiced,
+			"paid": paid,
+			"adjustments": flt(invoiced - paid - balance, 2),
+			"balance": balance,
+			"currency": currency,
+		}
+	return out
+
+
 def attendance_by_student(students: list[str], academic_term: str | None = None) -> dict[str, dict]:
 	"""Class attendance per student in one grouped query: {student: {present, late, absent, excused, total, pct}}."""
 	from frappe.query_builder.functions import Count
@@ -617,6 +670,235 @@ def giving_request_state(request: str) -> dict | None:
 		"receipt": req.mpesa_receipt_number if req.status == "Completed" else None,
 		"giving_record": record,
 	}
+
+
+# ---------------------------------------------------------------------------------- student chapel
+CHAPEL_UPCOMING_DAYS = 14
+CHAPEL_FALLBACK_DAYS = 120  # attendance window when no academic term is current
+CHAPEL_REQUIRED_FIELD = "chapel_attendance_percent"  # optional Percent field on Mahanaim Settings
+
+
+def chapel_required_percent() -> float | None:
+	"""Minimum chapel attendance from settings, when the college has configured one."""
+	if not frappe.get_meta("Mahanaim Settings").has_field(CHAPEL_REQUIRED_FIELD):
+		return None
+	value = setting(CHAPEL_REQUIRED_FIELD)
+	return flt(value) if value not in (None, "") and flt(value) > 0 else None
+
+
+def _service_card(r) -> dict:
+	label = _(r.service_type) if r.service_type else _("Chapel")
+	return {
+		"name": r.name,
+		"title": r.theme or label,
+		"theme": r.theme,
+		"service_type": r.service_type,
+		"date": r.service_date,
+		"start_time": r.start_time,
+		"venue": r.venue or r.campus,
+		"campus": r.campus,
+		"speaker": r.preacher,
+		"scripture": r.scripture,
+		"status": r.status,
+	}
+
+
+def _campus_filter(campus: str | None) -> list | None:
+	return [["campus", "=", campus], ["campus", "is", "not set"]] if campus else None
+
+
+def student_chapel(student: str) -> dict:
+	"""Chapel overview for one student: upcoming services, this term's roll-call record and ministries."""
+	from mahanaim.utils import current_term
+
+	s = frappe.db.get_value(
+		"Student", student, ["name", "full_name", "campus", "programme"], as_dict=True
+	) or frappe._dict(name=student)
+	today = getdate(nowdate())
+	fields = [
+		"name",
+		"service_date",
+		"start_time",
+		"service_type",
+		"theme",
+		"scripture",
+		"preacher",
+		"venue",
+		"campus",
+		"status",
+	]
+	upcoming = frappe.get_all(
+		"Chapel Service",
+		filters={
+			"status": "Scheduled",
+			"service_date": ["between", [today, add_days(today, CHAPEL_UPCOMING_DAYS)]],
+		},
+		or_filters=_campus_filter(s.campus),
+		fields=fields,
+		order_by="service_date asc, start_time asc",
+		limit_page_length=50,
+	)
+
+	term_name = current_term()
+	term = (
+		frappe.db.get_value(
+			"Academic Term", term_name, ["name", "term_name", "start_date", "end_date"], as_dict=True
+		)
+		if term_name
+		else None
+	)
+	start = getdate(term.start_date) if term and term.start_date else add_days(today, -CHAPEL_FALLBACK_DAYS)
+	end = min(getdate(term.end_date), today) if term and term.end_date else today
+	held = (
+		frappe.get_all(
+			"Chapel Service",
+			filters={"status": "Held", "service_date": ["between", [start, end]]},
+			fields=fields,
+			order_by="service_date desc, start_time desc",
+		)
+		if start <= end
+		else []
+	)
+	names = [r.name for r in held]
+	mine, rolls = {}, set()
+	if names:
+		mine = {
+			r.parent: r.status
+			for r in frappe.get_all(
+				"Chapel Attendance",
+				filters={"parenttype": "Chapel Service", "parent": ["in", names], "student": s.name},
+				fields=["parent", "status"],
+			)
+		}
+		rolls = set(
+			frappe.get_all(
+				"Chapel Attendance",
+				filters={"parenttype": "Chapel Service", "parent": ["in", names]},
+				pluck="parent",
+				distinct=True,
+			)
+		)
+	records, counts = [], {"Present": 0, "Absent": 0, "Excused": 0}
+	for r in held:
+		# Only services with a roll call count; a service at another campus counts when the student is on its roll.
+		if r.name not in mine and (r.name not in rolls or (s.campus and r.campus and r.campus != s.campus)):
+			continue
+		status = mine.get(r.name) or "Absent"
+		counts[status] = counts.get(status, 0) + 1
+		records.append({**_service_card(r), "attendance": status})
+	counted = len(records) - counts["Excused"]
+	percent = round(counts["Present"] * 100.0 / counted, 1) if counted > 0 else None
+	required = chapel_required_percent()
+
+	ministries = frappe.get_all(
+		"Ministry Group Member",
+		filters={"parenttype": "Ministry Group", "student": s.name},
+		fields=["parent", "role", "joined_on"],
+		order_by="joined_on desc",
+	)
+	groups = (
+		{
+			g.name: g
+			for g in frappe.get_all(
+				"Ministry Group",
+				filters={"name": ["in", [m.parent for m in ministries]]},
+				fields=[
+					"name",
+					"group_name",
+					"group_type",
+					"campus",
+					"is_active",
+					"meeting_day",
+					"meeting_time",
+					"patron",
+				],
+			)
+		}
+		if ministries
+		else {}
+	)
+	patrons = {g.patron for g in groups.values() if g.patron}
+	patron_names = (
+		dict(
+			frappe.get_all(
+				"Staff Member",
+				filters={"name": ["in", list(patrons)]},
+				fields=["name", "full_name"],
+				as_list=True,
+			)
+		)
+		if patrons
+		else {}
+	)
+	return {
+		"student": {"name": s.name, "full_name": s.full_name, "campus": s.campus},
+		"term": {
+			"name": term.name,
+			"term_name": term.term_name,
+			"start_date": term.start_date,
+			"end_date": term.end_date,
+		}
+		if term
+		else None,
+		"upcoming": [_service_card(r) for r in upcoming],
+		"attendance": {
+			"from_date": start,
+			"to_date": end,
+			"records": records,
+			"attended": counts["Present"],
+			"excused": counts["Excused"],
+			"absent": counts["Absent"],
+			"held": len(records),
+			"percent": percent,
+		},
+		"required_percent": required,
+		"meets_requirement": (percent >= required) if required is not None and percent is not None else None,
+		"ministries": [
+			{
+				"group": m.parent,
+				"group_name": groups[m.parent].group_name,
+				"group_type": groups[m.parent].group_type,
+				"role": m.role or "Member",
+				"joined_on": m.joined_on,
+				"campus": groups[m.parent].campus,
+				"meeting_day": groups[m.parent].meeting_day,
+				"meeting_time": groups[m.parent].meeting_time,
+				"patron_name": patron_names.get(groups[m.parent].patron),
+			}
+			for m in ministries
+			if m.parent in groups and groups[m.parent].is_active
+		],
+		"practicum": _practicum(s),
+	}
+
+
+def _practicum(s) -> list[dict]:
+	"""Practicum courses (Programme curriculum type "Practicum") the student is or was enrolled in."""
+	if not s.get("programme"):
+		return []
+	titles = dict(
+		frappe.get_all(
+			"Programme Course",
+			filters={"parenttype": "Programme", "parent": s.programme, "course_type": "Practicum"},
+			fields=["course", "course_title"],
+			as_list=True,
+		)
+	)
+	if not titles:
+		return []
+	return [
+		{**r, "course_title": titles.get(r.course)}
+		for r in frappe.get_all(
+			"Course Enrolment",
+			filters={
+				"student": s.name,
+				"course": ["in", list(titles)],
+				"status": ["not in", ["Dropped", "Withdrawn"]],
+			},
+			fields=["course_offering", "course", "academic_term", "status", "final_grade"],
+			order_by="creation desc",
+		)
+	]
 
 
 # ---------------------------------------------------------------------------------- dashboard

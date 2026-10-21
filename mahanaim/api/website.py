@@ -212,6 +212,17 @@ def _site_settings():
 		else None,
 		"meta_description": ws.meta_description or ws.about_summary,
 		"cta": {"label": ws.hero_cta_label or _("Apply now"), "to": ws.hero_cta_link or "/apply"},
+		"payments": web.public_payment_details(),
+		"admissions": _admissions_block(ws),
+	}
+
+
+def _admissions_block(ws) -> dict:
+	"""Admissions intro, steps and open intakes (shared by `home` and `site_settings`)."""
+	return {
+		"intro": web.excerpt(ws.admissions_intro, 300),
+		"steps": web.split_lines(ws.admissions_steps),
+		"intakes": _open_intakes(),
 	}
 
 
@@ -262,11 +273,7 @@ def _home():
 			"photo": ws.principal_photo,
 			"excerpt": web.excerpt(ws.principal_message, 320),
 		},
-		"admissions": {
-			"intro": web.excerpt(ws.admissions_intro, 300),
-			"steps": web.split_lines(ws.admissions_steps),
-			"intakes": _open_intakes(),
-		},
+		"admissions": _admissions_block(ws),
 	}
 
 
@@ -744,6 +751,33 @@ def pay_event_fee(registration, email=None, phone=None):
 	return _start_event_payment(doc, normalize_phone(phone) or reg.phone)
 
 
+@frappe.whitelist(allow_guest=True, methods=["GET", "POST"])
+@rate_limit(limit=120, seconds=10 * 60)
+def event_payment_status(registration, email=None):
+	"""Guest-safe poll for an event-fee M-Pesa payment: `{status, done, receipt, message}`.
+
+	The email must match the registration (or the caller is the signed-in registrant); anything else gets the same
+	"not found" error so registrations cannot be enumerated."""
+	reg = (
+		frappe.db.get_value(
+			"Event Registration",
+			cstr(registration).strip(),
+			["name", "email", "user", "payment_status", "payment_reference", "mpesa_request"],
+			as_dict=True,
+		)
+		if cstr(registration).strip()
+		else None
+	)
+	email = cstr(email).strip().lower()
+	session_user = frappe.session.user
+	if not reg or not (
+		(email and reg.email and email == reg.email.strip().lower())
+		or (reg.user and session_user != "Guest" and reg.user == session_user)
+	):
+		frappe.throw(_("Registration not found."), frappe.DoesNotExistError)
+	return web.event_payment_state(reg)
+
+
 @frappe.whitelist(allow_guest=True)
 def faqs(category=None):
 	rows = web.cached(
@@ -1187,6 +1221,20 @@ def save_event(data):
 	require_roles(*EVENT_ROLES)
 	doc = _upsert("Campus Event", data, EVENT_FIELDS)
 	return get_event(doc.name)
+
+
+@frappe.whitelist(methods=["POST"])
+def delete_event(name):
+	"""Delete an event nobody has registered for; events with registrations must be cancelled instead."""
+	require_roles(*EVENT_ROLES)
+	frappe.get_doc("Campus Event", name).check_permission("delete")
+	count = frappe.db.count("Event Registration", {"campus_event": name})
+	if count:
+		frappe.throw(
+			_("This event has {0} registration(s). Cancel the event instead of deleting it.").format(count),
+			title=_("Event has registrations"),
+		)
+	return _delete("Campus Event", name)
 
 
 @frappe.whitelist()

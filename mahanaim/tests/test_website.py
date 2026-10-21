@@ -7,6 +7,7 @@ from frappe.utils import add_to_date, now_datetime
 
 from mahanaim.api import website
 from mahanaim.services import website as web
+from mahanaim.tests import factories as f
 from mahanaim.tests import factories_b4 as fb
 
 
@@ -166,3 +167,80 @@ class TestWebsite(IntegrationTestCase):
 		)
 		web.update_event_statuses()
 		self.assertEqual(frappe.db.get_value("Campus Event", ev.name, "status"), "Ongoing")
+
+	def test_event_payment_status(self):
+		from mahanaim.tests.test_church import fake_initiate
+
+		ev = fb.make_event("Pay Status Night _T", fee=300)
+		with patch("mahanaim.services.mpesa.initiate_payment", side_effect=fake_initiate):
+			res = website.register_for_event(
+				ev.route, full_name="Lydia Wanjiru", email="lydia.pay@example.com", phone="0712345678"
+			)
+		reg, request = res["reference"], res["payment"]["request"]
+		frappe.set_user("Guest")
+		for bad in ((reg, "someone@example.com"), (reg, None), ("EVR-NOPE-0001", "lydia.pay@example.com")):
+			with self.assertRaisesRegex(frappe.DoesNotExistError, "Registration not found"):
+				website.event_payment_status(*bad)
+		state = website.event_payment_status(reg, " Lydia.Pay@Example.com ")
+		self.assertEqual(state["status"], "Pending")
+		self.assertEqual((state["done"], state["receipt"]), (False, None))
+		self.assertEqual(set(state), {"status", "done", "receipt", "message"})
+		frappe.db.set_value(
+			"M-Pesa Request", request, {"status": "Completed", "mpesa_receipt_number": "TST123"}
+		)
+		self.assertEqual(website.event_payment_status(reg, "lydia.pay@example.com")["status"], "Received")
+		frappe.set_user("Administrator")
+		web.mark_event_registration_paid(request=request, reference="TST123")
+		frappe.set_user("Guest")
+		state = website.event_payment_status(reg, "lydia.pay@example.com")
+		self.assertEqual((state["status"], state["done"], state["receipt"]), ("Completed", True, "TST123"))
+
+	def test_site_settings_payments_and_admissions(self):
+		secrets = {"consumer_key": "ck-secret-T", "consumer_secret": "cs-secret-T", "passkey": "pk-secret-T"}
+		mpesa = frappe.get_doc(
+			{
+				"doctype": "M-Pesa Settings",
+				"enabled": 1,
+				"transaction_type": "CustomerPayBillOnline",
+				"business_shortcode": "600977",
+				**secrets,
+			}
+		)
+		real = frappe.get_cached_doc
+
+		def cached_doc(doctype, *args, **kwargs):
+			return mpesa if doctype == "M-Pesa Settings" else real(doctype, *args, **kwargs)
+
+		web.clear_website_cache()
+		self.addCleanup(web.clear_website_cache)
+		frappe.set_user("Guest")
+		with patch("frappe.get_cached_doc", side_effect=cached_doc):
+			data = website.site_settings()
+		self.assertEqual(data["payments"]["paybill"], "600977")
+		self.assertIsNone(data["payments"]["till"])
+		self.assertTrue(data["payments"]["account_hint"])
+		dumped = frappe.as_json(data)
+		for value in secrets.values():
+			self.assertNotIn(value, dumped)
+		self.assertEqual(set(data["admissions"]), {"intro", "steps", "intakes"})
+		self.assertEqual(data["admissions"], frappe._dict(website.home())["admissions"])
+
+	def test_delete_event_blocked_by_registrations(self):
+		unused = fb.make_event("Unused Retreat _T")
+		booked = fb.make_event("Booked Retreat _T")
+		frappe.set_user("Guest")
+		reg = website.register_for_event(
+			booked.route, full_name="Mary Wanjiru", email="mary.delete@example.com"
+		)
+		frappe.set_user("Administrator")
+		# Even a cancelled registration keeps the event (and its history) from being deleted.
+		frappe.db.set_value("Event Registration", reg["reference"], "status", "Cancelled")
+		frappe.set_user(f.make_user("website.comms.b4@example.com", roles=("Communications Officer",)).name)
+		with self.assertRaises(frappe.ValidationError):
+			website.delete_event(booked.name)
+		self.assertTrue(frappe.db.exists("Campus Event", booked.name))
+		self.assertEqual(website.delete_event(unused.name), {"ok": True, "name": unused.name})
+		self.assertFalse(frappe.db.exists("Campus Event", unused.name))
+		frappe.set_user(f.make_user("website.student.b4@example.com", roles=("Student",)).name)
+		with self.assertRaises(frappe.PermissionError):
+			website.delete_event(booked.name)

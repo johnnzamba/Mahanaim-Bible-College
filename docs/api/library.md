@@ -18,6 +18,9 @@ Covers SOW 7.2 M17: catalogue, digital access, loans and the library desk.
 - **borrower**: signed in and linked to an active Student or Staff Member.
 - **Library Officer** endpoints for one loan (`return_loan`, `renew_loan`, `mark_lost`, `record_fine_payment`,
   `reject_loan_request`) require the Library Officer role (admins pass).
+- The read endpoints (`library_dashboard`, `list_loans`, `get_loan`, `list_items`, `get_item`) admit Library Officer,
+  Registrar, Auditor and Finance Officer. Each of these roles holds a read DocPerm on Library Item and Library Loan, so
+  none of them gets a 403 from the doctype layer.
 
 **Access levels**: guests see `Public` items, students and alumni see `Public` + `Students`, staff see everything.
 Hidden items return 404.
@@ -302,6 +305,15 @@ Args: `include_history` (default `1`).
 
 Reserve a physical copy: creates a Library Loan with status "Requested" for the librarian to issue.
 
+A member can hold only one open request or loan per item. The call raises `DuplicateEntryError` (HTTP 409) when the
+borrower already has, for the same item:
+- a pending request: "You already have a pending request for …";
+- an Issued or Overdue copy: "You already have … on loan (due …)";
+- a Lost copy whose replacement fee is unpaid: "… is recorded as lost on your account …".
+
+Concurrent requests from the same member are serialised with a row lock, so double-clicks cannot create two requests.
+Once the copy is returned or the request is cancelled or rejected, a new request is allowed.
+
 Args: `item` (required), `remarks` (default `None`).
 
 Example args: `{"item": "LIB-000009"}`
@@ -510,6 +522,62 @@ Example args: `{"page_length": 2}`
       }
     ],
     "total": 8
+  }
+}
+```
+
+### `get_loan`
+- **Path:** `mahanaim.api.library.get_loan`
+- **Method:** GET
+- **Guard:** roles: Library Officer, Registrar, Auditor, Finance Officer
+
+One loan for the desk drawer. It returns the `list_loans` row fields plus `issued_by`, `creation`, `modified` and
+`days_overdue`. `fine_amount` is the live fine for unpaid Issued/Overdue loans. `item` is a catalogue summary, and
+`borrower` holds the borrower's contact details and their count of active (Issued/Overdue) loans.
+
+Args: `name` (required).
+
+Example args: `{"name": "LN-2026-000007"}`
+
+```json
+{
+  "message": {
+    "name": "LN-2026-000007",
+    "library_item": "LIB-000030",
+    "item_title": "Spiritual Leadership",
+    "borrower_type": "Student",
+    "student": "STU-2026-00023",
+    "staff_member": null,
+    "borrower_name": "Ann Wairimu",
+    "issue_date": "2026-10-02",
+    "due_date": "2026-10-16",
+    "return_date": null,
+    "status": "Overdue",
+    "fine_amount": 60.0,
+    "fine_paid": 0,
+    "remarks": null,
+    "issued_by": "Administrator",
+    "creation": "2026-10-22 00:01:08.590725",
+    "modified": "2026-10-22 00:01:08.601896",
+    "days_overdue": 5,
+    "item": {
+      "name": "LIB-000030",
+      "title": "Spiritual Leadership",
+      "item_type": "Book",
+      "authors": "J. Oswald Sanders",
+      "call_number": "LEA 719.89",
+      "location": "Shelf D8",
+      "total_copies": 4,
+      "available_copies": 3
+    },
+    "borrower": {
+      "type": "Student",
+      "id": "STU-2026-00023",
+      "name": "Ann Wairimu",
+      "email": "ann.wairimu@students.mahanaim.demo",
+      "phone": "254726623594",
+      "active_loans": 1
+    }
   }
 }
 ```

@@ -172,7 +172,7 @@
  "index_web_pages_for_search": 0,
  "is_submittable": 1,
  "links": [],
- "modified": "2026-10-21 23:40:00.000000",
+ "modified": "2026-10-21 23:50:00.000000",
  "modified_by": "Administrator",
  "module": "Church Partners",
  "name": "Giving Record",
@@ -250,6 +250,15 @@
    "read": 1,
    "report": 1,
    "role": "Auditor",
+   "share": 1
+  },
+  {
+   "email": 1,
+   "export": 1,
+   "print": 1,
+   "read": 1,
+   "report": 1,
+   "role": "Registrar",
    "share": 1
   }
  ],

@@ -1,6 +1,6 @@
 import frappe
 from frappe.tests import IntegrationTestCase
-from frappe.utils import add_days, now_datetime, nowdate, random_string
+from frappe.utils import add_days, add_to_date, now_datetime, nowdate, random_string
 
 from mahanaim.api import dashboard
 from mahanaim.services import dashboard as svc
@@ -48,6 +48,14 @@ class TestDashboard(IntegrationTestCase):
 		payment.flags.mute_notification = True
 		payment.insert(ignore_permissions=True)
 		payment.submit()
+		# Shared dev data can carry clock-skewed timestamps; make this payment the newest regardless.
+		frappe.db.set_value(
+			"Student Payment",
+			payment.name,
+			"creation",
+			add_to_date(now_datetime(), days=30),
+			update_modified=False,
+		)
 		feed = svc.activity_feed(["finance"], limit=50)
 		row = next(r for r in feed if r["name"] == payment.name)
 		self.assertIn("1,500", row["title"])

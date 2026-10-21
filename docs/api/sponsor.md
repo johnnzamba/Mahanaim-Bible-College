@@ -103,6 +103,16 @@ Example args: `{"data": {"phone": "0722000111", "preferred_communication": "SMS"
 
 Args: `sponsor` (default `None`).
 
+Each row has a `fees` block, so the dashboard needs no `student_progress` call per student. All rows are computed in
+one grouped ledger query (no N+1). The values come from the Student Ledger (non-cancelled entries):
+- `invoiced`: invoice debits.
+- `paid`: payment credits less refunds paid out.
+- `adjustments`: waivers, scholarships, penalties and journals, net; positive reduces the balance.
+- `balance`: the ledger balance, the same value as `fee_balance`; negative means the student is in credit.
+
+`invoiced - paid - adjustments == balance`. The response-level `totals` sums them over the sponsor's students (an empty
+list gives zeros).
+
 ```json
 {
   "message": {
@@ -122,6 +132,7 @@ Args: `sponsor` (default `None`).
         "academic_standing": "Dean's List",
         "attendance_pct": 100.0,
         "fee_balance": 18500.0,
+        "fees": {"invoiced": 98000.0, "paid": 79500.0, "adjustments": 0.0, "balance": 18500.0, "currency": "KES"},
         "sponsorship": {
           "name": "SPS-2026-00003",
           "status": "Active",
@@ -148,6 +159,7 @@ Args: `sponsor` (default `None`).
         "academic_standing": "Good Standing",
         "attendance_pct": 100.0,
         "fee_balance": 0.0,
+        "fees": {"invoiced": 49000.0, "paid": 49000.0, "adjustments": 0.0, "balance": 0.0, "currency": "KES"},
         "sponsorship": {
           "name": "SPS-2026-00004",
           "status": "Active",
@@ -160,7 +172,8 @@ Args: `sponsor` (default `None`).
         }
       }
     ],
-    "total": 3
+    "total": 3,
+    "totals": {"invoiced": 196000.0, "paid": 177500.0, "adjustments": 0.0, "balance": 18500.0, "currency": "KES"}
   }
 }
 ```
@@ -170,9 +183,13 @@ Args: `sponsor` (default `None`).
 - **Method:** GET
 - **Guard:** sponsor
 
-Args: `student` (required), `sponsor` (default `None`).
+Args: `student` (required), `sponsor` (default `None`), `invoice_limit` (default `6`, clamped to 1–100).
 
-Example args: `{"student": "STU-2026-00017"}`
+`fees.invoices` lists the newest `invoice_limit` submitted invoices; `fees.invoice_total_count` is the number of all of
+them, so the UI can offer "show all". `fees` also carries the same `invoiced`, `paid`, `adjustments`, `balance` and
+`currency` totals as a `my_students` row.
+
+Example args: `{"student": "STU-2026-00017", "invoice_limit": 2}`
 
 ```json
 {
@@ -220,7 +237,12 @@ Example args: `{"student": "STU-2026-00017"}`
       "term": "2026-2027 Term 1"
     },
     "fees": {
+      "invoiced": 98000.0,
+      "paid": 79500.0,
+      "adjustments": 0.0,
       "balance": 18500.0,
+      "currency": "KES",
+      "invoice_total_count": 2,
       "invoices": [
         {
           "name": "INV-2026-00011",
@@ -333,6 +355,8 @@ Example args: `{"amount": 2500, "giving_type": "Scholarship Fund", "phone": "071
 
 Printable summary: institution header, sponsor profile, each student's progress, and contributions.
 
+Each `students` row is a `my_students` row, including its `fees` block.
+
 Args: `sponsor` (default `None`).
 
 ```json
@@ -382,6 +406,7 @@ Args: `sponsor` (default `None`).
         "academic_standing": "Dean's List",
         "attendance_pct": 100.0,
         "fee_balance": 18500.0,
+        "fees": {"invoiced": 98000.0, "paid": 79500.0, "adjustments": 0.0, "balance": 18500.0, "currency": "KES"},
         "sponsorship": {
           "name": "SPS-2026-00003",
           "status": "Active",
@@ -408,6 +433,7 @@ Args: `sponsor` (default `None`).
         "academic_standing": "Good Standing",
         "attendance_pct": 100.0,
         "fee_balance": 0.0,
+        "fees": {"invoiced": 49000.0, "paid": 49000.0, "adjustments": 0.0, "balance": 0.0, "currency": "KES"},
         "sponsorship": {
           "name": "SPS-2026-00004",
           "status": "Active",

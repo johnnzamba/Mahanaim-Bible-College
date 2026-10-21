@@ -88,6 +88,35 @@ class TestLibrary(IntegrationTestCase):
 		self.assertEqual((issued["status"], str(issued["issue_date"])), ("Issued", nowdate()))
 		self.assertEqual(self.copies(item), (1, 0))
 
+	def test_request_loan_rejects_open_request_or_unreturned_copy(self):
+		item = fb.make_library_item("Pastoral Epistles _T", copies=3).name
+		user = self.student2.user
+
+		def request():
+			frappe.set_user(user)
+			try:
+				return library.request_loan(item)
+			finally:
+				frappe.set_user("Administrator")
+
+		first = request()
+		with self.assertRaisesRegex(frappe.DuplicateEntryError, "pending request"):
+			request()
+		library.issue_loan(loan=first["name"])
+		with self.assertRaisesRegex(frappe.DuplicateEntryError, "on loan"):
+			request()
+		library.mark_lost(first["name"], replacement_fee=1500)
+		with self.assertRaisesRegex(frappe.DuplicateEntryError, "lost"):
+			request()
+		library.record_fine_payment(first["name"])
+		self.assertEqual(request()["status"], "Requested")
+		self.assertEqual(
+			frappe.db.count(
+				"Library Loan", {"library_item": item, "student": self.student2.name, "status": "Requested"}
+			),
+			1,
+		)
+
 	def test_catalogue_access_levels(self):
 		public = fb.make_library_item("Public Devotional _T", access_level="Public").name
 		students = fb.make_library_item("Students Commentary _T", access_level="Students").name
@@ -121,3 +150,21 @@ class TestLibrary(IntegrationTestCase):
 		res = library.access_digital(ebook)
 		self.assertEqual(res["url"], "https://example.org/atlas.pdf")
 		self.assertEqual(frappe.db.get_value("Library Item", ebook, "downloads"), 1)
+
+	def test_get_loan_detail(self):
+		item = fb.make_library_item("Loan Detail Copy _T", copies=1).name
+		loan = fb.make_loan(item, self.student2.name).name
+		frappe.db.set_value("Library Loan", loan, "due_date", add_days(nowdate(), -3))
+		frappe.set_user(f.make_user("library.officer.b4@example.com", roles=("Library Officer",)).name)
+		detail = library.get_loan(loan)
+		self.assertEqual((detail["name"], detail["status"]), (loan, "Issued"))
+		self.assertEqual(detail["days_overdue"], 3)
+		self.assertEqual(detail["fine_amount"], 3 * lib.fine_per_day())
+		self.assertEqual((detail["item"]["name"], detail["item"]["available_copies"]), (item, 0))
+		self.assertEqual(
+			(detail["borrower"]["type"], detail["borrower"]["id"]), ("Student", self.student2.name)
+		)
+		self.assertGreaterEqual(detail["borrower"]["active_loans"], 1)
+		frappe.set_user(self.student2.user)
+		with self.assertRaises(frappe.PermissionError):
+			library.get_loan(loan)

@@ -39,7 +39,9 @@ messages. Delivery goes through the lead's `mahanaim.services.communication` (`n
     `Archived → Draft | Sent`.
   - The audience-specific field is required: Programme → `programme`, Campus → `campus`,
     Course Offering → `course_offering`. Unrelated audience fields are cleared.
-  - `posted_by` defaults to the session user. Scheduled needs `publish_on`. `expires_on` must be after `publish_on`.
+  - `posted_by` defaults to the session user. Scheduled needs `publish_on`. `expires_on` (a Date) cannot be before the
+    day of `publish_on`; the same day is allowed. An announcement stays visible through the whole of its `expires_on`
+    day and disappears the day after.
   - The audience of a sent announcement cannot change. Sent announcements cannot be deleted; archive them instead.
   - Scheduled announcements are sent by the lead's 5-minute `dispatch_scheduled_announcements` job.
 - **Message Template**
@@ -138,6 +140,11 @@ Example args: `{"all": 1}`
 
 Args: `limit` (default `20`), `start` (default `0`).
 
+Announcements visible to the session user (audience match, Sent or due Scheduled, `show_in_portal`, not expired), pinned
+first and then newest first. `total` is the number of all visible announcements (not the page length), so
+`start`/`limit` pagination works. Visibility: published (`publish_on` empty or in the past) and `expires_on` empty or
+today or later.
+
 Example args: `{"limit": 2}`
 
 ```json
@@ -181,7 +188,7 @@ Example args: `{"limit": 2}`
         "summary": "CAT 1 on the Doctrine of God is open in the Exams section. You have 40 minutes once you…"
       }
     ],
-    "total": 2
+    "total": 7
   }
 }
 ```
@@ -635,16 +642,36 @@ Example args: `{"phone": "0712345678", "message": "Test from Mahanaim"}`
 ### `send_direct_message`
 - **Path:** `mahanaim.api.communication.send_direct_message`
 - **Method:** POST
-- **Guard:** roles: Communications Officer, Registrar, Admissions Officer, Finance Officer, Academic Dean
+- **Guard:** roles: Communications Officer, Registrar, Admissions Officer, Finance Officer, Academic Dean, **or** a
+  Lecturer (class-scoped, see below)
 
-recipients: [{user|student|staff_member|sponsor|email|phone}], channels ⊆ Email/SMS/In-App.
+recipients: [{user|student|staff_member|sponsor|email|phone}], channels ⊆ Email/SMS/In-App (default In-App + Email).
 
-Args: `recipients` (required), `subject` (required), `message` (required), `channels` (default `None`).
+Args: `recipients` (default `None`), `subject` (required), `message` (required), `channels` (default `None`),
+`offering` (default `None`). Pass `recipients`, `offering` or both. `offering` adds every student with an `Enrolled`
+Course Enrolment in that Course Offering (`DoesNotExistError` if it does not exist). Recipients are de-duplicated. At
+most 2,000 recipients per call.
+
+**Lecturers.** A user with the Lecturer role and none of the roles above (nor System Manager / College Administrator)
+may message only students actively enrolled in offerings they teach (listed in the offering's Lecturers table).
+- Each recipient spec must resolve to such a student. `student`, `user` or `email` specs are matched against the
+  Student record; `phone`, `sponsor` or `staff_member` specs are rejected. Any other recipient fails the whole call with
+  `PermissionError` "You can only message students enrolled in the classes you teach. Not allowed: …".
+- `offering` must be one they teach, else `PermissionError` "You do not teach {offering}."
+- The message HTML is sanitised.
+- Per-user quota: 20 sends per hour (`messaging.LECTURER_DIRECT_PER_HOUR`); exceeding it raises
+  `RateLimitExceededError` (HTTP 429). Only sends that pass validation count.
+
+Staff behaviour is unchanged. Every send is written to the Message Log as before.
 
 Example args: `{"recipients": [{"student": "STU-2026-00017"}, {"phone": "0712345678"}], "subject": "Chapel duty", "message": "You are on chapel duty this Wednesday.", "channels": ["In-App", "SMS"]}`
+
+Lecturer example args: `{"offering": "OFF-2026-00019", "subject": "CAT 1 moved", "message": "CAT 1 is now on Friday.", "channels": ["In-App"]}`
 
 ```json
 {
   "message": {"queued": false, "recipients": 2, "sent": {"Email": 0, "SMS": 2, "In-App": 1, "failed": 0}, "skipped": []}
 }
 ```
+
+With more than 50 resolved recipients the send is queued: `{"queued": true, "recipients": 80, "skipped": []}`.

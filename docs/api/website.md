@@ -76,6 +76,14 @@ Header/footer payload for every public page (contract pinned by the lead).
 
 Args: None.
 
+Also carries two blocks so the public /fees and /admissions pages need neither `giving_options` nor `home`:
+- `payments`: `{enabled, paybill, till, account_hint}` read from M-Pesa Settings. Only public numbers are returned, never
+  keys, secrets, passkeys or tokens. Everything is `null` (and `enabled` is `false`) while M-Pesa is disabled.
+  PayBill mode fills `paybill` and `account_hint`; Buy Goods mode fills `till` only.
+- `admissions`: `{intro, steps, intakes}`, the same object `home().admissions` returns.
+
+The payload is cached for 5 minutes and cleared whenever website content is saved.
+
 ```json
 {
   "message": {
@@ -120,7 +128,20 @@ Args: None.
     "footer_text": "Equipping servants for the Kingdom since 1999.",
     "announcement_bar": {"text": "Applications for the January intake are open — apply online today.", "link": "/apply"},
     "meta_description": "Mahanaim Bible College — diploma and certificate programmes in Biblical Studies, Pastor…",
-    "cta": {"label": "Apply for the next intake", "to": "/apply"}
+    "cta": {"label": "Apply for the next intake", "to": "/apply"},
+    "payments": {
+      "enabled": true,
+      "paybill": "4123456",
+      "till": null,
+      "account_hint": "Your student number, or your application number if you have not enrolled yet."
+    },
+    "admissions": {
+      "intro": "We admit students in January, May and September. Applications are completed online and most applicants receive a decision within two weeks.",
+      "steps": ["Create an account and verify your email", "Choose a programme, campus and study mode"],
+      "intakes": [
+        {"name": "January 2027", "academic_year": "2026-2027", "start_date": "2027-01-05", "application_close_date": "2026-12-29"}
+      ]
+    }
   }
 }
 ```
@@ -862,6 +883,37 @@ Example args: `{"registration": "RSVP-2026-000004", "email": "rev.simon@example.
   "request": "STK-2026-000031", "customer_message": "Success. Request accepted for processing", "error": null}}
 ```
 
+### `event_payment_status`
+- **Path:** `mahanaim.api.website.event_payment_status`
+- **Method:** GET or POST (the shared MpesaPay poller may use either)
+- **Guard:** guest · rate-limited (120 per 10 minutes per IP)
+
+Poll an event-fee M-Pesa payment started by `register_for_event` or `pay_event_fee`. `email` must match the
+registration's email (case-insensitive); a signed-in registrant may omit it. An unknown registration, a wrong email
+and a missing email all raise the same `DoesNotExistError` "Registration not found.", so registrations cannot be
+enumerated. Read-only: the poll never changes the registration.
+
+Args: `registration` (required), `email` (default `None`).
+
+`status` is one of:
+- the M-Pesa Request status: `Initiated`, `Pending`, `Failed`, `Cancelled` or `Timeout`;
+- `Completed`: the registration is Paid;
+- `Received`: M-Pesa confirmed, and the seat confirmation is still being processed;
+- `Not Started`: there is no event-fee request yet;
+- `Not Required` or `Waived`.
+
+`done` is `false` only while the status is `Initiated` or `Pending`. `receipt` is the M-Pesa receipt once known.
+
+Example args: `{"registration": "RSVP-2026-000004", "email": "rev.simon@example.com"}`
+
+```json
+{"message": {"status": "Pending", "done": false, "receipt": null, "message": "Waiting for you to confirm on your phone…"}}
+```
+
+```json
+{"message": {"status": "Completed", "done": true, "receipt": "SJK4H2L9QX", "message": "Payment received. Your seat is confirmed."}}
+```
+
 ### `faqs`
 - **Path:** `mahanaim.api.website.faqs`
 - **Method:** GET
@@ -1474,6 +1526,24 @@ Example args: `{"data": {"name": "EVT-2026-00001", "capacity": 250}}`
     }
   }
 }
+```
+
+### `delete_event`
+- **Path:** `mahanaim.api.website.delete_event`
+- **Method:** POST
+- **Guard:** roles: Communications Officer, Chaplain (plus the Campus Event delete DocPerm)
+
+Deletes an event that nobody has registered for, and clears the website cache. If the event has any Event
+Registration, including cancelled ones, the call raises `ValidationError` ("This event has N registration(s). Cancel
+the event instead of deleting it."). In that case, set its status to Cancelled with `save_event` instead; that also
+notifies the registrants.
+
+Args: `name` (required).
+
+Example args: `{"name": "EVT-2026-00009"}`
+
+```json
+{"message": {"ok": true, "name": "EVT-2026-00009"}}
 ```
 
 ### `event_registrations`
