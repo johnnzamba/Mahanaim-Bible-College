@@ -189,6 +189,20 @@ Args: `refresh` (default `0`).
 
 Args: None.
 
+Every filter carries `default`, the value `run_report` uses when the caller leaves that filter blank. It is resolved
+per request, so it may be a dated or term value, and it is `null` when the filter has no default. Use it to prefill
+the filter form.
+
+| Report | Filter | Default |
+| --- | --- | --- |
+| `fee_collections`, `payment_reconciliation`, `message_delivery` | `from_date` | today − 30 days |
+| `giving_summary` | `from_date` | first day of the month 11 months ago (a 12-month window) |
+| `aging` | `as_of` | today |
+| `attendance_summary`, `lms_engagement`, `lecturer_workload` | `academic_term` | the current Academic Term (if one is set) |
+
+`student_list` with no `status` lists current students (Admitted, Registered, Active, Deferred and Suspended). That
+is a set of statuses rather than one value, so it isn't declared as a default and doesn't appear in `applied_filters`.
+
 ```json
 {
   "message": [
@@ -197,17 +211,18 @@ Args: None.
       "label": "Enrolment by programme",
       "category": "Academic",
       "filters": [
-        {"key": "campus", "label": "Campus", "type": "Link", "options": "Campus"},
-        {"key": "study_mode", "label": "Study Mode", "type": "Link", "options": "Study Mode"}
+        {"key": "campus", "label": "Campus", "type": "Link", "options": "Campus", "default": null},
+        {"key": "study_mode", "label": "Study Mode", "type": "Link", "options": "Study Mode", "default": null}
       ]
     },
     {
-      "key": "admissions_funnel",
-      "label": "Admissions funnel",
-      "category": "Admissions",
+      "key": "fee_collections",
+      "label": "Fee collections",
+      "category": "Finance",
       "filters": [
-        {"key": "intake", "label": "Intake", "type": "Link", "options": "Intake"},
-        {"key": "programme", "label": "Programme", "type": "Link", "options": "Programme"}
+        {"key": "from_date", "label": "From Date", "type": "Date", "options": null, "default": "2026-09-21"},
+        {"key": "to_date", "label": "To Date", "type": "Date", "options": null, "default": null},
+        {"key": "mode_of_payment", "label": "Mode", "type": "Select", "options": "M-Pesa\nBank Deposit\n…", "default": null}
       ]
     }
   ]
@@ -220,6 +235,11 @@ Args: None.
 - **Guard:** staff
 
 Args: `report` (required), `filters` (default `None`).
+
+`filters` echoes the caller's filters unchanged. `applied_filters` is what the report actually ran with: the
+catalogue defaults (see `reports_catalog`), overridden by any non-blank values the caller supplied. Blank values
+(`""`, `null`, `[]`) fall back to the default. Show `applied_filters` as "Showing …" chips. `export_report` applies
+the same defaults.
 
 Example args: `{"report": "fee_collections"}`
 
@@ -266,7 +286,8 @@ Example args: `{"report": "fee_collections"}`
     },
     "report": "fee_collections",
     "label": "Fee collections",
-    "filters": {}
+    "filters": {},
+    "applied_filters": {"from_date": "2026-09-21"}
   }
 }
 ```

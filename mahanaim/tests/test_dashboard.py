@@ -1,3 +1,5 @@
+from unittest.mock import patch
+
 import frappe
 from frappe.tests import IntegrationTestCase
 from frappe.utils import add_days, add_to_date, now_datetime, nowdate, random_string
@@ -290,3 +292,26 @@ class TestDashboard(IntegrationTestCase):
 			"credentials_issued", {"programme": self.programme, "from_date": add_days(nowdate(), -5)}
 		)
 		self.assertNotIn(old.name, [r["name"] for r in recent["rows"]])
+
+	def test_run_report_returns_applied_filters(self):
+		thirty_days_ago = str(add_days(nowdate(), -30))
+		catalog = {r["key"]: {x["key"]: x for x in r["filters"]} for r in dashboard.reports_catalog()}
+		self.assertTrue(all("default" in x for filters in catalog.values() for x in filters.values()))
+		self.assertEqual(catalog["fee_collections"]["from_date"]["default"], thirty_days_ago)
+		self.assertIsNone(catalog["fee_collections"]["to_date"]["default"])
+
+		frappe.set_user(self.finance_user)
+		res = dashboard.run_report("fee_collections", {"mode_of_payment": "Cash", "to_date": ""})
+		self.assertEqual(res["applied_filters"], {"from_date": thirty_days_ago, "mode_of_payment": "Cash"})
+		self.assertEqual(res["filters"], {"mode_of_payment": "Cash", "to_date": ""})
+		explicit = dashboard.run_report("fee_collections", {"from_date": "2026-01-01"})
+		self.assertEqual(explicit["applied_filters"], {"from_date": "2026-01-01"})
+
+		frappe.set_user("Administrator")
+		with patch("mahanaim.services.dashboard.current_term", return_value=self.term):
+			res = dashboard.run_report("lecturer_workload", {})
+			term_default = {r["key"]: r for r in dashboard.reports_catalog()}["lecturer_workload"]["filters"][
+				0
+			]
+		self.assertEqual(res["applied_filters"], {"academic_term": self.term})
+		self.assertEqual((term_default["key"], term_default["default"]), ("academic_term", self.term))

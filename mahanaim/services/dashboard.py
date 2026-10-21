@@ -608,8 +608,34 @@ def _col(key, label, type_="Data"):
 	return {"key": key, "label": label, "type": type_}
 
 
-def _f(key, label, type_="Data", options=None):
-	return {"key": key, "label": label, "type": type_, "options": options}
+def _f(key, label, type_="Data", options=None, default=None):
+	"""Report filter spec. `default` may be a value or a zero-argument callable resolved per request."""
+	return {"key": key, "label": label, "type": type_, "options": options, "default": default}
+
+
+def _with_default(filter_: dict, default) -> dict:
+	return {**filter_, "default": default}
+
+
+def _days_ago(days: int):
+	return lambda: str(add_days(getdate(nowdate()), -days))
+
+
+def _today() -> str:
+	return str(getdate(nowdate()))
+
+
+def _giving_window_start() -> str:
+	return str(get_first_day(add_months(getdate(nowdate()), -11)))
+
+
+def _current_term() -> str | None:
+	return current_term()
+
+
+def _resolve_default(default):
+	value = default() if callable(default) else default
+	return None if value in (None, "", []) else value
 
 
 F_PROGRAMME = _f("programme", "Programme", "Link", "Programme")
@@ -618,6 +644,8 @@ F_TERM = _f("academic_term", "Academic Term", "Link", "Academic Term")
 F_INTAKE = _f("intake", "Intake", "Link", "Intake")
 F_FROM = _f("from_date", "From Date", "Date")
 F_TO = _f("to_date", "To Date", "Date")
+F_FROM_30 = _with_default(F_FROM, _days_ago(30))
+F_TERM_CURRENT = _with_default(F_TERM, _current_term)
 
 
 def _apply(filters: dict, src: dict, keys: tuple[str, ...]):
@@ -2075,7 +2103,7 @@ REPORTS = {
 		"category": "Finance",
 		"roles": FINANCE_ROLES,
 		"filters": [
-			F_FROM,
+			F_FROM_30,
 			F_TO,
 			_f(
 				"mode_of_payment",
@@ -2097,7 +2125,7 @@ REPORTS = {
 		"label": "Receivables aging",
 		"category": "Finance",
 		"roles": FINANCE_ROLES,
-		"filters": [F_PROGRAMME, F_CAMPUS, F_TERM, _f("as_of", "As of", "Date")],
+		"filters": [F_PROGRAMME, F_CAMPUS, F_TERM, _f("as_of", "As of", "Date", default=_today)],
 		"run": r_aging,
 	},
 	"payment_reconciliation": {
@@ -2105,7 +2133,7 @@ REPORTS = {
 		"category": "Finance",
 		"roles": FINANCE_ROLES,
 		"filters": [
-			F_FROM,
+			F_FROM_30,
 			F_TO,
 			F_CAMPUS,
 			_f("status", "Status", "Select", "\n".join((*TRANSACTION_STATUSES, NO_TRANSACTION))),
@@ -2130,21 +2158,29 @@ REPORTS = {
 		"label": "Attendance summary",
 		"category": "Academic",
 		"roles": ACADEMIC_ROLES,
-		"filters": [F_TERM, F_CAMPUS, _f("course_offering", "Course Offering", "Link", "Course Offering")],
+		"filters": [
+			F_TERM_CURRENT,
+			F_CAMPUS,
+			_f("course_offering", "Course Offering", "Link", "Course Offering"),
+		],
 		"run": r_attendance_summary,
 	},
 	"lms_engagement": {
 		"label": "LMS engagement",
 		"category": "Academic",
 		"roles": ACADEMIC_ROLES,
-		"filters": [F_TERM, F_CAMPUS, _f("course_offering", "Course Offering", "Link", "Course Offering")],
+		"filters": [
+			F_TERM_CURRENT,
+			F_CAMPUS,
+			_f("course_offering", "Course Offering", "Link", "Course Offering"),
+		],
 		"run": r_lms_engagement,
 	},
 	"lecturer_workload": {
 		"label": "Lecturer workload",
 		"category": "Academic",
 		"roles": ACADEMIC_ROLES,
-		"filters": [F_TERM, F_CAMPUS, _f("department", "Department", "Link", "Department")],
+		"filters": [F_TERM_CURRENT, F_CAMPUS, _f("department", "Department", "Link", "Department")],
 		"run": r_lecturer_workload,
 	},
 	"credentials_issued": {
@@ -2191,30 +2227,49 @@ REPORTS = {
 		"label": "Giving summary",
 		"category": "Church & Sponsors",
 		"roles": FINANCE_ROLES | {ROLE_CHAPLAIN},
-		"filters": [F_FROM, F_TO, _f("giving_type", "Giving type", "Link", "Giving Type")],
+		"filters": [
+			_with_default(F_FROM, _giving_window_start),
+			F_TO,
+			_f("giving_type", "Giving type", "Link", "Giving Type"),
+		],
 		"run": r_giving_summary,
 	},
 	"message_delivery": {
 		"label": "Message delivery",
 		"category": "Communication",
 		"roles": {ROLE_COMMS, ROLE_AUDITOR},
-		"filters": [F_FROM, F_TO, _f("channel", "Channel", "Select", "Email\nSMS\nIn-App")],
+		"filters": [F_FROM_30, F_TO, _f("channel", "Channel", "Select", "Email\nSMS\nIn-App")],
 		"run": r_message_delivery,
 	},
 }
 
 
 def catalog(roles: set[str]) -> list[dict]:
+	"""Reports the roles may run. Each filter carries `default`: today's resolved value, or None."""
 	return [
 		{
 			"key": key,
 			"label": _(r["label"]),
 			"category": _(r["category"]),
-			"filters": [{**flt_, "label": _(flt_["label"])} for flt_ in r["filters"]],
+			"filters": [
+				{**flt_, "label": _(flt_["label"]), "default": _resolve_default(flt_.get("default"))}
+				for flt_ in r["filters"]
+			],
 		}
 		for key, r in REPORTS.items()
 		if allowed(roles, r["roles"])
 	]
+
+
+def applied_filters(spec: dict, filters: dict | None) -> dict:
+	"""Effective filters: the caller's non-blank values over the report's declared defaults."""
+	out = {}
+	for flt_ in spec["filters"]:
+		value = _resolve_default(flt_.get("default"))
+		if value is not None:
+			out[flt_["key"]] = value
+	out.update({k: v for k, v in (filters or {}).items() if v not in (None, "", [])})
+	return out
 
 
 def run(report: str, filters: dict, roles: set[str]) -> dict:
@@ -2225,10 +2280,12 @@ def run(report: str, filters: dict, roles: set[str]) -> dict:
 		frappe.throw(
 			_("You do not have access to the {0} report.").format(_(spec["label"])), frappe.PermissionError
 		)
-	out = spec["run"](filters or {})
+	applied = applied_filters(spec, filters)
+	out = spec["run"](applied)
 	out["report"] = report
 	out["label"] = _(spec["label"])
 	out["filters"] = filters or {}
+	out["applied_filters"] = applied
 	return out
 
 
