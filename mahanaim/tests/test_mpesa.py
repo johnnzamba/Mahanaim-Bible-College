@@ -394,3 +394,70 @@ class TestMpesa(IntegrationTestCase):
 		for secret in ("pk_test", "ck_test", "cs_test", fb.CALLBACK_TOKEN):
 			self.assertNotIn(secret, dump)
 		self.assertIn("paybill_confirmation", status["c2b_confirmation_url"])
+
+	# ------------------------------------------------------------------ admin settings screen
+	def test_admin_settings_masking_update_and_role_gate(self):
+		out = api.mpesa_settings()
+		self.assertEqual(out["passkey"], mpesa.MASK)
+		self.assertEqual(set(out["password_fields"]), set(mpesa.SECRET_FIELDS))
+		for secret in ("pk_test", "ck_test", "cs_test", fb.CALLBACK_TOKEN):
+			self.assertNotIn(secret, frappe.as_json(out))
+		info = out["info"]
+		self.assertTrue(info["configured"] and info["callback_urls_masked"] and not info["simulation"])
+		self.assertIn(
+			"mahanaim.api.finance.paybill_validation?token=", info["callback_urls"]["c2b_validation"]
+		)
+		revealed = api.mpesa_settings(reveal=1)["info"]["callback_urls"]
+		self.assertEqual(
+			revealed["stk_callback"],
+			f"https://portal.example.com/api/method/mahanaim.api.mpesa.stk_callback?token={fb.CALLBACK_TOKEN}",
+		)
+		trans_id = f"TA{random_string(8).upper()}"
+		mpesa.get_or_create_transaction(trans_id, source="C2B", amount=10, trans_time="2099-01-01 10:00:00")
+		self.assertEqual(str(api.mpesa_settings()["info"]["last_transaction_on"]), "2099-01-01 10:00:00")
+
+		out = api.update_mpesa_settings(
+			frappe.as_json(
+				{
+					"passkey": mpesa.MASK,
+					"consumer_key": "",
+					"consumer_secret": "cs_new",
+					"stk_timeout_seconds": "90",
+				}
+			)
+		)
+		settings = frappe.get_single("M-Pesa Settings")
+		self.assertEqual(settings.get_password("passkey"), "pk_test")
+		self.assertEqual(settings.get_password("consumer_key"), "ck_test")
+		self.assertEqual(settings.get_password("consumer_secret"), "cs_new")
+		self.assertEqual((out["stk_timeout_seconds"], out["consumer_secret"]), (90, mpesa.MASK))
+		self.assertRaises(frappe.ValidationError, api.update_mpesa_settings, {"business_shortcode": "17A379"})
+		self.assertRaises(
+			frappe.ValidationError,
+			api.update_mpesa_settings,
+			{"enabled": 1, "passkey": "", "callback_base_url": "ftp://x"},
+		)
+
+		frappe.set_user(f.make_user(roles=("Finance Officer",)).name)
+		self.assertRaises(frappe.PermissionError, api.mpesa_settings)
+		self.assertRaises(frappe.PermissionError, api.update_mpesa_settings, {"enabled": 0})
+		self.assertRaises(frappe.PermissionError, api.test_mpesa_connection)
+
+	def test_admin_connection_test_scrubs_secrets(self):
+		self.assertEqual(api.test_mpesa_connection()["ok"], True)
+		self.get.side_effect = lambda *a, **k: fb.FakeResponse(400, {})
+		out = api.test_mpesa_connection()
+		self.assertFalse(out["ok"])
+		self.assertIn("HTTP 400", out["message"])
+		with patch.object(
+			mpesa, "get_access_token", side_effect=mpesa.DarajaError("bad key ck_test / pk_test")
+		):
+			out = api.test_mpesa_connection()
+		self.assertNotIn("ck_test", out["message"])
+		self.assertNotIn("pk_test", out["message"])
+		if frappe.conf.get("developer_mode"):
+			fb.setup_mpesa(enabled=0)
+			self.get.reset_mock()
+			out = api.test_mpesa_connection()
+			self.assertEqual((out["ok"], out["simulation"]), (True, True))
+			self.get.assert_not_called()

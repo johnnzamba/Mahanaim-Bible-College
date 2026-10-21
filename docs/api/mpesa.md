@@ -77,7 +77,7 @@ the transaction stays `Matched`/`Unmatched` for `reconcile_transaction`.
 | `mahanaim.api.mpesa.reconcile_transaction` | POST | finance | `trans_id`, `student?`, `application?` | `{transaction, payment, status: "Allocated"}`. For a Giving/Event Fee transaction with no student/application, the owner service is retried: `{transaction, payment: null, record, status}` |
 | `mahanaim.api.mpesa.list_requests` | GET | finance read | `status?`, `purpose?`, `search?` (name, phone, student, receipt, account), `from_date?`, `to_date?`, `start`, `page_length` | `{data, total}`; rows: name, creation, phone_number, amount, status, purpose, student, programme_application, sponsor, account_reference, checkout_request_id, result_code, result_desc, mpesa_receipt_number, transaction, payment, initiated_by, remarks |
 | `mahanaim.api.mpesa.mpesa_settings_status` | GET | finance read | none | See below (secrets masked) |
-| `mahanaim.api.mpesa.test_connection` | POST | finance | none | `{ok: true, environment: "Sandbox", message: "Connected to Daraja successfully"}`. On failure: `ok: false` with the error |
+| `mahanaim.api.mpesa.test_connection` | POST | finance | none | `{ok, simulation, environment, message}` (same as `test_mpesa_connection` below) |
 
 Students and applicants poll `mahanaim.api.finance.payment_request_status` (see [finance.md](finance.md)).
 
@@ -93,6 +93,73 @@ Students and applicants poll `mahanaim.api.finance.payment_request_status` (see 
  "stk_timeout_seconds": 120, "auto_allocate": true, "sms_receipt": true, "email_receipt": true,
  "has_consumer_key": true, "has_consumer_secret": true, "has_passkey": true, "has_callback_token": true}
 ```
+
+## Admin settings screen
+
+The admin Settings screen uses these endpoints. Only College Administrator and System Manager can call them.
+
+| Endpoint | Method | Args | Returns |
+| --- | --- | --- | --- |
+| `mahanaim.api.mpesa.mpesa_settings` | GET | `reveal=0` | Settings shape below |
+| `mahanaim.api.mpesa.update_mpesa_settings` | POST | `data` (JSON object of fields; optional `regenerate_callback_token: 1`) | Same shape as `mpesa_settings` |
+| `mahanaim.api.mpesa.test_mpesa_connection` | POST | none | `{ok, simulation, environment, message}` |
+| `mahanaim.api.mpesa.register_c2b_urls` | POST | none | See the staff tools table above. M-Pesa must be enabled first |
+
+**`mpesa_settings`**
+
+- Returns every editable field of M-Pesa Settings.
+- Password fields (`consumer_key`, `consumer_secret`, `passkey`, `callback_token`) come back as `"********"`
+  when they are set, and `null` when they are not.
+- `info` holds derived, read-only values.
+- The callback URLs contain the secret `?token=`, so it is masked by default. Pass `reveal=1` to get the full
+  URLs for copying into the Daraja portal.
+
+```json
+{"enabled": 1, "environment": "Sandbox", "transaction_type": "CustomerPayBillOnline",
+ "business_shortcode": "174379", "till_number": null, "account_reference_prefix": "MBC",
+ "consumer_key": "********", "consumer_secret": "********", "passkey": "********",
+ "callback_base_url": "https://campus.example.ac.ke", "callback_token": "********",
+ "stk_timeout_seconds": 120, "auto_allocate": 1, "sms_receipt": 1, "email_receipt": 1,
+ "password_fields": ["consumer_key", "consumer_secret", "passkey", "callback_token"],
+ "modified": "2026-10-21 10:00:00",
+ "info": {
+  "environment": "Sandbox", "base_url": "https://sandbox.safaricom.co.ke", "enabled": true,
+  "configured": true, "missing": [], "simulation": false,
+  "callback_urls": {
+   "stk_callback": "https://campus.example.ac.ke/api/method/mahanaim.api.mpesa.stk_callback?token=********a1b2",
+   "c2b_validation": "https://campus.example.ac.ke/api/method/mahanaim.api.finance.paybill_validation?token=********a1b2",
+   "c2b_confirmation": "https://campus.example.ac.ke/api/method/mahanaim.api.finance.paybill_confirmation?token=********a1b2"},
+  "callback_urls_masked": true, "last_transaction_on": "2026-10-20 14:03:11", "warnings": [],
+  "has_consumer_key": true, "has_consumer_secret": true, "has_passkey": true, "has_callback_token": true}}
+```
+
+Field meanings:
+
+- `missing` lists what still has to be filled in before M-Pesa can be enabled.
+- `simulation` is true when M-Pesa is disabled on a `developer_mode` site.
+- `warnings` gives hints such as a non-https or localhost callback host, or a callback token that hasn't been
+  generated yet.
+- `last_transaction_on` is the latest M-Pesa Transaction time, from `trans_time` or else `creation`.
+
+**`update_mpesa_settings`**
+
+- Only fields present in `data` change.
+- A Password value that is empty or made only of `*` keeps the stored secret.
+- The save validates the following, and raises `ValidationError` when a rule fails:
+  - The shortcode and till number contain digits only.
+  - The account reference prefix is at most 6 letters or digits.
+  - The callback base URL starts with `http(s)://`, and must be `https://` in Production.
+  - `stk_timeout_seconds` is clamped to 30–600.
+  - Enabling M-Pesa requires the shortcode, consumer key and secret, passkey and callback base URL (plus the
+    till number for Buy Goods).
+- `regenerate_callback_token: 1` issues a new token. Run `register_c2b_urls` again afterwards.
+- Saving also clears the cached OAuth token.
+
+**`test_mpesa_connection`**
+
+- Fetches a fresh OAuth token.
+- In simulation mode it returns `{ok: true, simulation: true}` without any network call.
+- Error messages never contain the consumer key or secret, the passkey or the token.
 
 ## Contracts (Python, for other domains)
 

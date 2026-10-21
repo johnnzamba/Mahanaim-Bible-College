@@ -25,12 +25,15 @@ import hmac
 import json
 import math
 import re
+import secrets
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import frappe
 import requests
 from frappe import _
+from frappe.model import no_value_fields, table_fields
+from frappe.query_builder.functions import Coalesce, Max
 from frappe.utils import add_to_date, cint, flt, get_datetime, getdate, now_datetime, random_string, today
 
 from mahanaim.utils import normalize_phone
@@ -49,6 +52,9 @@ TIMEOUT_CODES = {"1037", "1019"}
 OPEN_STATUSES = ("Initiated", "Pending")
 FAILURE_STATUSES = ("Failed", "Cancelled", "Timeout")
 ACCEPTED = {"ResultCode": 0, "ResultDesc": "Accepted"}
+SETTINGS_DOCTYPE = "M-Pesa Settings"
+SECRET_FIELDS = ("consumer_key", "consumer_secret", "passkey", "callback_token")
+MASK = "********"
 EAT = ZoneInfo("Africa/Nairobi")
 
 
@@ -862,14 +868,149 @@ def settings_status() -> dict:
 	}
 
 
+def _scrub(message: str, settings) -> str:
+	"""Remove any configured secret (and the cached OAuth token) from a message shown to staff."""
+	message = str(message or "")
+	values = [_secret(settings, f) for f in SECRET_FIELDS]
+	values.append(frappe.cache.get_value(_token_cache_key(settings)))
+	for value in values:
+		if value and len(str(value)) >= 4:
+			message = message.replace(str(value), MASK)
+	return message[:300]
+
+
 def test_connection() -> dict:
+	"""Fetch a fresh OAuth token to prove the credentials work. No network call in simulation mode."""
 	settings = get_settings()
+	out = {"ok": False, "simulation": False, "environment": settings.environment}
+	if is_simulation(settings):
+		out.update(
+			ok=True,
+			simulation=True,
+			message=_(
+				"Simulation mode is on (M-Pesa disabled on a developer site); nothing was sent to Safaricom."
+			),
+		)
+		return out
 	try:
 		get_access_token(settings, force=True)
-		return {
-			"ok": True,
-			"environment": settings.environment,
-			"message": _("Connected to Daraja successfully"),
-		}
+		out.update(ok=True, message=_("Connected to Daraja successfully"))
+	except DarajaError as e:
+		out["message"] = _scrub(e, settings)
+	except requests.RequestException as e:
+		out["message"] = _("Could not reach Safaricom Daraja ({0})").format(type(e).__name__)
 	except Exception as e:
-		return {"ok": False, "environment": settings.environment, "message": str(e)[:300]}
+		frappe.log_error("M-Pesa connection test failed", _scrub(frappe.get_traceback(), settings))
+		out["message"] = _("Connection test failed ({0})").format(type(e).__name__)
+	return out
+
+
+# ---------------------------------------------------------------------------------- admin settings screen
+def _is_mask(value) -> bool:
+	return not value or set(str(value)) == {"*"}
+
+
+def _last_transaction_on():
+	T = frappe.qb.DocType("M-Pesa Transaction")
+	row = frappe.qb.from_(T).select(Max(Coalesce(T.trans_time, T.creation))).run()
+	return row[0][0] if row else None
+
+
+def admin_settings(reveal: bool = False) -> dict:
+	"""Every editable M-Pesa Settings field (Password fields masked) plus derived read-only `info`.
+
+	Callback URLs carry the secret ?token=; they are masked unless `reveal` is set (admin copy/paste).
+	"""
+	s = frappe.get_single(SETTINGS_DOCTYPE)
+	data, password_fields = {}, []
+	for df in frappe.get_meta(SETTINGS_DOCTYPE).fields:
+		if df.fieldtype in no_value_fields or df.fieldtype in table_fields:
+			continue
+		if df.fieldtype == "Password":
+			password_fields.append(df.fieldname)
+			data[df.fieldname] = MASK if s.get(df.fieldname) else None
+		else:
+			data[df.fieldname] = s.get(df.fieldname)
+
+	urls = {
+		"stk_callback": callback_url("stk_callback", s),
+		"c2b_validation": callback_url("paybill_validation", s, module="mahanaim.api.finance"),
+		"c2b_confirmation": callback_url("paybill_confirmation", s, module="mahanaim.api.finance"),
+	}
+	if not reveal:
+		urls = {k: mask_url(v) for k, v in urls.items()}
+	has = {f: bool(_secret(s, f)) for f in SECRET_FIELDS}
+	missing = [
+		label
+		for ok, label in (
+			(s.business_shortcode, _("Business Shortcode")),
+			(has["consumer_key"], _("Consumer Key")),
+			(has["consumer_secret"], _("Consumer Secret")),
+			(has["passkey"], _("Passkey")),
+			(s.callback_base_url, _("Callback Base URL")),
+			(s.transaction_type != "CustomerBuyGoodsOnline" or s.till_number, _("Till Number")),
+		)
+		if not ok
+	]
+	warnings = []
+	public_base = s.callback_base_url or frappe.utils.get_url()
+	if not has["callback_token"]:
+		warnings.append(_("Save the settings once to generate the callback token."))
+	if not s.callback_base_url:
+		warnings.append(
+			_("Callback Base URL is empty; the site URL {0} is used instead.").format(public_base)
+		)
+	if not public_base.startswith("https://"):
+		warnings.append(_("Safaricom only calls public https:// URLs; use a tunnel or the live domain."))
+	if re.search(r"//(localhost|127\.|0\.0\.0\.0|[^/]*\.localhost)", public_base):
+		warnings.append(_("The callback host is not reachable from the internet."))
+
+	data.update(
+		password_fields=password_fields,
+		modified=s.modified,
+		info={
+			"environment": s.environment,
+			"base_url": base_url(s),
+			"enabled": bool(cint(s.enabled)),
+			"configured": not missing,
+			"missing": missing,
+			"simulation": is_simulation(s),
+			"callback_urls": urls,
+			"callback_urls_masked": not reveal,
+			"last_transaction_on": _last_transaction_on(),
+			"warnings": warnings,
+			**{f"has_{k}": v for k, v in has.items()},
+		},
+	)
+	return data
+
+
+def update_admin_settings(payload: dict) -> dict:
+	"""Save the admin form. Empty / all-`*` Password values keep the stored secret.
+
+	`regenerate_callback_token: 1` issues a new callback token (C2B URLs must then be re-registered).
+	"""
+	doc = frappe.get_single(SETTINGS_DOCTYPE)
+	doc.check_permission("write")
+	for df in frappe.get_meta(SETTINGS_DOCTYPE).fields:
+		if (
+			df.fieldname not in payload
+			or df.fieldtype in no_value_fields
+			or df.fieldtype in table_fields
+			or df.read_only
+		):
+			continue
+		value = payload[df.fieldname]
+		if df.fieldtype == "Password":
+			if _is_mask(value):
+				continue
+			value = str(value).strip()
+		elif df.fieldtype in ("Check", "Int"):
+			value = cint(value)
+		elif isinstance(value, str):
+			value = value.strip()
+		doc.set(df.fieldname, value)
+	if cint(payload.get("regenerate_callback_token")):
+		doc.callback_token = secrets.token_urlsafe(24)
+	doc.save()
+	return admin_settings()

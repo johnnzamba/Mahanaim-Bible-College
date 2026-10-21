@@ -46,6 +46,9 @@ The C2B URLs live under `api.finance` on purpose: Daraja's RegisterURL rejects U
 ## 3. Fill in M-Pesa Settings
 
 Open **Desk → M-Pesa Settings** (`/app/m-pesa-settings`) as a System Manager or College Administrator.
+You can also use the admin portal's Settings screen, which uses `mahanaim.api.mpesa.mpesa_settings` and
+`update_mpesa_settings` (see [api/mpesa.md](api/mpesa.md#admin-settings-screen)). That screen also shows the
+callback URLs and has a **Test connection** button.
 
 | Field | Sandbox | Production |
 | --- | --- | --- |

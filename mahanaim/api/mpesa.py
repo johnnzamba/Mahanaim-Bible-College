@@ -23,7 +23,7 @@ from mahanaim.api.finance import (
 	require_finance,
 	require_finance_read,
 )
-from mahanaim.api.utils import require_login, require_roles
+from mahanaim.api.utils import parse_json, require_login, require_roles
 from mahanaim.services import mpesa as svc
 
 REJECTED = {"ResultCode": 1, "ResultDesc": "Rejected"}
@@ -247,4 +247,30 @@ def mpesa_settings_status():
 @frappe.whitelist(methods=["POST"])
 def test_connection():
 	require_finance()
+	return svc.test_connection()
+
+
+# ---------------------------------------------------------------------------------- admin settings screen
+@frappe.whitelist()
+def mpesa_settings(reveal=0):
+	"""M-Pesa Settings for the admin Settings screen (College Administrator / System Manager).
+
+	Password fields come back as "********" (or null when unset). `reveal=1` returns the callback URLs with the
+	full ?token= so they can be copied into the Daraja portal.
+	"""
+	require_roles()
+	return svc.admin_settings(reveal=bool(cint(reveal)))
+
+
+@frappe.whitelist(methods=["POST"])
+def update_mpesa_settings(data):
+	"""Validate + save; an empty or all-`*` Password value keeps the stored secret. Returns mpesa_settings()."""
+	require_roles()
+	return svc.update_admin_settings(parse_json(data, {}) or {})
+
+
+@frappe.whitelist(methods=["POST"])
+def test_mpesa_connection():
+	"""Fetch an OAuth token -> {ok, simulation, environment, message}. Simulation mode makes no network call."""
+	require_roles()
 	return svc.test_connection()

@@ -16,11 +16,22 @@ class MPesaSettings(Document):
 		self.stk_timeout_seconds = min(max(cint(self.stk_timeout_seconds) or 120, 30), 600)
 		if self.callback_base_url:
 			self.callback_base_url = self.callback_base_url.strip().rstrip("/")
+			if not self.callback_base_url.startswith(("https://", "http://")):
+				frappe.throw(_("Callback Base URL must start with https://"))
 			if self.environment == "Production" and not self.callback_base_url.startswith("https://"):
 				frappe.throw(_("Production callbacks must use an https:// base URL"))
-		for field in ("business_shortcode", "till_number"):
+		for field, label in (
+			("business_shortcode", _("Business Shortcode")),
+			("till_number", _("Till Number")),
+		):
 			if self.get(field):
 				self.set(field, self.get(field).strip())
+				if not self.get(field).isdigit():
+					frappe.throw(_("{0} must contain digits only").format(label))
+		if self.account_reference_prefix:
+			self.account_reference_prefix = self.account_reference_prefix.strip()
+			if not self.account_reference_prefix.isalnum() or len(self.account_reference_prefix) > 6:
+				frappe.throw(_("Account Reference Prefix must be up to 6 letters or digits"))
 		if not cint(self.enabled):
 			return
 		missing = [
