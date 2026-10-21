@@ -103,7 +103,7 @@
    "in_list_view": 1,
    "in_standard_filter": 1,
    "label": "Status",
-   "options": "Issued\nReturned\nOverdue\nLost"
+   "options": "Requested\nIssued\nReturned\nOverdue\nLost\nCancelled"
   },
   {
    "fieldname": "fines_section_1",

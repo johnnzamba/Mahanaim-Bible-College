@@ -7,6 +7,7 @@
  "field_order": [
   "home_tab",
   "announcement_bar",
+  "announcement_link",
   "hero_eyebrow",
   "hero_title",
   "hero_subtitle",
@@ -72,6 +73,12 @@
    "fieldname": "announcement_bar",
    "fieldtype": "Data",
    "label": "Announcement Bar"
+  },
+  {
+   "description": "Optional link for the announcement bar, e.g. /apply",
+   "fieldname": "announcement_link",
+   "fieldtype": "Data",
+   "label": "Announcement Link"
   },
   {
    "default": "Raising servant leaders since 1998",

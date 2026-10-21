@@ -8,8 +8,10 @@
  "field_order": [
   "giving_type_name",
   "is_active",
+  "allow_online",
   "column_break_0_1",
   "income_account",
+  "suggested_amounts",
   "section_section_1",
   "description"
  ],
@@ -31,6 +33,13 @@
    "label": "Is Active"
   },
   {
+   "fieldname": "allow_online",
+   "fieldtype": "Check",
+   "label": "Show on Online Giving Page",
+   "default": "1",
+   "description": "Offer this giving type on the public /give page (M-Pesa)."
+  },
+  {
    "fieldname": "column_break_0_1",
    "fieldtype": "Column Break"
   },
@@ -39,6 +48,12 @@
    "fieldname": "income_account",
    "fieldtype": "Data",
    "label": "Income Account"
+  },
+  {
+   "fieldname": "suggested_amounts",
+   "fieldtype": "Data",
+   "label": "Suggested Amounts",
+   "description": "Comma-separated quick amounts for the online giving page, e.g. 500, 1000, 2500, 5000"
   },
   {
    "fieldname": "section_section_1",
@@ -52,7 +67,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-05-01 09:00:00.000000",
+ "modified": "2026-10-21 23:40:00.000000",
  "modified_by": "Administrator",
  "module": "Church Partners",
  "name": "Giving Type",

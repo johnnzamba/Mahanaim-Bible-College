@@ -101,10 +101,27 @@ jinja = {
 # ---------------------------------------------------------------------------
 # Document events (cross-cutting; doctype-specific logic lives in controllers)
 # ---------------------------------------------------------------------------
+_WEBSITE_CACHE = {
+	"on_update": "mahanaim.services.website.clear_website_cache",
+	"on_trash": "mahanaim.services.website.clear_website_cache",
+}
+_SPONSOR_ROLLUPS = {
+	"on_submit": "mahanaim.services.church.refresh_sponsor_rollups",
+	"on_cancel": "mahanaim.services.church.refresh_sponsor_rollups",
+}
+
 doc_events = {
 	"User": {
 		"on_update": "mahanaim.services.students.sync_user_profile_link",
 	},
+	# Public pages cache programme, staff, campus and intake data.
+	"Programme": _WEBSITE_CACHE,
+	"Staff Member": _WEBSITE_CACHE,
+	"Campus": _WEBSITE_CACHE,
+	"Intake": _WEBSITE_CACHE,
+	# Sponsor totals sum sponsor-paid payments and sponsor credits.
+	"Student Payment": _SPONSOR_ROLLUPS,
+	"Fee Adjustment": _SPONSOR_ROLLUPS,
 }
 
 # Staff MFA (Settings.admin_mfa_required): sessions opened outside mahanaim.api.auth.login + verify_mfa
@@ -148,6 +165,7 @@ scheduler_events = {
 	},
 	"hourly": [
 		"mahanaim.services.exams.update_exam_statuses",
+		"mahanaim.services.church.reconcile_online_giving",
 	],
 	"daily": [
 		"mahanaim.services.fees.mark_overdue_invoices",

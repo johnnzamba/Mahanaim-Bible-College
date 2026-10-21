@@ -19,7 +19,13 @@
   "student",
   "section_section_1",
   "answers",
-  "checked_in_on"
+  "checked_in_on",
+  "payment_section_2",
+  "amount",
+  "payment_status",
+  "column_break_2_2",
+  "payment_reference",
+  "mpesa_request"
  ],
  "fields": [
   {
@@ -107,6 +113,41 @@
    "fieldname": "checked_in_on",
    "fieldtype": "Datetime",
    "label": "Checked in on",
+   "read_only": 1
+  },
+  {
+   "fieldname": "payment_section_2",
+   "fieldtype": "Section Break",
+   "label": "Payment"
+  },
+  {
+   "fieldname": "amount",
+   "fieldtype": "Currency",
+   "label": "Amount Due",
+   "read_only": 1
+  },
+  {
+   "default": "Not Required",
+   "fieldname": "payment_status",
+   "fieldtype": "Select",
+   "in_standard_filter": 1,
+   "label": "Payment Status",
+   "options": "Not Required\nPending\nPaid\nWaived"
+  },
+  {
+   "fieldname": "column_break_2_2",
+   "fieldtype": "Column Break"
+  },
+  {
+   "fieldname": "payment_reference",
+   "fieldtype": "Data",
+   "label": "Payment Reference",
+   "read_only": 1
+  },
+  {
+   "fieldname": "mpesa_request",
+   "fieldtype": "Data",
+   "label": "M-Pesa Request",
    "read_only": 1
   }
  ],
