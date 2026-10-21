@@ -245,8 +245,11 @@ def _ensure_lms_bridge_status():
 
 
 # ---------------------------------------------------------------------------------- templates
-_SIGN = "<p>God bless you,<br>{{ college }}</p>"
+_SIGN = "<p>God bless you,<br>{{ college|e }}</p>"
+_DEAR = "<p>Dear {{ (recipient.name or 'friend')|e }},</p>"
 
+# (name, event, send_email, send_sms, subject, email_body, sms_body)
+# Subjects and SMS are plain text. In email bodies, escape (|e) every value a user can type.
 MESSAGE_TEMPLATES = [
 	(
 		"Welcome — Account Created",
@@ -254,7 +257,7 @@ MESSAGE_TEMPLATES = [
 		1,
 		0,
 		"Welcome to the {{ college }} Digital Campus",
-		"<p>Dear {{ recipient.name or 'friend' }},</p><p>Your Digital Campus account is ready. "
+		_DEAR + "<p>Your Digital Campus account is ready. "
 		"Sign in at <a href='{{ site_url }}/signin'>{{ site_url }}/signin</a> to continue.</p>" + _SIGN,
 		"Welcome to {{ college }} Digital Campus. Sign in at {{ site_url }}/signin",
 	),
@@ -269,13 +272,26 @@ MESSAGE_TEMPLATES = [
 		"{{ code }} is your {{ settings.short_name }} verification code. Expires in {{ minutes }} min.",
 	),
 	(
+		"Password Reset Link",
+		"Password Reset Link",
+		1,
+		0,
+		"Reset your {{ college }} password",
+		_DEAR + "<p>We received a request to reset your password. "
+		"<a href='{{ reset_url }}'>Choose a new password</a>."
+		"{% if hours %} The link expires in {{ hours }} hour{{ 's' if hours != 1 }}.{% endif %}</p>"
+		"<p>If you did not ask for this, you can ignore this email.</p>" + _SIGN,
+		"",
+	),
+	(
 		"Application Submitted",
 		"Application Submitted",
 		1,
 		1,
 		"Application {{ doc.name }} received",
-		"<p>Dear {{ doc.first_name }},</p><p>We have received your application for "
-		"<b>{{ doc.programme_name }}</b> (ref <b>{{ doc.name }}</b>). We will notify you as it progresses.</p>"
+		"<p>Dear {{ doc.first_name|e }},</p><p>We have received your application for "
+		"<b>{{ (doc.programme_name or doc.programme)|e }}</b> (ref <b>{{ doc.name }}</b>). "
+		"We will notify you as it progresses.</p>"
 		"{% if doc.fee_status != 'Paid' and doc.application_fee %}<p>Please pay the application fee of "
 		"{{ frappe.utils.fmt_money(doc.application_fee, currency=settings.currency) }} to complete your submission."
 		"</p>{% endif %}" + _SIGN,
@@ -287,7 +303,7 @@ MESSAGE_TEMPLATES = [
 		1,
 		1,
 		"Application fee received — {{ doc.name }}",
-		"<p>Dear {{ doc.first_name }},</p><p>Thank you. Your application fee has been received and your "
+		"<p>Dear {{ doc.first_name|e }},</p><p>Thank you. Your application fee has been received and your "
 		"application {{ doc.name }} is now in the review queue.</p>" + _SIGN,
 		"{{ settings.short_name }}: Application fee for {{ doc.name }} received. Thank you.",
 	),
@@ -297,7 +313,7 @@ MESSAGE_TEMPLATES = [
 		0,
 		0,
 		"Your application is under review",
-		"<p>Dear {{ doc.first_name }}, your application {{ doc.name }} is now under review.</p>" + _SIGN,
+		"<p>Dear {{ doc.first_name|e }}, your application {{ doc.name }} is now under review.</p>" + _SIGN,
 		"",
 	),
 	(
@@ -306,9 +322,10 @@ MESSAGE_TEMPLATES = [
 		1,
 		1,
 		"Interview scheduled — {{ doc.name }}",
-		"<p>Dear {{ doc.first_name }},</p><p>You are invited for an admission interview on "
-		"<b>{{ frappe.utils.format_datetime(doc.interview_date) }}</b>.</p>" + _SIGN,
-		"{{ settings.short_name }}: Admission interview on {{ frappe.utils.format_datetime(doc.interview_date) }}. Ref {{ doc.name }}",
+		"<p>Dear {{ doc.first_name|e }},</p><p>You are invited for an admission interview"
+		"{% if doc.interview_date %} on <b>{{ frappe.utils.format_datetime(doc.interview_date) }}</b>{% endif %}.</p>"
+		+ _SIGN,
+		"{{ settings.short_name }}: Admission interview{% if doc.interview_date %} on {{ frappe.utils.format_datetime(doc.interview_date) }}{% endif %}. Ref {{ doc.name }}",
 	),
 	(
 		"Admission Offer",
@@ -316,11 +333,23 @@ MESSAGE_TEMPLATES = [
 		1,
 		1,
 		"Congratulations — admission offer from {{ college }}",
-		"<p>Dear {{ doc.first_name }},</p><p>We are delighted to offer you admission to <b>{{ doc.programme_name }}</b> "
-		"({{ doc.study_mode }}, {{ doc.campus }}). Sign in to download your admission letter and accept the offer"
+		"<p>Dear {{ doc.first_name|e }},</p><p>We are delighted to offer you admission to "
+		"<b>{{ (doc.programme_name or doc.programme)|e }}</b> ({{ doc.study_mode|e }}, {{ doc.campus|e }}). "
+		"Sign in to download your admission letter and accept the offer"
 		"{% if doc.offer_expiry %} before {{ frappe.utils.formatdate(doc.offer_expiry) }}{% endif %}.</p>"
 		+ _SIGN,
 		"Congratulations! {{ college }} has offered you admission to {{ doc.programme_name }}. Accept at {{ site_url }}/applicant",
+	),
+	(
+		"Application Waitlisted",
+		"Application Waitlisted",
+		1,
+		0,
+		"Update on your application {{ doc.name }}",
+		"<p>Dear {{ doc.first_name|e }},</p><p>Your application {{ doc.name }} for "
+		"<b>{{ (doc.programme_name or doc.programme)|e }}</b> has been placed on the waiting list. "
+		"We will contact you if a place becomes available.</p>" + _SIGN,
+		"",
 	),
 	(
 		"Application Unsuccessful",
@@ -328,9 +357,40 @@ MESSAGE_TEMPLATES = [
 		1,
 		0,
 		"Update on your application {{ doc.name }}",
-		"<p>Dear {{ doc.first_name }},</p><p>Thank you for applying to {{ college }}. After careful review we are "
-		"unable to offer you admission at this time.{% if doc.rejection_reason %} Reason: {{ doc.rejection_reason }}{% endif %}</p>"
+		"<p>Dear {{ doc.first_name|e }},</p><p>Thank you for applying to {{ college|e }}. After careful review we are "
+		"unable to offer you admission to {{ (doc.programme_name or doc.programme)|e }} at this time."
+		"{% if doc.rejection_reason %} Reason: {{ doc.rejection_reason|e }}{% endif %}</p>" + _SIGN,
+		"",
+	),
+	(
+		"Offer Accepted",
+		"Offer Accepted",
+		1,
+		0,
+		"Offer accepted — {{ doc.name }}",
+		"<p>Dear {{ doc.first_name|e }},</p><p>Thank you for accepting your offer to study "
+		"<b>{{ (doc.programme_name or doc.programme)|e }}</b>. We will send your student details shortly.</p>"
 		+ _SIGN,
+		"",
+	),
+	(
+		"Offer Declined",
+		"Offer Declined",
+		1,
+		0,
+		"Offer declined — {{ doc.name }}",
+		"<p>Dear {{ doc.first_name|e }},</p><p>You have declined the offer of admission to "
+		"<b>{{ (doc.programme_name or doc.programme)|e }}</b>. We wish you God's blessing.</p>" + _SIGN,
+		"",
+	),
+	(
+		"Application Withdrawn",
+		"Application Withdrawn",
+		1,
+		0,
+		"Application {{ doc.name }} withdrawn",
+		"<p>Dear {{ doc.first_name|e }},</p><p>Your application {{ doc.name }} for "
+		"<b>{{ (doc.programme_name or doc.programme)|e }}</b> has been withdrawn.</p>" + _SIGN,
 		"",
 	),
 	(
@@ -339,7 +399,7 @@ MESSAGE_TEMPLATES = [
 		1,
 		1,
 		"Welcome, student {{ doc.student_number }}",
-		"<p>Dear {{ doc.first_name }},</p><p>Welcome to {{ college }}! Your student number is "
+		"<p>Dear {{ doc.first_name|e }},</p><p>Welcome to {{ college|e }}! Your student number is "
 		"<b>{{ doc.student_number }}</b>. Sign in to the student portal to register for courses.</p>" + _SIGN,
 		"Welcome to {{ college }}. Your student number is {{ doc.student_number }}. Portal: {{ site_url }}/student",
 	),
@@ -349,8 +409,19 @@ MESSAGE_TEMPLATES = [
 		1,
 		0,
 		"Course registration approved — {{ doc.academic_term }}",
-		"<p>Dear {{ doc.student_name }},</p><p>Your course registration for {{ doc.academic_term }} has been approved "
-		"({{ doc.total_credits }} credits).</p>" + _SIGN,
+		"<p>Dear {{ doc.student_name|e }},</p><p>Your course registration for {{ doc.academic_term|e }} has been "
+		"approved ({{ doc.total_credits }} credits).</p>" + _SIGN,
+		"",
+	),
+	(
+		"Course Registration Not Approved",
+		"Registration Rejected",
+		1,
+		0,
+		"Course registration not approved — {{ doc.academic_term }}",
+		"<p>Dear {{ doc.student_name|e }},</p><p>Your course registration for {{ doc.academic_term|e }} was not "
+		"approved.{% if doc.remarks %} Reason: {{ doc.remarks|e }}.{% endif %} Please review your courses and "
+		"submit again.</p>" + _SIGN,
 		"",
 	),
 	(
@@ -359,7 +430,7 @@ MESSAGE_TEMPLATES = [
 		1,
 		1,
 		"Fee invoice {{ doc.name }}",
-		"<p>Dear {{ doc.student_name }},</p><p>Invoice <b>{{ doc.name }}</b> of "
+		"<p>Dear {{ doc.student_name|e }},</p><p>Invoice <b>{{ doc.name }}</b> of "
 		"{{ frappe.utils.fmt_money(doc.total_amount, currency=settings.currency) }} has been issued"
 		"{% if doc.due_date %}, due {{ frappe.utils.formatdate(doc.due_date) }}{% endif %}. Pay via M-Pesa from the student portal.</p>"
 		+ _SIGN,
@@ -371,8 +442,9 @@ MESSAGE_TEMPLATES = [
 		1,
 		1,
 		"Receipt {{ doc.name }} — payment received",
-		"<p>Dear {{ recipient.name }},</p><p>We have received {{ frappe.utils.fmt_money(doc.amount, currency=settings.currency) }} "
-		"via {{ doc.mode_of_payment }}{% if doc.reference_no %} (ref {{ doc.reference_no }}){% endif %}. Receipt no. <b>{{ doc.name }}</b>.</p>"
+		_DEAR + "<p>We have received {{ frappe.utils.fmt_money(doc.amount, currency=settings.currency) }} "
+		"via {{ doc.mode_of_payment }}{% if doc.reference_no %} (ref {{ doc.reference_no|e }}){% endif %}. "
+		"Receipt no. <b>{{ doc.name }}</b>.</p>"
 		"{% if balance is defined %}<p>Your balance is {{ frappe.utils.fmt_money(balance, currency=settings.currency) }}.</p>{% endif %}"
 		+ _SIGN,
 		"{{ settings.short_name }}: Received KES {{ frappe.utils.fmt_money(doc.amount) }} ref {{ doc.reference_no or doc.name }}.{% if balance is defined %} Bal KES {{ frappe.utils.fmt_money(balance) }}{% endif %}",
@@ -383,7 +455,7 @@ MESSAGE_TEMPLATES = [
 		1,
 		1,
 		"Fee balance reminder",
-		"<p>Dear {{ recipient.name }},</p><p>This is a friendly reminder that your fee balance is "
+		_DEAR + "<p>This is a friendly reminder that your fee balance is "
 		"{{ frappe.utils.fmt_money(balance, currency=settings.currency) }}. Please clear it to keep access to exams and the LMS.</p>"
 		+ _SIGN,
 		"{{ settings.short_name }}: Fee balance KES {{ frappe.utils.fmt_money(balance) }}. Pay via the student portal. Thank you.",
@@ -394,7 +466,7 @@ MESSAGE_TEMPLATES = [
 		0,
 		0,
 		"New assignment: {{ doc.title }}",
-		"<p>A new assignment <b>{{ doc.title }}</b> has been posted for {{ doc.course_title }}. "
+		"<p>A new assignment <b>{{ doc.title|e }}</b> has been posted for {{ doc.course_title|e }}. "
 		"Due {{ frappe.utils.format_datetime(doc.due_date) }}.</p>",
 		"",
 	),
@@ -404,7 +476,7 @@ MESSAGE_TEMPLATES = [
 		0,
 		0,
 		"Reminder: {{ doc.title }} is due soon",
-		"<p>{{ doc.title }} ({{ doc.course_title }}) is due {{ frappe.utils.format_datetime(doc.due_date) }}.</p>",
+		"<p>{{ doc.title|e }} ({{ doc.course_title|e }}) is due {{ frappe.utils.format_datetime(doc.due_date) }}.</p>",
 		"",
 	),
 	(
@@ -413,7 +485,7 @@ MESSAGE_TEMPLATES = [
 		0,
 		0,
 		"Feedback ready: {{ doc.assignment_title }}",
-		"<p>Your submission for {{ doc.assignment_title }} has been graded.</p>",
+		"<p>Your submission for {{ doc.assignment_title|e }} has been graded.</p>",
 		"",
 	),
 	(
@@ -422,7 +494,7 @@ MESSAGE_TEMPLATES = [
 		1,
 		0,
 		"{{ doc.exam_type }} scheduled: {{ doc.title }}",
-		"<p>{{ doc.title }} ({{ doc.course_title }}) opens {{ frappe.utils.format_datetime(doc.start_datetime) }} "
+		"<p>{{ doc.title|e }} ({{ doc.course_title|e }}) opens {{ frappe.utils.format_datetime(doc.start_datetime) }} "
 		"and lasts {{ doc.duration_minutes }} minutes.</p>",
 		"",
 	),
@@ -432,8 +504,18 @@ MESSAGE_TEMPLATES = [
 		0,
 		1,
 		"Reminder: {{ doc.title }} starts soon",
-		"<p>{{ doc.title }} starts {{ frappe.utils.format_datetime(doc.start_datetime) }}.</p>",
+		"<p>{{ doc.title|e }} starts {{ frappe.utils.format_datetime(doc.start_datetime) }}.</p>",
 		"{{ settings.short_name }}: {{ doc.title }} starts {{ frappe.utils.format_datetime(doc.start_datetime) }}.",
+	),
+	(
+		"Exam Results Released",
+		"Exam Results Released",
+		1,
+		0,
+		"Results released: {{ doc.title }}",
+		_DEAR + "<p>Your results for <b>{{ doc.title|e }}</b> ({{ doc.course_title|e }}) are now available "
+		"in the student portal.</p>" + _SIGN,
+		"",
 	),
 	(
 		"Results Published",
@@ -441,8 +523,7 @@ MESSAGE_TEMPLATES = [
 		1,
 		1,
 		"Results published — {{ term }}",
-		"<p>Dear {{ recipient.name }},</p><p>Your results for {{ term }} are now available in the student portal.</p>"
-		+ _SIGN,
+		_DEAR + "<p>Your results for {{ term|e }} are now available in the student portal.</p>" + _SIGN,
 		"{{ settings.short_name }}: Your {{ term }} results are out. View at {{ site_url }}/student/results",
 	),
 	(
@@ -451,7 +532,7 @@ MESSAGE_TEMPLATES = [
 		1,
 		1,
 		"Your transcript {{ doc.name }} is ready",
-		"<p>Dear {{ doc.student_name }},</p><p>Your {{ doc.transcript_type|lower }} transcript has been issued. "
+		"<p>Dear {{ doc.student_name|e }},</p><p>Your {{ doc.transcript_type|lower }} transcript has been issued. "
 		"Verification code: <b>{{ doc.verification_code }}</b>.</p>" + _SIGN,
 		"{{ settings.short_name }}: Transcript {{ doc.name }} issued. Verify: {{ site_url }}/verify/{{ doc.verification_code }}",
 	),
@@ -461,7 +542,7 @@ MESSAGE_TEMPLATES = [
 		1,
 		1,
 		"Your certificate is ready",
-		"<p>Dear {{ doc.student_name }},</p><p>Your {{ doc.award_title }} certificate ({{ doc.certificate_serial }}) "
+		"<p>Dear {{ doc.student_name|e }},</p><p>Your {{ doc.award_title|e }} certificate ({{ doc.certificate_serial }}) "
 		"has been issued.</p>" + _SIGN,
 		"{{ settings.short_name }}: Certificate {{ doc.certificate_serial }} issued. Congratulations!",
 	),
@@ -471,8 +552,8 @@ MESSAGE_TEMPLATES = [
 		1,
 		0,
 		"{{ doc.request_type }} request {{ doc.name }}: {{ doc.status }}",
-		"<p>Dear {{ doc.student_name }},</p><p>Your {{ doc.request_type|lower }} request is now <b>{{ doc.status }}</b>."
-		"{% if doc.review_notes %}<br>{{ doc.review_notes }}{% endif %}</p>" + _SIGN,
+		"<p>Dear {{ doc.student_name|e }},</p><p>Your {{ doc.request_type|lower }} request is now <b>{{ doc.status }}</b>."
+		"{% if doc.review_notes %}<br>{{ doc.review_notes|e }}{% endif %}</p>" + _SIGN,
 		"",
 	),
 	(
@@ -481,9 +562,77 @@ MESSAGE_TEMPLATES = [
 		1,
 		1,
 		"You're registered: {{ doc.event_title }}",
-		"<p>Dear {{ doc.full_name }},</p><p>Your registration for <b>{{ doc.event_title }}</b> is confirmed "
+		"<p>Dear {{ doc.full_name|e }},</p><p>Your registration for <b>{{ doc.event_title|e }}</b> is confirmed "
 		"(ref {{ doc.name }}).</p>" + _SIGN,
 		"{{ settings.short_name }}: Registered for {{ doc.event_title }}. Ref {{ doc.name }}",
+	),
+	(
+		"Event Waitlist",
+		"Event Waitlist",
+		1,
+		0,
+		"Waiting list: {{ doc.event_title }}",
+		"<p>Dear {{ doc.full_name|e }},</p><p>{{ doc.event_title|e }} is fully booked, so you are on the waiting "
+		"list (ref {{ doc.name }}). We will let you know as soon as a seat opens up.</p>" + _SIGN,
+		"",
+	),
+	(
+		"Event Cancelled",
+		"Event Cancelled",
+		1,
+		1,
+		"Cancelled: {{ doc.title }}",
+		_DEAR + "<p>We are sorry — <b>{{ doc.title|e }}</b>, scheduled for "
+		"{{ frappe.utils.format_datetime(doc.start_datetime, 'd MMM yyyy, h:mm a') }}, has been cancelled.</p>"
+		+ _SIGN,
+		"{{ settings.short_name }}: Sorry, {{ doc.title }} on {{ frappe.utils.format_datetime(doc.start_datetime, 'd MMM, h:mm a') }} has been cancelled.",
+	),
+	(
+		"New Website Enquiry",
+		"Contact Enquiry",
+		1,
+		0,
+		"New {{ doc.subject or 'General' }} enquiry from {{ doc.full_name }}",
+		"<p>A new enquiry was submitted on the website.</p>"
+		"<p><b>{{ doc.full_name|e }}</b> &lt;{{ doc.email|e }}&gt; {{ (doc.phone or '')|e }}</p>"
+		"<blockquote>{% for line in (doc.message or '').splitlines() %}{{ line|e }}<br>{% endfor %}</blockquote>",
+		"",
+	),
+	(
+		"Enquiry Response",
+		"Enquiry Response",
+		1,
+		0,
+		"Re: your {{ (doc.subject or 'General')|lower }} enquiry",
+		"<p>Dear {{ doc.full_name|e }},</p>"
+		"<p>{% for line in (doc.response or '').splitlines() %}{{ line|e }}<br>{% endfor %}</p>"
+		+ _SIGN
+		+ "<hr>"
+		"<p><small>Your message:</small></p>"
+		"<blockquote>{% for line in (doc.message or '').splitlines() %}{{ line|e }}<br>{% endfor %}</blockquote>",
+		"",
+	),
+	(
+		"Library Book Overdue",
+		"Library Loan Overdue",
+		1,
+		1,
+		"Library book overdue: {{ doc.item_title }}",
+		"<p>Dear {{ (recipient.name or doc.borrower_name or 'reader')|e }},</p><p><b>{{ doc.item_title|e }}</b> was "
+		"due back on {{ frappe.utils.formatdate(doc.due_date) }}. Please return it to the library as soon as "
+		"possible.{% if doc.fine_amount %} Your fine so far is {{ fine }}.{% endif %}</p>" + _SIGN,
+		"Library: '{{ (doc.item_title or '')[:40] }}' was due on {{ frappe.utils.formatdate(doc.due_date) }}. Please return it.{% if doc.fine_amount %} Fine so far {{ fine }}.{% endif %}",
+	),
+	(
+		"Giving Receipt",
+		"Giving Receipt",
+		1,
+		1,
+		"Thank you for your gift — {{ doc.name }}",
+		"<p>Dear {{ (recipient.name or doc.giver_name or 'friend')|e }},</p><p>We have received your "
+		"{{ doc.giving_type|e }} of <b>{{ amount }}</b> (ref {{ (doc.reference_no or doc.name)|e }}). "
+		"Thank you for partnering with us in training servants for the harvest.</p>" + _SIGN,
+		"Thank you! We received your {{ doc.giving_type }} of {{ amount }}. Ref {{ doc.reference_no or doc.name }}. {{ settings.short_name }}",
 	),
 	(
 		"Sponsor Progress Report",
@@ -491,7 +640,7 @@ MESSAGE_TEMPLATES = [
 		1,
 		0,
 		"Progress update on the students you sponsor",
-		"<p>Dear {{ recipient.name }},</p><p>Thank you for partnering with {{ college }}. A progress update for "
+		_DEAR + "<p>Thank you for partnering with {{ college|e }}. A progress update for "
 		"the students you sponsor is available in your sponsor portal.</p>" + _SIGN,
 		"",
 	),
@@ -499,6 +648,14 @@ MESSAGE_TEMPLATES = [
 
 
 def _ensure_message_templates():
+	jenv = frappe.get_jenv()
+	for name, in_app in frappe.get_all("Message Template", fields=["name", "in_app_body"], as_list=True):
+		# Older installs cut the email body at 280 characters, which could split a Jinja tag.
+		try:
+			jenv.parse(in_app or "")
+		except Exception:
+			frappe.db.set_value("Message Template", name, "in_app_body", None, update_modified=False)
+	active = set(frappe.get_all("Message Template", filters={"is_active": 1}, pluck="event"))
 	for name, event, email, sms, subject, body, sms_body in MESSAGE_TEMPLATES:
 		if frappe.db.exists("Message Template", name):
 			continue
@@ -507,13 +664,15 @@ def _ensure_message_templates():
 				"doctype": "Message Template",
 				"template_name": name,
 				"event": event,
-				"is_active": 1,
+				# never compete with a template an administrator already activated for this event
+				"is_active": 0 if event in active else 1,
 				"send_email": email,
 				"send_sms": sms if sms_body else 0,
 				"send_in_app": 1,
 				"subject": subject,
 				"email_body": body,
 				"sms_body": sms_body,
-				"in_app_body": frappe.utils.strip_html(body)[:280],
+				# blank in-app text: notify() uses the rendered email body as plain text
+				"in_app_body": None,
 			}
 		).insert(ignore_permissions=True)
