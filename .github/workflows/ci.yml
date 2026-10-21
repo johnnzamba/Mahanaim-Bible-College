@@ -55,6 +55,7 @@ jobs:
           python-version: "3.14"
       - run: pip install ruff
       - run: ruff check mahanaim --output-format=github
+      - run: ruff format --check mahanaim
 
   server-tests:
     name: Server tests (Frappe v16)
@@ -122,6 +123,8 @@ jobs:
           bench new-site test.localhost --db-root-password root --admin-password admin --mariadb-user-host-login-scope='%' --db-host 127.0.0.1
           bench --site test.localhost set-config allow_tests 1
           bench --site test.localhost set-config mute_emails 1
+          # the suite creates hundreds of users; Frappe's default caps sign-ups at 60/hour
+          bench --site test.localhost set-config throttle_user_limit 5000 --parse
           bench --site test.localhost install-app mahanaim
 
       - name: Run tests
