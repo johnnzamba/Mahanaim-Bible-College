@@ -46,6 +46,7 @@ src/
     components/Charts.jsx TrendChart, BarsChart, DonutChart, Legendary
     layout/PortalShell.jsx  rail + header + command palette + notifications + mobile tab bar
     layout/PublicLayout.jsx website header (mega menu), announcement bar, footer
+    components/MpesaPay.jsx MpesaPay: phone + amount → STK push → poll status → receipt (all M-Pesa payments)
     components/OtpInput.jsx OtpInput (6 boxes, paste/autofill), useCountdown, ResendLink
     pages/AccountSettings.jsx  /<portal>/account: profile, change password, verified phone change, appearance
 ```
@@ -124,6 +125,7 @@ pay.mutate({ invoice, phone })
 | Flow | `Tabs`, `Stepper` (multi-step forms), `Timeline` (status history), `Board` (kanban) |
 | Charts | `TrendChart`, `BarsChart`, `DonutChart` + `Legendary` (palette `PALETTE`) |
 | Feedback | `toast.success/error/info`, `Alert`, `Empty`, `ErrorState` |
+| M-Pesa payment | `MpesaPay({open, onClose, title, amount, fixedAmount, start({phone, amount}), onDone})`: STK push, status polling, receipt or failure, sandbox simulate buttons |
 | One-time codes | `OtpInput({value, onChange, onComplete})` + `useCountdown` + `ResendLink` (`mahanaim.api.auth.request_otp` / `verify_otp`) |
 
 DataTable columns: `{ key, label, render?(row), sortValue?(row), align?, hideOnMobile?, width?, export? }`.
