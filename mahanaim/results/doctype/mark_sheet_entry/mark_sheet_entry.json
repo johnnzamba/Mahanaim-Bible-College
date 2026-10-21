@@ -16,6 +16,9 @@
   "grade",
   "grade_points",
   "result_status",
+  "is_absent",
+  "pending_components",
+  "overridden_components",
   "remarks"
  ],
  "fields": [
@@ -95,6 +98,26 @@
    "read_only": 1
   },
   {
+   "fieldname": "is_absent",
+   "fieldtype": "Check",
+   "label": "Absent",
+   "read_only": 1
+  },
+  {
+   "fieldname": "pending_components",
+   "fieldtype": "Data",
+   "label": "Pending Components",
+   "read_only": 1,
+   "description": "Weighted components still awaiting marks (cat, assignment, exam, other)"
+  },
+  {
+   "fieldname": "overridden_components",
+   "fieldtype": "Data",
+   "label": "Overridden Components",
+   "read_only": 1,
+   "description": "Components entered manually by the lecturer (not auto-refreshed)"
+  },
+  {
    "fieldname": "remarks",
    "fieldtype": "Data",
    "label": "Remarks"
@@ -103,7 +126,7 @@
  "index_web_pages_for_search": 0,
  "istable": 1,
  "links": [],
- "modified": "2026-05-01 09:00:00.000000",
+ "modified": "2026-10-21 20:30:00.000000",
  "modified_by": "Administrator",
  "module": "Results",
  "name": "Mark Sheet Entry",

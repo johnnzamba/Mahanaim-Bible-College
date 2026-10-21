@@ -35,7 +35,8 @@
   "submission_count",
   "graded_count",
   "column_break_3_4",
-  "average_score"
+  "average_score",
+  "reminder_sent_on"
  ],
  "fields": [
   {
@@ -221,11 +222,18 @@
    "fieldtype": "Float",
    "label": "Average Score",
    "read_only": 1
+  },
+  {
+   "fieldname": "reminder_sent_on",
+   "fieldtype": "Datetime",
+   "label": "Due Reminder Sent On",
+   "read_only": 1,
+   "no_copy": 1
   }
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-05-01 09:00:00.000000",
+ "modified": "2026-10-21 20:30:00.000000",
  "modified_by": "Administrator",
  "module": "Assessments",
  "name": "Assignment",

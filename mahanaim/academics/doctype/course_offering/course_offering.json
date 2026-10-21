@@ -218,7 +218,7 @@
    "fieldname": "lms_sync_status",
    "fieldtype": "Select",
    "label": "LMS Sync Status",
-   "options": "Not Synced\nSynced\nError",
+   "options": "Not Synced\nSynced\nError\nNot Installed",
    "read_only": 1
   },
   {
@@ -251,7 +251,7 @@
  ],
  "index_web_pages_for_search": 0,
  "links": [],
- "modified": "2026-05-01 09:00:00.000000",
+ "modified": "2026-10-21 20:30:00.000000",
  "modified_by": "Administrator",
  "module": "Academics",
  "name": "Course Offering",

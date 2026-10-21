@@ -24,7 +24,7 @@
    "fieldtype": "Select",
    "in_list_view": 1,
    "label": "Event",
-   "options": "Started\nResumed\nAnswer Saved\nFocus Lost\nFocus Regained\nSubmitted\nAuto Submitted\nMarked\nReleased"
+   "options": "Started\nResumed\nAnswer Saved\nFocus Lost\nFocus Regained\nFullscreen Exit\nCopy\nPaste\nReconnect\nSubmitted\nAuto Submitted\nMarked\nReleased"
   },
   {
    "columns": 4,
@@ -37,7 +37,7 @@
  "index_web_pages_for_search": 0,
  "istable": 1,
  "links": [],
- "modified": "2026-05-01 09:00:00.000000",
+ "modified": "2026-10-21 20:30:00.000000",
  "modified_by": "Administrator",
  "module": "Assessments",
  "name": "Exam Attempt Event",
